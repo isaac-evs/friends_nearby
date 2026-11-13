@@ -1,0 +1,77 @@
+graph LR
+    subgraph Clients["Clients"]
+        Mobile["Mobile App"]
+        Web["Web App"]
+    end
+    style Clients fill:#f2f0f9,stroke:#856404,stroke-width:1px;
+
+    subgraph APIGateways["API Gateways"]
+        API_WS["Amazon API Gateway<br>(WebSocket)"]
+        API_HTTP["Amazon API Gateway<br>(HTTP API)"]
+    end
+    style APIGateways fill:#fbe6ec,stroke:#856404,stroke-width:1px;
+
+    subgraph Logic["Logic & Processing"]
+        Lambda_Main["AWS Lambda (Functions)<br><hr>• Authentication<br>• User Management<br>• Location Processing<br>• Friends Logic<br>• Notifications<br>• Save History"]
+    end
+    style Logic fill:#fef3e5,stroke:#b15c00,stroke-width:1px;
+
+    subgraph RealTime["Real-time (Cache & Pub/Sub)"]
+        Redis["Amazon ElastiCache (Redis)<br><hr>• Real-time locations<br>• User Pub/Sub<br>• TTL for inactive users"]
+    end
+    style RealTime fill:#effaf2,stroke:#2b6f39,stroke-width:1px,stroke-dasharray: 5 5;
+
+    subgraph UserData["User Data"]
+        Dynamo["Amazon DynamoDB (On-Demand)<br><hr>• User profiles<br>• Preferences<br>• Friend relationships"]
+    end
+    style UserData fill:#eaf4fc,stroke:#1a6aa2,stroke-width:1px,stroke-dasharray: 5 5;
+
+    subgraph Async["Asynchronous Processing"]
+        SQS["Amazon SQS<br><hr>• Location events<br>• Notifications<br>• Background processing"]
+    end
+    style Async fill:#fdf8e2,stroke:#cca01a,stroke-width:1px,stroke-dasharray: 5 5;
+
+    subgraph Workers["Background Workers"]
+        Lambda_Workers["AWS Lambda (Workers)<br><hr>• Processes events<br>• Saves history to S3"]
+    end
+    style Workers fill:#fef3e5,stroke:#b15c00,stroke-width:1px;
+
+    subgraph Storage["Object Storage"]
+        S3["Amazon S3<br><hr>• Profile photos<br>• Location history (in batches)"]
+    end
+    style Storage fill:#eaf4fc,stroke:#1a6aa2,stroke-width:1px,stroke-dasharray: 5 5;
+
+    subgraph ContentDelivery["Content Delivery"]
+        CloudFront["Amazon CloudFront (CDN)<br><hr>• Delivery of static images"]
+    end
+    style ContentDelivery fill:#f2f0f9,stroke:#4b2c85,stroke-width:1px,stroke-dasharray: 5 5;
+
+    Mobile -->|"WebSocket<br>(real-time location)"| API_WS
+    Web -->|"HTTPS<br>(REST API)"| API_HTTP
+
+    API_WS --> Lambda_Main
+    API_HTTP --> Lambda_Main
+
+    Lambda_Main <-->|"Read/write updates"| Redis
+    Lambda_Main <-->|"Query/update"| Dynamo
+
+    Lambda_Main --> SQS
+    SQS --> Lambda_Workers
+    Lambda_Workers --> S3
+
+    CloudFront --> S3
+    CloudFront ==>|"Profile pictures<br>(via CDN)"| Clients
+
+    classDef pink fill:#fbe6ec,stroke:#b82a5c,stroke-width:2px;
+    classDef orange fill:#fef3e5,stroke:#c86d00,stroke-width:2px;
+    classDef purple fill:#f2f0f9,stroke:#6f42c1,stroke-width:2px;
+    classDef green fill:#effaf2,stroke:#1e7e34,stroke-width:2px;
+    classDef blue fill:#eaf4fc,stroke:#0056b3,stroke-width:2px;
+    classDef yellow fill:#fdf8e2,stroke:#d39e00,stroke-width:2px;
+
+    class API_WS,API_HTTP pink;
+    class Lambda_Main,Lambda_Workers orange;
+    class Mobile,Web,CloudFront purple;
+    class Redis green;
+    class Dynamo,S3 blue;
+    class SQS yellow;

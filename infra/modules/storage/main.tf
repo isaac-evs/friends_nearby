@@ -1,7 +1,9 @@
+data "aws_caller_identity" "current" {}
+
 locals {
   buckets = {
-    media   = "${local.name}-media-${data.aws_caller_identity.current.account_id}"
-    history = "${local.name}-history-${data.aws_caller_identity.current.account_id}"
+    media   = "${var.name}-media-${data.aws_caller_identity.current.account_id}"
+    history = "${var.name}-history-${data.aws_caller_identity.current.account_id}"
   }
 }
 

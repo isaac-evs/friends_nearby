@@ -1,5 +1,8 @@
 # VPC with private subnets only (Lambda + Redis). No NAT: AWS services are
 # reached through VPC endpoints.
+data "aws_region" "current" {}
+data "aws_availability_zones" "available" { state = "available" }
+
 locals {
   azs = slice(data.aws_availability_zones.available.names, 0, 2)
 }
@@ -8,7 +11,7 @@ resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
-  tags                 = { Name = local.name }
+  tags                 = { Name = var.name }
 }
 
 resource "aws_subnet" "private" {
@@ -16,7 +19,7 @@ resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index)
   availability_zone = local.azs[count.index]
-  tags              = { Name = "${local.name}-private-${count.index}" }
+  tags              = { Name = "${var.name}-private-${count.index}" }
 }
 
 resource "aws_route_table" "private" {
@@ -30,7 +33,7 @@ resource "aws_route_table_association" "private" {
 }
 
 resource "aws_security_group" "lambda" {
-  name   = "${local.name}-lambda"
+  name   = "${var.name}-lambda"
   vpc_id = aws_vpc.main.id
   egress {
     from_port   = 0
@@ -41,7 +44,7 @@ resource "aws_security_group" "lambda" {
 }
 
 resource "aws_security_group" "redis" {
-  name   = "${local.name}-redis"
+  name   = "${var.name}-redis"
   vpc_id = aws_vpc.main.id
   ingress {
     from_port       = 6379
@@ -52,7 +55,7 @@ resource "aws_security_group" "redis" {
 }
 
 resource "aws_security_group" "endpoints" {
-  name   = "${local.name}-endpoints"
+  name   = "${var.name}-endpoints"
   vpc_id = aws_vpc.main.id
   ingress {
     from_port       = 443
@@ -65,14 +68,14 @@ resource "aws_security_group" "endpoints" {
 # Free gateway endpoints
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.region}.s3"
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = [aws_route_table.private.id]
 }
 
 resource "aws_vpc_endpoint" "dynamodb" {
   vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${var.region}.dynamodb"
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.dynamodb"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = [aws_route_table.private.id]
 }
@@ -80,7 +83,7 @@ resource "aws_vpc_endpoint" "dynamodb" {
 # Interface endpoints: SQS (enqueue) and execute-api (WebSocket postToConnection)
 resource "aws_vpc_endpoint" "sqs" {
   vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.region}.sqs"
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.sqs"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.endpoints.id]
@@ -89,7 +92,7 @@ resource "aws_vpc_endpoint" "sqs" {
 
 resource "aws_vpc_endpoint" "execute_api" {
   vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.region}.execute-api"
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.execute-api"
   vpc_endpoint_type   = "Interface"
   subnet_ids          = aws_subnet.private[*].id
   security_group_ids  = [aws_security_group.endpoints.id]

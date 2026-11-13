@@ -1,6 +1,8 @@
+data "aws_region" "current" {}
+
 # ---- HTTP API (web, REST)
 resource "aws_apigatewayv2_api" "http" {
-  name          = "${local.name}-http"
+  name          = "${var.name}-http"
   protocol_type = "HTTP"
   cors_configuration {
     allow_origins = var.cors_origins
@@ -12,7 +14,7 @@ resource "aws_apigatewayv2_api" "http" {
 resource "aws_apigatewayv2_integration" "http" {
   api_id                 = aws_apigatewayv2_api.http.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.api.invoke_arn
+  integration_uri        = var.lambda_invoke_arn
   payload_format_version = "2.0"
 }
 
@@ -31,7 +33,7 @@ resource "aws_apigatewayv2_stage" "http" {
 
 # ---- WebSocket API (mobile, real-time location)
 resource "aws_apigatewayv2_api" "ws" {
-  name                       = "${local.name}-ws"
+  name                       = "${var.name}-ws"
   protocol_type              = "WEBSOCKET"
   route_selection_expression = "$request.body.action"
 }
@@ -39,7 +41,7 @@ resource "aws_apigatewayv2_api" "ws" {
 resource "aws_apigatewayv2_integration" "ws" {
   api_id           = aws_apigatewayv2_api.ws.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.api.invoke_arn
+  integration_uri  = var.lambda_invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "ws" {
@@ -51,7 +53,7 @@ resource "aws_apigatewayv2_route" "ws" {
 
 resource "aws_apigatewayv2_stage" "ws" {
   api_id      = aws_apigatewayv2_api.ws.id
-  name        = var.environment
+  name        = var.stage_name
   auto_deploy = true
   default_route_settings {
     throttling_burst_limit = 500
@@ -62,7 +64,7 @@ resource "aws_apigatewayv2_stage" "ws" {
 resource "aws_lambda_permission" "http" {
   statement_id  = "AllowHttpApi"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.api.function_name
+  function_name = var.lambda_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }
@@ -70,7 +72,7 @@ resource "aws_lambda_permission" "http" {
 resource "aws_lambda_permission" "ws" {
   statement_id  = "AllowWsApi"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.api.function_name
+  function_name = var.lambda_function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.ws.execution_arn}/*/*"
 }

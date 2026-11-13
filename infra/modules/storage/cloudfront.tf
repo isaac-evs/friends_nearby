@@ -1,5 +1,5 @@
 resource "aws_cloudfront_origin_access_control" "media" {
-  name                              = "${local.name}-media"
+  name                              = "${var.name}-media"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -7,7 +7,7 @@ resource "aws_cloudfront_origin_access_control" "media" {
 
 resource "aws_cloudfront_distribution" "cdn" {
   enabled         = true
-  comment         = "${local.name} profile images"
+  comment         = "${var.name} profile images"
   price_class     = "PriceClass_100"
   is_ipv6_enabled = true
 

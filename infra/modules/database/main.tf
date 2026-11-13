@@ -1,5 +1,5 @@
 resource "aws_dynamodb_table" "users" {
-  name         = "${local.name}-users"
+  name         = "${var.name}-users"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "user_id"
   attribute {
@@ -12,7 +12,7 @@ resource "aws_dynamodb_table" "users" {
 
 # Friend relationships (profile + preferences live on the users item)
 resource "aws_dynamodb_table" "friendships" {
-  name         = "${local.name}-friendships"
+  name         = "${var.name}-friendships"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "user_id"
   range_key    = "friend_id"
@@ -36,7 +36,7 @@ resource "aws_dynamodb_table" "friendships" {
 
 # WebSocket connection tracking (auto-expires)
 resource "aws_dynamodb_table" "connections" {
-  name         = "${local.name}-connections"
+  name         = "${var.name}-connections"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "connection_id"
   attribute {

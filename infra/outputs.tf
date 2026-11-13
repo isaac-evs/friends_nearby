@@ -1,7 +1,7 @@
-output "http_api_url" { value = aws_apigatewayv2_api.http.api_endpoint }
-output "websocket_url" { value = aws_apigatewayv2_stage.ws.invoke_url }
-output "cdn_domain" { value = aws_cloudfront_distribution.cdn.domain_name }
-output "media_bucket" { value = aws_s3_bucket.media.id }
-output "history_bucket" { value = aws_s3_bucket.history.id }
-output "events_queue_url" { value = aws_sqs_queue.events.url }
-output "redis_endpoint" { value = aws_elasticache_replication_group.redis.primary_endpoint_address }
+output "http_api_url" { value = module.api.http_url }
+output "websocket_url" { value = module.api.websocket_url }
+output "cdn_domain" { value = module.storage.cdn_domain }
+output "media_bucket" { value = module.storage.media_bucket_id }
+output "history_bucket" { value = module.storage.history_bucket_id }
+output "events_queue_url" { value = module.messaging.queue_url }
+output "redis_endpoint" { value = module.cache.endpoint }
