@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Publicar plan — ¿Jalas?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F8}
+a{color:#3D3BD4}a:hover{color:#2B29A8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 36px 22px 0; background: #F6F6F8; color: #111114; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 16px">
+
+  <div role="group" aria-label="Qué quieres publicar" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #ECECF0; border-radius: 14px">
+    <a href="Publicar.dc.html" aria-current="page" style="height: 36px; border-radius: 11px; background: #FFFFFF; color: #111114; box-shadow: 0 1px 4px rgba(17, 17, 20, 0.12); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">Plan rápido</a>
+    <a href="CrearEvento.dc.html" style="height: 36px; border-radius: 11px; color: #5B5B66; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none">Evento <span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #FF7A45"></span></a>
+  </div>
+
+  <header style="display: flex; flex-direction: column; gap: 4px">
+    <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.8px">¿Qué andas haciendo?</h1>
+    <p style="margin: 0; font-size: 14px; color: #5B5B66; font-weight: 500">Se verá como card y en el mapa.</p>
+  </header>
+
+  <fieldset style="border: none; margin: 0; padding: 0">
+    <legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 700">Plan</legend>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{cats}}" as="c" hint-placeholder-count="8">
+        <button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: {{c.bg}}; color: #111114; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: {{c.shadow}}">{{c.label}}</button>
+      </sc-for>
+    </div>
+  </fieldset>
+
+  <label style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 700">Cuéntales en una línea
+    <input type="text" value="Por un café en Providencia, ¿alguien?" maxlength="60" style="height: 50px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; padding: 0 16px; font-size: 16px; font-family: inherit; font-weight: 600; box-sizing: border-box">
+  </label>
+
+  <fieldset style="border: none; margin: 0; padding: 0">
+    <legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 700">¿Por cuánto tiempo?</legend>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 16px; padding: 4px">
+      <sc-for list="{{durs}}" as="d" hint-placeholder-count="4">
+        <button type="button" onClick="{{d.pick}}" aria-pressed="{{d.pressed}}" style="height: 38px; border-radius: 12px; border: none; background: {{d.bg}}; color: {{d.fg}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer">{{d.label}}</button>
+      </sc-for>
+    </div>
+  </fieldset>
+
+  <fieldset style="border: none; margin: 0; padding: 0">
+    <legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 700">¿Quién lo ve?</legend>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <sc-for list="{{auds}}" as="a" hint-placeholder-count="3">
+        <button type="button" onClick="{{a.pick}}" aria-pressed="{{a.pressed}}" style="height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: {{a.bg}}; color: #111114; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: {{a.shadow}}">{{a.label}}</button>
+      </sc-for>
+    </div>
+  </fieldset>
+
+  <sc-if value="{{isOpen}}" hint-placeholder-val="{{ false }}">
+    <div style="display: flex; gap: 10px; align-items: center; background: #CDEFDF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 14px; padding: 10px 12px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span style="font-size: 12px; line-height: 1.4; font-weight: 700">Evento abierto: solo en lugar público. Gente nueva ve tu nombre, nunca tu ubicación, y tú apruebas quién entra.</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{isClosed}}" hint-placeholder-val="{{ true }}">
+    <div style="display: flex; gap: 10px; align-items: center; background: #E3DFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 14px; padding: 10px 12px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span style="font-size: 12px; line-height: 1.4; font-weight: 700">Se verá como a ~800 m · Providencia. Tu punto exacto solo al hacer match.</span>
+    </div>
+  </sc-if>
+
+  <a href="Feed.dc.html" style="height: 54px; border-radius: 16px; background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; text-decoration: none">Publicar plan · {{durLabel}}</a>
+
+  <nav aria-label="Navegación principal" style="position: absolute; left: 12px; right: 12px; bottom: 12px; height: 68px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 22px; box-shadow: 0 10px 30px rgba(17, 17, 20, 0.10); display: flex; justify-content: space-around; align-items: center; padding: 0 4px; box-sizing: border-box">
+    <a href="Feed.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M3 7v10M21 7v10"/></svg>
+      Explorar
+    </a>
+    <a href="Mapa.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+      Mapa
+    </a>
+    <a href="Publicar.dc.html" aria-label="Publicar plan" aria-current="page" style="width: 50px; height: 50px; border-radius: 16px; background: #111114; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 0 0 3px #FFFFFF, 0 0 0 5px #3D3BD4">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </a>
+    <a href="Amigos.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.3 5 2.4 5 5.8"/></svg>
+      Amigos
+    </a>
+    <a href="Perfil.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+      Perfil
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: 'Café', dur: '1 h', aud: 'Amigos' };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var catColors = { 'Café': '#FFE1CF', 'Comer': '#FFEDB8', 'Correr': '#CDEFDF', 'Estudiar': '#E3DFFF', 'Gym': '#D6EBFF', 'Chill': '#FFDDE8', 'Antro': '#E3DFFF', 'Juegos': '#CDEFDF' };
+    function pills(list, key, colorOf) {
+      return list.map(function (l) {
+        var on = s[key] === l;
+        var patch = {};
+        patch[key] = l;
+        return { label: l, pressed: on ? 'true' : 'false', bg: on ? colorOf(l) : '#FFFFFF', shadow: on ? '0 4px 12px rgba(17, 17, 20, 0.10)' : 'none', pick: function () { self.setState(patch); } };
+      });
+    }
+    var durs = ['30 min', '1 h', '2 h', 'Hoy'].map(function (l) {
+      var on = s.dur === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#3D3BD4' : 'transparent', fg: on ? '#FFFFFF' : '#111114', pick: function () { self.setState({ dur: l }); } };
+    });
+    var open = s.aud === 'Abierto';
+    return {
+      cats: pills(['Café', 'Comer', 'Correr', 'Estudiar', 'Gym', 'Chill', 'Antro', 'Juegos'], 'cat', function (l) { return catColors[l]; }),
+      durs: durs,
+      auds: pills(['Amigos', 'Roomies', 'Abierto'], 'aud', function (l) { return l === 'Abierto' ? '#FF7A45' : '#E3DFFF'; }),
+      isOpen: open,
+      isClosed: !open,
+      durLabel: s.dur || '1 h'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+/* ¿Jalas? — tema para Tailwind CSS v4 (CSS-first).
+   Importar en src/index.css:
+     @import "tailwindcss";
+     @import "../docs/design/theme.css";   (o copiar este bloque)
+   Fuente: Plus Jakarta Sans desde Google Fonts en index.html.
+   Valores sincronizados con tokens.json. */
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+
+  /* Superficies y texto */
+  --color-bg: #F6F6F8;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F1F1F4;
+  --color-surface-sunken: #ECECF0;
+  --color-ink: #111114;
+  --color-text: #34343C;
+  --color-muted: #5B5B66;
+  --color-placeholder: #8A8A96;
+  --color-line: rgb(17 17 20 / 0.08);
+  --color-line-input: #DADAE2;
+  --color-line-dashed: #C9C9D4;
+
+  /* Marca */
+  --color-primary: #3D3BD4;
+  --color-primary-hover: #2B29A8;
+  --color-primary-soft: #E3DFFF;
+  --color-accent: #FF7A45;
+  --color-accent-soft: #FFE9DF;
+  --color-accent-text: #B53A12;
+  --color-danger: #C43D1B;
+  --color-success: #2BB673;
+
+  /* Categorías (fondos de tile, siempre con texto/ícono ink) */
+  --color-cat-cafe: #FFE1CF;
+  --color-cat-correr: #FFD3BF;
+  --color-cat-deporte: #D6EBFF;
+  --color-cat-estudiar: #E3DFFF;
+  --color-cat-comer: #FFEDB8;
+  --color-cat-musica: #CDEFDF;
+  --color-cat-clase: #FFDDE8;
+  --color-cat-otro: #ECECF0;
+
+  /* Mapa */
+  --color-map-land: #EEEEF0;
+  --color-map-park: #DDEFE3;
+  --color-map-water: #D6EBFF;
+  --color-zone-fill: rgb(61 59 212 / 0.10);
+
+  /* Tipografía */
+  --text-display: 36px;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -1.2px;
+  --text-h1: 28px;
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.8px;
+  --text-h2: 22px;
+  --text-h2--line-height: 1.18;
+  --text-h2--letter-spacing: -0.5px;
+  --text-h3: 17px;
+  --text-h3--line-height: 1.25;
+  --text-h3--letter-spacing: -0.3px;
+  --text-meta: 13px;
+  --text-meta--line-height: 1.4;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.35;
+
+  /* Radios */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-card: 26px;
+
+  /* Sombras */
+  --shadow-xs: 0 1px 4px rgb(17 17 20 / 0.12);
+  --shadow-sm: 0 2px 8px rgb(17 17 20 / 0.06);
+  --shadow-md: 0 6px 18px rgb(17 17 20 / 0.08);
+  --shadow-lg: 0 10px 30px rgb(17 17 20 / 0.10);
+  --shadow-card: 0 14px 34px rgb(17 17 20 / 0.10);
+  --shadow-primary: 0 10px 24px rgb(61 59 212 / 0.35);
+
+  /* Movimiento */
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@layer base {
+  html { background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Explorar y mapa (desktop) — ¿Jalas?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F8}
+a{color:#3D3BD4}a:hover{color:#2B29A8}
+input::placeholder{color:#8A8A96}
+</style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 900px; display: flex; flex-wrap: wrap; background: #F6F6F8; color: #111114; font-family: 'Plus Jakarta Sans', system-ui, sans-serif">
+
+  <aside aria-label="Menú" style="flex: 1 1 220px; box-sizing: border-box; padding: 26px 18px; background: #FFFFFF; border-right: 1px solid rgba(17, 17, 20, 0.08); display: flex; flex-direction: column; gap: 22px">
+    <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; padding: 0 6px">¿jalas<span style="color: #3D3BD4">?</span></div>
+    <nav aria-label="Navegación principal" style="display: flex; flex-direction: column; gap: 6px">
+      <a href="#explorar" aria-current="page" style="height: 46px; padding: 0 12px; border-radius: 14px; background: #E3DFFF; border: 1px solid rgba(17, 17, 20, 0.08); color: #111114; display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+        Explorar y mapa
+      </a>
+      <a href="Amigos.dc.html" style="height: 46px; padding: 0 12px; border-radius: 14px; border: 1px solid transparent; color: #111114; display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.3 5 2.4 5 5.8"/></svg>
+        Amigos
+        <span style="margin-left: auto; background: #FF7A45; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 999px">2</span>
+      </a>
+      <a href="Perfil.dc.html" style="height: 46px; padding: 0 12px; border-radius: 14px; border: 1px solid transparent; color: #111114; display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+        Mi perfil
+      </a>
+      <a href="Abierto.dc.html" style="height: 46px; padding: 0 12px; border-radius: 14px; border: 1px solid transparent; color: #111114; display: flex; align-items: center; gap: 12px; text-decoration: none; font-weight: 700; font-size: 15px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+        Modo abierto
+      </a>
+    </nav>
+    <a href="Publicar.dc.html" style="height: 50px; border-radius: 16px; background: #FF7A45; border: 1px solid rgba(17, 17, 20, 0.08); box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); color: #111114; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Publicar plan
+    </a>
+    <div style="margin-top: auto; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #FFEDB8">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="flex: none; width: 40px; height: 40px; border-radius: 50%; background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center">AL</div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+          <span style="font-weight: 700; font-size: 14px">Alan</span>
+          <span style="font-size: 12px; font-weight: 700">Nivel 7 · 340 XP</span>
+        </div>
+        <span style="flex: none; background: #FF7A45; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; display: flex; align-items: center; gap: 3px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.7 2.2-4.8.2 1.6 1 2.6 2 3 0-3 .3-5.6.8-8.2z"/></svg>
+          4
+        </span>
+      </div>
+      <div role="progressbar" aria-label="Progreso al nivel 8" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100" style="height: 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); overflow: hidden; box-sizing: border-box">
+        <div style="width: 68%; height: 100%; background: #3D3BD4"></div>
+      </div>
+    </div>
+  </aside>
+
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-wrap: wrap">
+
+    <section aria-label="Mapa de amigos y eventos" style="flex: 999 1 480px; min-width: 0; min-height: 640px; position: relative; overflow: hidden; background: #EEEEF0">
+      <svg aria-hidden="true" viewBox="0 0 1000 900" preserveAspectRatio="xMidYMid slice" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%">
+        <rect width="1000" height="900" fill="#EEEEF0"/>
+        <rect x="600" y="120" width="260" height="190" rx="28" fill="#DDEFE3"/>
+        <ellipse cx="660" cy="270" rx="40" ry="24" fill="#D6EBFF"/>
+        <rect x="80" y="560" width="230" height="170" rx="28" fill="#DDEFE3"/>
+        <g stroke="#FFFFFF" stroke-linecap="round" fill="none">
+          <path d="M-20 380 L1020 500" stroke-width="22"/>
+          <path d="M420 -20 L560 920" stroke-width="22"/>
+          <path d="M-20 170 L1020 230" stroke-width="10"/>
+          <path d="M-20 650 L1020 720" stroke-width="10"/>
+          <path d="M180 -20 L250 920" stroke-width="10"/>
+          <path d="M880 -20 L930 920" stroke-width="10"/>
+          <path d="M620 420 L700 900" stroke-width="7"/>
+          <path d="M-20 820 L1020 850" stroke-width="7"/>
+        </g>
+        <g font-family="Plus Jakarta Sans, sans-serif" font-size="14" font-weight="700" fill="#6B6A7C">
+          <text x="40" y="365" transform="rotate(7 40 365)">Av. México</text>
+          <text x="660" y="600">Providencia</text>
+          <text x="110" y="540">Chapultepec</text>
+        </g>
+      </svg>
+
+      <div style="position: absolute; left: 22px; right: 22px; top: 22px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px">
+        <div style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 18px; padding: 12px 16px; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">¿Quién jala hoy?</h1>
+            <span style="font-size: 13px; color: #5B5B66; font-weight: 500">Chapultepec, Guadalajara · 4 amigos · 1 evento</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+              <button type="button" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(17, 17, 20, 0.08); background: {{f.bg}}; color: {{f.fg}}; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer">{{f.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <label style="position: relative; display: block; width: 260px; max-width: 100%">
+            <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar amigo o evento</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; left: 14px; top: 13px"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+            <input type="search" placeholder="Buscar amigo o evento" style="width: 100%; height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; padding: 0 14px 0 40px; font-size: 15px; font-family: inherit; box-sizing: border-box; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+          </label>
+          <button type="button" aria-label="Modo fantasma" style="flex: none; width: 44px; height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.8M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div aria-hidden="true" style="position: absolute; left: calc(34% - 75px); top: calc(48% - 75px); width: 150px; height: 150px; border-radius: 50%; background: rgba(61, 59, 212, 0.10); border: 2px dashed #3D3BD4; box-sizing: border-box"></div>
+      <div aria-hidden="true" style="position: absolute; left: calc(68% - 75px); top: calc(66% - 75px); width: 150px; height: 150px; border-radius: 50%; background: rgba(61, 59, 212, 0.10); border: 2px dashed #3D3BD4; box-sizing: border-box"></div>
+      <div aria-hidden="true" style="position: absolute; left: calc(22% - 65px); top: calc(34% - 65px); width: 130px; height: 130px; border-radius: 50%; background: rgba(61, 59, 212, 0.10); border: 2px dashed #3D3BD4; box-sizing: border-box"></div>
+
+      <div aria-hidden="true" style="position: absolute; left: calc(50% - 21px); top: calc(56% - 21px); width: 42px; height: 42px; border-radius: 50%; background: rgba(61, 59, 212, 0.22)"></div>
+      <div aria-hidden="true" style="position: absolute; left: calc(50% - 11px); top: calc(56% - 11px); width: 22px; height: 22px; border-radius: 50%; background: #3D3BD4; border: 3px solid #FFFFFF; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(17, 17, 20, 0.15)"></div>
+
+      <button type="button" onClick="{{showRun}}" aria-label="Social Run 5K, evento público, 34 personas" style="position: absolute; left: calc(74% - 26px); top: calc(24% - 26px); background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+        <span style="width: 52px; height: 52px; border-radius: 16px; background: #FF7A45; border: 3px solid {{ringRun}}; box-sizing: border-box; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); display: flex; align-items: center; justify-content: center">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+        </span>
+        <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Social Run · 34</span>
+      </button>
+      <button type="button" onClick="{{showSofi}}" aria-label="Sofi, café, ubicación exacta por match" style="position: absolute; left: calc(58% - 25px); top: calc(42% - 25px); background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+        <span style="width: 50px; height: 50px; border-radius: 50%; background: #FFEDB8; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringSofi}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">SO</span>
+        <span style="background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Café · match</span>
+      </button>
+      <button type="button" onClick="{{showMau}}" aria-label="Mau, correr, zona aproximada" style="position: absolute; left: calc(22% - 25px); top: calc(34% - 25px); background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+        <span style="width: 50px; height: 50px; border-radius: 50%; background: #CDEFDF; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringMau}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">MA</span>
+        <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Correr</span>
+      </button>
+      <button type="button" onClick="{{showRegina}}" aria-label="Regina, estudiar, zona aproximada" style="position: absolute; left: calc(68% - 25px); top: calc(66% - 25px); background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+        <span style="width: 50px; height: 50px; border-radius: 50%; background: #FFDDE8; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringRegina}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">RE</span>
+        <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Estudiar</span>
+      </button>
+      <button type="button" onClick="{{showDani}}" aria-label="Dani, comer, zona aproximada" style="position: absolute; left: calc(34% - 25px); top: calc(48% - 25px); background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+        <span style="width: 50px; height: 50px; border-radius: 50%; background: #E3DFFF; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringDani}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">DA</span>
+        <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Comer</span>
+      </button>
+
+      <div style="position: absolute; left: 22px; bottom: 22px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 14px; padding: 10px 14px; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; font-weight: 700">
+        <span style="display: flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 50%; background: #3D3BD4; border: 2px solid #FFFFFF; box-shadow: 0 0 0 1px rgba(17, 17, 20, 0.15)"></span>Tú</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 50%; border: 2px dashed #3D3BD4; background: rgba(61, 59, 212, 0.10); box-sizing: border-box"></span>Zona aproximada</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span aria-hidden="true" style="background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 10px; font-weight: 700; padding: 0 6px; border-radius: 999px">match</span>Exacta temporal</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 4px; background: #FF7A45; border: 1px solid rgba(17, 17, 20, 0.08); box-sizing: border-box"></span>Evento público</span>
+      </div>
+      <div style="position: absolute; right: 22px; bottom: 22px; display: flex; flex-direction: column; gap: 8px">
+        <button type="button" aria-label="Acercar" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; font-size: 20px; font-weight: 800; font-family: inherit; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">+</button>
+        <button type="button" aria-label="Alejar" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; font-size: 20px; font-weight: 800; font-family: inherit; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">−</button>
+      </div>
+    </section>
+
+    <aside aria-label="Planes cerca" style="flex: 1 1 360px; min-width: 0; box-sizing: border-box; padding: 22px; background: #FFFFFF; border-left: 1px solid rgba(17, 17, 20, 0.08); display: flex; flex-direction: column; gap: 14px">
+      <div role="group" aria-label="Qué ver" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #F6F6F8; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 16px">
+        <button type="button" onClick="{{segA.pick}}" aria-pressed="{{segA.pressed}}" style="height: 38px; border-radius: 12px; border: none; background: {{segA.bg}}; color: {{segA.fg}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Mis amigos</button>
+        <button type="button" onClick="{{segB.pick}}" aria-pressed="{{segB.pressed}}" style="height: 38px; border-radius: 12px; border: none; background: {{segB.bg}}; color: {{segB.fg}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Abierto · eventos</button>
+      </div>
+
+      <sc-if value="{{isOpen}}" hint-placeholder-val="{{ false }}">
+        <div role="group" aria-label="Tipo de evento" style="display: flex; flex-wrap: wrap; gap: 6px">
+          <a href="CrearEvento.dc.html" style="height: 32px; padding: 0 12px; border-radius: 999px; background: #111114; color: #FFFFFF; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; text-decoration: none">+ Crear evento</a>
+          <sc-for list="{{types}}" as="t" hint-placeholder-count="5">
+            <button type="button" onClick="{{t.pick}}" aria-pressed="{{t.pressed}}" style="height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">{{t.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <article style="border-radius: 22px; border: 1px solid rgba(17, 17, 20, 0.08); overflow: hidden; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); display: flex; flex-direction: column">
+        <div style="height: 132px; background: {{card.tile}}; border-bottom: 1px solid rgba(17, 17, 20, 0.08); position: relative; display: flex; align-items: center; justify-content: center">
+          <span style="position: absolute; left: 12px; top: 12px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px">{{card.category}}</span>
+          <span style="position: absolute; right: 12px; top: 12px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px">{{card.time}}</span>
+          <sc-if value="{{card.isCafe}}" hint-placeholder-val="{{ true }}">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3v3M12 3v3"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isRun}}" hint-placeholder-val="{{ false }}">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isStudy}}" hint-placeholder-val="{{ false }}">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M19 19v2H6"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isFood}}" hint-placeholder-val="{{ false }}">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 1-3 3.5-3 6.5h3V21"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isBall}}" hint-placeholder-val="{{ false }}">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6c3.5 3.5 3.5 9.3 0 12.8M18.4 5.6c-3.5 3.5-3.5 9.3 0 12.8"/></svg>
+          </sc-if>
+          <span style="position: absolute; right: 12px; bottom: -12px; background: #FFEDB8; border: 1px solid rgba(17, 17, 20, 0.08); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 10px">{{card.xp}}</span>
+        </div>
+        <div style="padding: 16px 16px 16px; display: flex; flex-direction: column; gap: 10px">
+          <sc-if value="{{card.isEvent}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 12px; font-weight: 500; color: #5B5B66">{{card.name}} · verificado</span>
+            <h3 style="margin: 0; font-size: 21px; font-weight: 800; line-height: 1.18; letter-spacing: -0.5px">{{card.title}}</h3>
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: #34343C">
+              <span>{{card.when}}</span>
+              <span>{{card.place}}</span>
+              <span>{{card.chip}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{card.isFriend}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div style="width: 40px; height: 40px; border-radius: {{card.radius}}; background: {{card.avatar}}; border: 1px solid rgba(17, 17, 20, 0.08); box-sizing: border-box; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center">{{card.initials}}</div>
+            <div style="display: flex; flex-direction: column; gap: 1px">
+              <span style="font-weight: 700; font-size: 15px">{{card.name}}</span>
+              <span style="font-size: 12px; color: #5B5B66; font-weight: 500">{{card.where}}</span>
+            </div>
+          </div>
+          <h3 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 21px; font-weight: 800; line-height: 1.15">{{card.title}}</h3>
+          <span style="align-self: flex-start; background: #F1F1F4; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px">{{card.chip}}</span>
+          </sc-if>
+        </div>
+      </article>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <button type="button" onClick="{{next}}" style="height: 48px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #C43D1B; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Paso</button>
+        <button type="button" onClick="{{next}}" style="height: 48px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFEDB8; color: #111114; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Luego</button>
+        <a href="{{card.href}}" style="height: 48px; border-radius: 14px; background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; text-decoration: none">{{card.cta}}</a>
+      </div>
+      <sc-if value="{{isOpen}}" hint-placeholder-val="{{ false }}">
+        <p style="margin: 0; font-size: 12px; line-height: 1.4; font-weight: 500; text-align: center">Gente nueva solo ve tu nombre, nunca tu ubicación.</p>
+      </sc-if>
+
+      <section aria-label="Lista" style="display: flex; flex-direction: column; gap: 2px">
+        <h3 style="margin: 0 0 6px; font-size: 13px; font-weight: 700">{{listTitle}}</h3>
+        <sc-for list="{{rows}}" as="f" hint-placeholder-count="4">
+          <button type="button" onClick="{{f.show}}" aria-pressed="{{f.pressed}}" style="display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 12px; border: 1px solid {{f.border}}; background: {{f.bg}}; font-family: inherit; text-align: left; cursor: pointer; color: #111114">
+            <span style="flex: none; width: 34px; height: 34px; border-radius: {{f.radius}}; background: {{f.avatar}}; border: 1px solid rgba(17, 17, 20, 0.08); box-sizing: border-box; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center">{{f.initials}}</span>
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+              <span style="font-weight: 700; font-size: 14px">{{f.name}}</span>
+              <span style="font-size: 12px; color: #5B5B66; font-weight: 500">{{f.sub}}</span>
+            </span>
+            <span style="flex: none; font-size: 12px; font-weight: 700">{{f.dist}}</span>
+          </button>
+        </sc-for>
+      </section>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { i: 0, mode: 'amigos', filter: 'Todos' };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var mode = s.mode || 'amigos';
+    var friends = [
+      { name: 'Sofi', initials: 'SO', avatar: '#FFEDB8', radius: '50%', category: 'Café', time: 'quedan 40 min', where: 'a ~800 m · Providencia', sub: 'Café · en vivo', dist: '~800 m', title: 'Por un café en Providencia, ¿alguien?', chip: '2 ya jalaron', xp: '+20 XP', tile: '#FFE1CF', isCafe: true, href: 'Match.dc.html', cta: 'Jalo' },
+      { name: 'Mau', initials: 'MA', avatar: '#CDEFDF', radius: '50%', category: 'Correr', time: 'en 1 h', where: 'a ~3 km · Colomos', sub: 'Correr · hace 12 min', dist: '~3 km', title: '5 km suavecito en el Metropolitano', chip: '4 ya jalaron', xp: '+20 XP', tile: '#CDEFDF', isRun: true, href: 'Match.dc.html', cta: 'Jalo' },
+      { name: 'Regina', initials: 'RE', avatar: '#FFDDE8', radius: '50%', category: 'Estudiar', time: 'quedan 2 h', where: 'a ~1.5 km · Providencia', sub: 'Estudiar · hace 9 min', dist: '~1.5 km', title: 'Repaso para el parcial en la biblio', chip: '1 ya jaló', xp: '+20 XP', tile: '#E3DFFF', isStudy: true, href: 'Match.dc.html', cta: 'Jalo' },
+      { name: 'Dani', initials: 'DA', avatar: '#E3DFFF', radius: '50%', category: 'Comer', time: 'quedan 25 min', where: 'a ~1 km · Chapultepec', sub: 'Comer · hace 2 min', dist: '~1 km', title: 'Tortas ahogadas, voy saliendo', chip: '3 ya jalaron', xp: '+20 XP', tile: '#FFEDB8', isFood: true, href: 'Match.dc.html', cta: 'Jalo' }
+    ];
+    friends.forEach(function (f) { f.isFriend = true; });
+    var events = [
+      { isEvent: true, type: 'Deporte', name: 'Club de corredores', initials: '21', avatar: '#FFD3BF', radius: '10px', category: 'Deporte · Correr', time: 'Sáb 21 nov', when: 'Sábado 21 nov · 7:00 am', place: 'Bosque Los Colomos · ~3 km', sub: 'Sáb 7:00 am · 34 van', dist: '~3 km', title: 'Social Run 5K en Colomos', chip: '34 van · cupo 50 · 3 amigos tuyos', xp: '+50 XP', tile: '#FFD3BF', isRun: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Deporte', name: 'Ligas de barrio', initials: '22', avatar: '#D6EBFF', radius: '10px', category: 'Deporte · Básquet', time: 'Dom 22 nov', when: 'Domingo 22 nov · 11:00 am', place: 'Parque Revolución · ~2 km', sub: 'Dom 11:00 am · 12 van', dist: '~2 km', title: 'Reta de básquet 3x3', chip: '12 van · cupo 20', xp: '+50 XP', tile: '#D6EBFF', isBall: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Social', name: 'Juegos GDL', initials: '21', avatar: '#E3DFFF', radius: '10px', category: 'Social · Juegos', time: 'Sáb 21 nov', when: 'Sábado 21 nov · 5:00 pm', place: 'Parque Metropolitano · ~6 km', sub: 'Sáb 5:00 pm · 18 van', dist: '~6 km', title: 'Picnic y juegos de mesa', chip: '18 van · cupo 30', xp: '+40 XP', tile: '#E3DFFF', isStudy: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Comida', name: 'Trivia Night', initials: '19', avatar: '#FFEDB8', radius: '10px', category: 'Comida · Trivia', time: 'Jue 19 nov', when: 'Jueves 19 nov · 9:00 pm', place: 'Taquería en Providencia · ~1 km', sub: 'Jue 9:00 pm · 9 van', dist: '~1 km', title: 'Tacos y trivia en equipo', chip: '9 van · cupo 16', xp: '+40 XP', tile: '#FFEDB8', isFood: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Aprender', name: 'Escuela de baile', initials: '20', avatar: '#FFDDE8', radius: '10px', category: 'Aprender · Baile', time: 'Vie 20 nov', when: 'Viernes 20 nov · 8:00 pm', place: 'Av. Chapultepec · ~1 km', sub: 'Vie 8:00 pm · 22 van', dist: '~1 km', title: 'Clase abierta de salsa', chip: '22 van · cupo 40', xp: '+40 XP', tile: '#FFDDE8', isStudy: true, href: 'Evento.dc.html', cta: 'Me uno' }
+    ];
+    var type = s.type || 'Todos';
+    var filtered = type === 'Todos' ? events : events.filter(function (e) { return e.type === type; });
+    var types = ['Todos', 'Deporte', 'Social', 'Comida', 'Aprender'].map(function (l) {
+      var on = type === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#E3DFFF' : '#FFFFFF', fg: on ? '#2B29A8' : '#34343C', border: on ? '#3D3BD4' : 'rgba(17, 17, 20, 0.10)', pick: function () { self.setState({ type: l, i: 0 }); } };
+    });
+    var list = mode === 'abierto' ? filtered : friends;
+    var i = (s.i || 0) % list.length;
+    var card = list[i];
+    function show(m, k) { return function () { self.setState({ mode: m, i: k }); }; }
+    function ring(m, k) { return mode === m && i === k ? '#3D3BD4' : '#FFFFFF'; }
+    function seg(id) {
+      var on = mode === id;
+      return { bg: on ? '#3D3BD4' : 'transparent', fg: on ? '#FFFFFF' : '#111114', pressed: on ? 'true' : 'false', pick: function () { self.setState({ mode: id, i: 0, type: 'Todos' }); } };
+    }
+    var rows = list.map(function (c, k) {
+      var on = i === k;
+      return { name: c.name, initials: c.initials, avatar: c.avatar, radius: c.radius, sub: c.sub, dist: c.dist, bg: on ? '#E3DFFF' : '#FFFFFF', border: on ? '#3D3BD4' : 'transparent', pressed: on ? 'true' : 'false', show: show(mode, k) };
+    });
+    var filters = ['Todos', 'Amigos', 'Eventos'].map(function (l) {
+      var on = (s.filter || 'Todos') === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#3D3BD4' : '#FFFFFF', fg: on ? '#FFFFFF' : '#111114', pick: function () { self.setState({ filter: l }); } };
+    });
+    return {
+      card: card,
+      types: types,
+      rows: rows,
+      listTitle: mode === 'abierto' ? 'Eventos abiertos cerca' : 'Amigos cerca ahora',
+      isOpen: mode === 'abierto',
+      filters: filters,
+      segA: seg('amigos'),
+      segB: seg('abierto'),
+      next: function () { self.setState({ i: (i + 1) % list.length }); },
+      showSofi: show('amigos', 0), showMau: show('amigos', 1), showRegina: show('amigos', 2), showDani: show('amigos', 3), showRun: function () { self.setState({ mode: 'abierto', type: 'Todos', i: 0 }); },
+      ringSofi: ring('amigos', 0), ringMau: ring('amigos', 1), ringRegina: ring('amigos', 2), ringDani: ring('amigos', 3), ringRun: ring('abierto', 0)
+    };
+  }
+}
+</script>
+</body>
+</html>

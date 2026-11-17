@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>¡Se armó! — ¿Jalas?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F8}
+a{color:#3D3BD4}a:hover{color:#2B29A8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 40px 22px 24px; background: #F6F6F8; color: #111114; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 18px">
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center">
+    <div aria-hidden="true" style="display: flex; align-items: center">
+      <div style="width: 90px; height: 90px; border-radius: 50%; background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 26px; display: flex; align-items: center; justify-content: center">TÚ</div>
+      <div style="width: 90px; height: 90px; margin-left: -20px; border-radius: 50%; background: #FFEDB8; border: 1px solid rgba(17, 17, 20, 0.08); font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 26px; display: flex; align-items: center; justify-content: center">SO</div>
+    </div>
+    <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 52px; font-weight: 800; letter-spacing: -1.5px; line-height: 1"><span style="position: relative; display: inline-block">¡Se armó!</span></h1>
+    <p style="margin: 4px 0 0; font-size: 16px; color: #34343C; font-weight: 600">Sofi aceptó tu jale para el café.</p>
+  </div>
+
+  <section aria-label="Punto de encuentro" style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 22px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+    <div style="display: flex; gap: 12px; align-items: center">
+      <div style="flex: none; width: 44px; height: 44px; border-radius: 14px; background: #FFE1CF; border: 1px solid rgba(17, 17, 20, 0.08); box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 11px; font-weight: 700; color: #5B5B66; text-transform: uppercase; letter-spacing: 0.8px">Punto de encuentro</span>
+        <span style="font-size: 16px; font-weight: 800">Av. Providencia y Rubén Darío</span>
+        <span style="font-size: 13px; color: #34343C; font-weight: 600">a ~800 m · empieza en 15 min</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center; background: #E3DFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 12px; padding: 8px 12px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <span style="font-size: 12px; line-height: 1.35; font-weight: 700">Tu ubicación exacta la ve solo Sofi, hasta las 6:40 pm.</span>
+    </div>
+    <a href="Mapa.dc.html" style="height: 50px; border-radius: 14px; background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8z"/></svg>
+      Cómo llegar
+    </a>
+  </section>
+
+  <section aria-label="Mensajes rápidos" style="display: flex; flex-direction: column; gap: 10px">
+    <h2 style="margin: 0; font-size: 14px; font-weight: 700">Avísale rápido</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <sc-for list="{{quick}}" as="q" hint-placeholder-count="3">
+        <button type="button" onClick="{{q.pick}}" aria-pressed="{{q.pressed}}" style="height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(17, 17, 20, 0.08); background: {{q.bg}}; color: {{q.fg}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer">{{q.label}}</button>
+      </sc-for>
+    </div>
+    <sc-if value="{{hasSent}}" hint-placeholder-val="{{ false }}">
+      <span style="font-size: 13px; color: #176B47; font-weight: 700">Enviado a Sofi: “{{sent}}”</span>
+    </sc-if>
+  </section>
+
+  <section aria-label="Recompensa" style="margin-top: auto; background: #FFEDB8; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 22px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+    <sc-if value="{{notMet}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+        <span style="font-size: 13px; line-height: 1.4; font-weight: 500">Cuando se vean, los dos toquen el botón. Validamos que estén cerca.</span>
+        <span style="flex: none; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 12px; padding: 4px 8px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-align: center">+20 XP<br>+1 racha</span>
+      </div>
+      <button type="button" onClick="{{meet}}" style="height: 48px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; font-family: inherit; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">Ya nos vimos</button>
+    </sc-if>
+    <sc-if value="{{met}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div style="flex: none; width: 48px; height: 48px; border-radius: 50%; background: #CDEFDF; border: 1px solid rgba(17, 17, 20, 0.08); display: flex; align-items: center; justify-content: center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span style="font-weight: 800; font-size: 16px">+20 XP · racha de 5 semanas</span>
+          <span style="font-size: 13px; font-weight: 600">Esperando a que Sofi confirme…</span>
+        </div>
+      </div>
+    </sc-if>
+  </section>
+
+  <a href="Feed.dc.html" style="height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px">Seguir explorando</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sent: '', met: false };
+  }
+  renderVals() {
+    var self = this;
+    var sent = (this.state && this.state.sent) || '';
+    var labels = ['Voy en 10', 'Ya llegué', 'Se me complicó'];
+    var quick = labels.map(function (l) {
+      var on = sent === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#3D3BD4' : '#FFFFFF', fg: on ? '#FFFFFF' : '#111114', pick: function () { self.setState({ sent: l }); } };
+    });
+    var met = !!(this.state && this.state.met);
+    return { quick: quick, sent: sent, hasSent: sent !== '', met: met, notMet: !met, meet: function () { self.setState({ met: true }); } };
+  }
+}
+</script>
+</body>
+</html>
