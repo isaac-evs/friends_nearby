@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Social Run 5K — ¿Jalas?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F8}
+a{color:#3D3BD4}a:hover{color:#2B29A8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F6F6F8; color: #111114; font-family: 'Plus Jakarta Sans', system-ui, sans-serif">
+
+  <header style="position: relative; height: 246px; box-sizing: border-box; padding: 34px 22px 20px; background: #FF7A45; border-bottom: 1px solid rgba(17, 17, 20, 0.08); display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+    <svg aria-hidden="true" width="220" height="220" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-opacity="0.12" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: -40px; top: 30px"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+    <div style="display: flex; justify-content: space-between">
+      <a href="Feed.dc.html" aria-label="Volver" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; display: flex; align-items: center; justify-content: center; text-decoration: none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </a>
+      <button type="button" aria-label="Compartir evento" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>
+      </button>
+    </div>
+    <span style="align-self: flex-start; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 10px; padding: 2px 10px; font-size: 12px; font-weight: 700">Evento abierto</span>
+    <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 34px; font-weight: 800; letter-spacing: -1px; line-height: 1">Social Run 5K en Colomos</h1>
+    <span style="font-size: 15px; font-weight: 700">Sáb 21 nov · 7:00 am · todos los ritmos</span>
+  </header>
+
+  <div style="padding: 16px 22px 0; display: flex; flex-direction: column; gap: 14px">
+    <section aria-label="Detalles" style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 18px; padding: 4px 14px; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid #EEEEF2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 14px">Entrada principal de Bosque Los Colomos</span><span style="font-size: 12px; color: #5B5B66; font-weight: 500">Lugar público · a ~3 km</span></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid #EEEEF2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.3 5 2.4 5 5.8"/></svg>
+        <span style="flex: 1; display: flex; flex-direction: column; gap: 5px">
+          <span style="font-weight: 700; font-size: 14px">{{goingText}}</span>
+          <span role="progressbar" aria-label="Cupo ocupado" aria-valuenow="{{pct}}" aria-valuemin="0" aria-valuemax="100" style="height: 10px; border-radius: 999px; background: #F1F1F4; border: 1px solid rgba(17, 17, 20, 0.08); overflow: hidden; box-sizing: border-box; display: block"><span style="display: block; width: {{pctWidth}}; height: 100%; background: #CDEFDF"></span></span>
+        </span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 52px">
+        <span style="flex: none; width: 22px; height: 22px; border-radius: 50%; background: #3D3BD4; border: 1px solid rgba(17, 17, 20, 0.08); box-sizing: border-box; color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </span>
+        <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 700; font-size: 14px">Club de corredores</span><span style="font-size: 12px; color: #5B5B66; font-weight: 500">Organizador verificado · 12 eventos</span></span>
+      </div>
+    </section>
+
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div aria-hidden="true" style="display: flex">
+        <span style="width: 34px; height: 34px; border-radius: 50%; background: #FFEDB8; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">SO</span>
+        <span style="width: 34px; height: 34px; margin-left: -9px; border-radius: 50%; background: #CDEFDF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">MA</span>
+        <span style="width: 34px; height: 34px; margin-left: -9px; border-radius: 50%; background: #E3DFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">DA</span>
+      </div>
+      <span style="font-size: 13px; font-weight: 700">Sofi, Mau y Dani van</span>
+      <a href="PerfilOtro.dc.html" style="margin-left: auto; font-size: 13px; font-weight: 700; padding: 10px 0">Ver quién más va</a>
+    </div>
+
+    <fieldset style="border: none; margin: 0; padding: 0">
+      <legend style="padding: 0; margin-bottom: 8px; font-size: 13px; font-weight: 700">Tu ritmo</legend>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{paces}}" as="p" hint-placeholder-count="4">
+          <button type="button" onClick="{{p.pick}}" aria-pressed="{{p.pressed}}" style="height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(17, 17, 20, 0.08); background: {{p.bg}}; color: {{p.fg}}; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer">{{p.label}}</button>
+        </sc-for>
+      </div>
+    </fieldset>
+
+    <div style="display: flex; gap: 10px; align-items: center; background: #CDEFDF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 14px; padding: 10px 12px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+      <span style="font-size: 12px; line-height: 1.4; font-weight: 700">Tú decides: la gente nueva solo ve tu nombre. Tu ubicación no se comparte y puedes salirte cuando quieras.</span>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 14px 22px 22px; background: #FFFFFF; border-top: 1px solid rgba(17, 17, 20, 0.08)">
+    <sc-if value="{{notJoined}}" hint-placeholder-val="{{ true }}">
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <button type="button" style="height: 54px; border-radius: 16px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; font-family: inherit; font-weight: 700; font-size: 15px; cursor: pointer">Ir con un amigo</button>
+        <button type="button" onClick="{{join}}" style="height: 54px; border-radius: 16px; border: 1px solid rgba(17, 17, 20, 0.08); background: #3D3BD4; color: #FFFFFF; font-family: inherit; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">Me uno · +50 XP</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{joined}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 12px; min-height: 54px">
+        <span style="flex: none; width: 48px; height: 48px; border-radius: 50%; background: #FFEDB8; border: 1px solid rgba(17, 17, 20, 0.08); display: flex; align-items: center; justify-content: center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </span>
+        <span style="flex: 1; display: flex; flex-direction: column">
+          <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 19px">¡Estás dentro!</span>
+          <span style="font-size: 12px; color: #5B5B66; font-weight: 500">Grupo {{pace}} · te avisamos un día antes</span>
+        </span>
+        <button type="button" onClick="{{leave}}" style="flex: none; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; font-family: inherit; font-weight: 700; font-size: 13px; cursor: pointer">Salirme</button>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pace: '6:30/km', joined: false };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var joined = !!s.joined;
+    var going = joined ? 35 : 34;
+    var paces = ['Caminar', '6:30/km', '5:30/km', '5:00/km'].map(function (l) {
+      var on = s.pace === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#3D3BD4' : '#FFFFFF', fg: on ? '#FFFFFF' : '#111114', pick: function () { self.setState({ pace: l }); } };
+    });
+    return {
+      paces: paces,
+      pace: s.pace || '6:30/km',
+      joined: joined,
+      notJoined: !joined,
+      goingText: going + ' van · cupo 50',
+      pct: String(Math.round(going / 50 * 100)),
+      pctWidth: Math.round(going / 50 * 100) + '%',
+      join: function () { self.setState({ joined: true }); },
+      leave: function () { self.setState({ joined: false }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

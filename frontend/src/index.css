@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "../docs/design/theme.css";
+
+/* Capas de la pila de SwipeCard (valores de design-system.md §5, que theme.css aún no expone). */
+@theme {
+  --color-stack-1: #EEEEF2;
+  --color-stack-2: #E6E6EC;
+  --color-map-label: #6B6A7C; /* tokens.json → color.map.label */
+  --color-map-road: #FFFFFF; /* tokens.json → color.map.road */
+}
+
+@layer base {
+  body { margin: 0; min-height: 100dvh; font-weight: 500; -webkit-font-smoothing: antialiased; }
+  button, a, input { font-family: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  input::placeholder { color: var(--color-placeholder); }
+}
+
+@layer base {
+  *, ::after, ::before { border-color: var(--color-line); }
+}
+
+/* Barra de scroll oculta en carruseles horizontales de chips. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* MapLibre: créditos con el tipo de la app y por encima de nuestros controles flotantes. */
+.maplibregl-ctrl-attrib { font-family: var(--font-sans); font-size: 11px; border-radius: 10px; }
+.maplibregl-ctrl-attrib-button:focus-visible { outline: 2px solid var(--color-primary); }

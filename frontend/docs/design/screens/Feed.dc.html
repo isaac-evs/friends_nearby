@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Explorar — ¿Jalas?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F8}
+a{color:#3D3BD4}a:hover{color:#2B29A8}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; padding: 36px 20px 0; background: #F6F6F8; color: #111114; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 12px">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1">¿Quién jala hoy?</h1>
+      <span style="font-size: 13px; color: #5B5B66; font-weight: 500">Chapultepec · {{counter}}</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <a href="Perfil.dc.html" aria-label="Racha de 4 semanas" style="height: 36px; padding: 0 12px; border-radius: 999px; background: #FFE9DF; color: #B53A12; display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 14px; text-decoration: none">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.7 2.2-4.8.2 1.6 1 2.6 2 3 0-3 .3-5.6.8-8.2z"/></svg>
+        4
+      </a>
+      <button type="button" aria-label="Notificaciones" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(17, 17, 20, 0.05)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div role="group" aria-label="Qué ver" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #ECECF0; border-radius: 14px">
+    <button type="button" onClick="{{segA.pick}}" aria-pressed="{{segA.pressed}}" style="height: 36px; border-radius: 11px; border: none; background: {{segA.bg}}; color: {{segA.fg}}; box-shadow: {{segA.shadow}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Mis amigos</button>
+    <button type="button" onClick="{{segB.pick}}" aria-pressed="{{segB.pressed}}" style="height: 36px; border-radius: 11px; border: none; background: {{segB.bg}}; color: {{segB.fg}}; box-shadow: {{segB.shadow}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px">Abierto <span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #FF7A45"></span></button>
+  </div>
+
+  <sc-if value="{{isOpen}}" hint-placeholder-val="{{ false }}">
+    <div role="group" aria-label="Tipo de evento" style="display: flex; gap: 8px; overflow-x: auto; margin: 0 -20px; padding: 0 20px">
+      <a href="CrearEvento.dc.html" style="flex: none; height: 34px; padding: 0 14px; border-radius: 999px; background: #111114; color: #FFFFFF; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; text-decoration: none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Crear
+      </a>
+      <sc-for list="{{types}}" as="t" hint-placeholder-count="5">
+        <button type="button" onClick="{{t.pick}}" aria-pressed="{{t.pressed}}" style="flex: none; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">{{t.label}}</button>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{hasCard}}" hint-placeholder-val="{{ true }}">
+    <div style="position: relative; height: 424px; margin-top: 2px">
+      <div aria-hidden="true" style="position: absolute; left: 20px; right: 20px; top: 14px; height: 410px; border-radius: 26px; background: #E6E6EC"></div>
+      <div aria-hidden="true" style="position: absolute; left: 10px; right: 10px; top: 7px; height: 410px; border-radius: 26px; background: #EEEEF2"></div>
+      <article style="position: absolute; left: 0; right: 0; top: 0; height: 410px; border-radius: 26px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.06); box-shadow: 0 14px 34px rgba(17, 17, 20, 0.10); overflow: hidden; display: flex; flex-direction: column">
+        <div style="height: {{card.tileH}}; flex: none; background: {{card.tile}}; position: relative; display: flex; align-items: center; justify-content: center">
+          <span style="position: absolute; left: 14px; top: 14px; background: rgba(255, 255, 255, 0.92); font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px">{{card.category}}</span>
+          <sc-if value="{{card.isFriend}}" hint-placeholder-val="{{ true }}">
+            <span style="position: absolute; right: 14px; top: 14px; background: rgba(255, 255, 255, 0.92); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px">{{card.time}}</span>
+          </sc-if>
+          <sc-if value="{{card.isEvent}}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; left: 14px; bottom: 14px; width: 54px; height: 58px; border-radius: 14px; background: #FFFFFF; box-shadow: 0 4px 12px rgba(17, 17, 20, 0.10); display: flex; flex-direction: column; align-items: center; justify-content: center">
+              <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; line-height: 1">{{card.day}}</span>
+              <span style="font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: #B53A12; margin-top: 3px">{{card.month}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{card.isCafe}}" hint-placeholder-val="{{ true }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3v3M12 3v3"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isRun}}" hint-placeholder-val="{{ false }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isStudy}}" hint-placeholder-val="{{ false }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M19 19v2H6"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isFood}}" hint-placeholder-val="{{ false }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 1-3 3.5-3 6.5h3V21"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isBall}}" hint-placeholder-val="{{ false }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6c3.5 3.5 3.5 9.3 0 12.8M18.4 5.6c-3.5 3.5-3.5 9.3 0 12.8"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isDice}}" hint-placeholder-val="{{ false }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1" fill="#111114"/><circle cx="15" cy="9" r="1" fill="#111114"/><circle cx="9" cy="15" r="1" fill="#111114"/><circle cx="15" cy="15" r="1" fill="#111114"/></svg>
+          </sc-if>
+          <sc-if value="{{card.isMusic}}" hint-placeholder-val="{{ false }}">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+          </sc-if>
+          <span style="position: absolute; right: 14px; bottom: 14px; background: #FFFFFF; color: #B53A12; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; box-shadow: 0 2px 8px rgba(17, 17, 20, 0.08)">{{card.xp}}</span>
+        </div>
+
+        <div style="flex: 1; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px">
+          <sc-if value="{{card.isFriend}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <div style="width: 42px; height: 42px; border-radius: 50%; background: {{card.avatar}}; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center">{{card.initials}}</div>
+              <div style="display: flex; flex-direction: column; gap: 1px">
+                <span style="font-weight: 700; font-size: 15px">{{card.name}}</span>
+                <span style="font-size: 13px; color: #5B5B66; font-weight: 500">{{card.where}}</span>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{card.isEvent}}" hint-placeholder-val="{{ false }}">
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #5B5B66">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#3D3BD4" aria-hidden="true"><path d="M12 2l2.4 2.1 3.2-.3.9 3.1 2.8 1.6-1.1 3 1.1 3-2.8 1.6-.9 3.1-3.2-.3L12 22l-2.4-2.1-3.2.3-.9-3.1-2.8-1.6 1.1-3-1.1-3 2.8-1.6.9-3.1 3.2.3z"/><path d="M8.5 12.2l2.3 2.3 4.7-4.7" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              {{card.org}} · verificado
+            </span>
+          </sc-if>
+          <h2 style="margin: 0; font-size: 22px; font-weight: 800; line-height: 1.18; letter-spacing: -0.5px">{{card.title}}</h2>
+          <sc-if value="{{card.isEvent}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 500; color: #34343C">
+              <span style="display: flex; align-items: center; gap: 8px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                {{card.when}}
+              </span>
+              <span style="display: flex; align-items: center; gap: 8px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+                {{card.place}}
+              </span>
+              <span style="display: flex; align-items: center; gap: 8px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B5B66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.3 5 2.4 5 5.8"/></svg>
+                <span style="flex: none">{{card.going}} van · cupo {{card.cap}}</span>
+                <span aria-hidden="true" style="flex: 1; height: 6px; border-radius: 999px; background: #EEEEF2; overflow: hidden; display: block"><span style="display: block; height: 100%; width: {{card.pct}}; background: #2BB673; border-radius: 999px"></span></span>
+              </span>
+            </div>
+          </sc-if>
+          <sc-if value="{{card.isFriend}}" hint-placeholder-val="{{ true }}">
+            <span style="margin-top: auto; align-self: flex-start; background: #F1F1F4; color: #34343C; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 999px">{{card.chip}}</span>
+          </sc-if>
+        </div>
+      </article>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 2px">
+      <button type="button" onClick="{{pass}}" aria-label="Paso" style="width: 60px; height: 60px; border-radius: 50%; border: 1px solid rgba(17, 17, 20, 0.06); background: #FFFFFF; color: #C43D1B; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <button type="button" onClick="{{later}}" aria-label="Guardar para luego" style="width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(17, 17, 20, 0.06); background: #FFFFFF; color: #3D3BD4; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v17l-5-3.5L7 21z"/></svg>
+      </button>
+      <a href="{{card.href}}" aria-label="{{card.cta}}" style="width: 72px; height: 72px; border-radius: 50%; background: #3D3BD4; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none; box-shadow: 0 10px 24px rgba(61, 59, 212, 0.35)">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </a>
+    </div>
+    <p style="margin: 0; text-align: center; font-size: 12px; line-height: 1.45; color: #5B5B66; font-weight: 500">{{hint}}</p>
+  </sc-if>
+
+  <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+    <div style="height: 480px; border-radius: 26px; border: 1.5px dashed #C9C9D4; background: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; box-sizing: border-box; text-align: center">
+      <div style="width: 64px; height: 64px; border-radius: 20px; background: #E3DFFF; display: flex; align-items: center; justify-content: center">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#3D3BD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M3 7v10M21 7v10"/></svg>
+      </div>
+      <h2 style="margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.4px">{{emptyTitle}}</h2>
+      <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #5B5B66">{{emptyText}}</p>
+      <a href="{{emptyHref}}" style="height: 48px; padding: 0 22px; border-radius: 999px; background: #111114; color: #FFFFFF; font-weight: 700; font-size: 15px; display: flex; align-items: center; text-decoration: none">{{emptyCta}}</a>
+      <button type="button" onClick="{{reset}}" style="height: 44px; padding: 0 16px; background: transparent; border: none; color: #3D3BD4; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer">Volver a ver</button>
+    </div>
+  </sc-if>
+
+  <nav aria-label="Navegación principal" style="position: absolute; left: 12px; right: 12px; bottom: 12px; height: 68px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 22px; box-shadow: 0 10px 30px rgba(17, 17, 20, 0.10); display: flex; justify-content: space-around; align-items: center; padding: 0 4px; box-sizing: border-box">
+    <a href="Feed.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #3D3BD4; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M3 7v10M21 7v10"/></svg>
+      Explorar
+    </a>
+    <a href="Mapa.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 500">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+      Mapa
+    </a>
+    <a href="Publicar.dc.html" aria-label="Publicar plan o evento" style="width: 50px; height: 50px; border-radius: 16px; background: #111114; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </a>
+    <a href="Amigos.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 500">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.3 5 2.4 5 5.8"/></svg>
+      Amigos
+    </a>
+    <a href="Perfil.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 500">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+      Perfil
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { i: 0, mode: 'amigos', type: 'Todos' };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var mode = s.mode || 'amigos';
+    var type = s.type || 'Todos';
+    var friends = [
+      { isFriend: true, name: 'Sofi', initials: 'SO', avatar: '#FFEDB8', category: 'Café', time: 'quedan 40 min', where: 'a ~800 m · Providencia', title: 'Por un café en Providencia, ¿alguien?', chip: '2 ya jalaron', xp: '+20 XP', tile: '#FFE1CF', isCafe: true, href: 'Match.dc.html', cta: 'Jalo' },
+      { isFriend: true, name: 'Mau', initials: 'MA', avatar: '#CDEFDF', category: 'Correr', time: 'en 1 h', where: 'a ~3 km · Colomos', title: '5 km suavecito en el Metropolitano', chip: '4 ya jalaron', xp: '+20 XP', tile: '#CDEFDF', isRun: true, href: 'Match.dc.html', cta: 'Jalo' },
+      { isFriend: true, name: 'Regina', initials: 'RE', avatar: '#FFDDE8', category: 'Estudiar', time: 'quedan 2 h', where: 'a ~1.5 km · ITESO', title: 'Repaso para el parcial en la biblio', chip: '1 ya jaló', xp: '+20 XP', tile: '#E3DFFF', isStudy: true, href: 'Match.dc.html', cta: 'Jalo' },
+      { isFriend: true, name: 'Dani', initials: 'DA', avatar: '#E3DFFF', category: 'Comer', time: 'quedan 25 min', where: 'a ~1 km · Chapultepec', title: 'Tortas ahogadas, voy saliendo', chip: '3 ya jalaron', xp: '+20 XP', tile: '#FFEDB8', isFood: true, href: 'Match.dc.html', cta: 'Jalo' }
+    ];
+    var events = [
+      { isEvent: true, type: 'Deporte', category: 'Deporte · Correr', org: 'Club de corredores', title: 'Social Run 5K en Colomos', day: '21', month: 'NOV', when: 'Sábado · 7:00 am', place: 'Bosque Los Colomos · ~3 km', going: 34, cap: 50, xp: '+50 XP', tile: '#FFD3BF', isRun: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Deporte', category: 'Deporte · Básquet', org: 'Ligas de barrio', title: 'Reta de básquet 3x3', day: '22', month: 'NOV', when: 'Domingo · 11:00 am', place: 'Parque Revolución · ~2 km', going: 12, cap: 20, xp: '+50 XP', tile: '#D6EBFF', isBall: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Social', category: 'Social · Juegos', org: 'Juegos GDL', title: 'Picnic y juegos de mesa', day: '21', month: 'NOV', when: 'Sábado · 5:00 pm', place: 'Parque Metropolitano · ~6 km', going: 18, cap: 30, xp: '+40 XP', tile: '#E3DFFF', isDice: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Comida', category: 'Comida · Trivia', org: 'Trivia Night', title: 'Tacos y trivia en equipo', day: '19', month: 'NOV', when: 'Jueves · 9:00 pm', place: 'Taquería en Providencia · ~1 km', going: 9, cap: 16, xp: '+40 XP', tile: '#FFEDB8', isFood: true, href: 'Evento.dc.html', cta: 'Me uno' },
+      { isEvent: true, type: 'Aprender', category: 'Aprender · Baile', org: 'Escuela de baile', title: 'Clase abierta de salsa', day: '20', month: 'NOV', when: 'Viernes · 8:00 pm', place: 'Av. Chapultepec · ~1 km', going: 22, cap: 40, xp: '+40 XP', tile: '#FFDDE8', isMusic: true, href: 'Evento.dc.html', cta: 'Me uno' }
+    ];
+    events.forEach(function (e) { e.pct = Math.round(e.going / e.cap * 100) + '%'; e.tileH = '150px'; });
+    friends.forEach(function (f) { f.tileH = '170px'; });
+    var filtered = type === 'Todos' ? events : events.filter(function (e) { return e.type === type; });
+    var list = mode === 'abierto' ? filtered : friends;
+    var i = s.i || 0;
+    var card = list[i] || list[0] || friends[0];
+    function seg(id) {
+      var on = mode === id;
+      return { bg: on ? '#FFFFFF' : 'transparent', fg: on ? '#111114' : '#5B5B66', shadow: on ? '0 1px 4px rgba(17, 17, 20, 0.12)' : 'none', pressed: on ? 'true' : 'false', pick: function () { self.setState({ mode: id, i: 0 }); } };
+    }
+    var types = ['Todos', 'Deporte', 'Social', 'Comida', 'Aprender'].map(function (l) {
+      var on = type === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#E3DFFF' : '#FFFFFF', fg: on ? '#2B29A8' : '#34343C', border: on ? '#3D3BD4' : 'rgba(17, 17, 20, 0.10)', pick: function () { self.setState({ type: l, i: 0 }); } };
+    });
+    var open = mode === 'abierto';
+    return {
+      card: card,
+      types: types,
+      hasCard: i < list.length,
+      isEmpty: i >= list.length,
+      isOpen: open,
+      counter: i < list.length ? (i + 1) + ' de ' + list.length + (open ? ' eventos' : ' planes') : (open ? 'sin eventos nuevos' : 'sin planes nuevos'),
+      hint: open ? 'Gente nueva solo ve tu nombre, nunca tu ubicación.' : 'Desliza → para jalar · ← para pasar (no le avisamos)',
+      emptyTitle: open ? 'No hay más eventos así' : 'Ya viste todo lo de cerca',
+      emptyText: open ? 'Arma el tuyo: elige el tipo, el lugar público y el cupo.' : 'Publica qué andas haciendo y deja que tus amigos jalen contigo.',
+      emptyCta: open ? 'Crear evento' : 'Publicar mi plan',
+      emptyHref: open ? 'CrearEvento.dc.html' : 'Publicar.dc.html',
+      segA: seg('amigos'),
+      segB: seg('abierto'),
+      pass: function () { self.setState({ i: i + 1 }); },
+      later: function () { self.setState({ i: i + 1 }); },
+      reset: function () { self.setState({ i: 0 }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

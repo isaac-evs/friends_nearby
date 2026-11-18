@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mapa de amigos y eventos — ¿Jalas?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F8}
+a{color:#3D3BD4}a:hover{color:#2B29A8}
+input::placeholder{color:#8A8A96}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #EEEEF0; color: #111114; font-family: 'Plus Jakarta Sans', system-ui, sans-serif">
+
+  <svg aria-hidden="true" width="390" height="844" viewBox="0 0 390 844" style="position: absolute; left: 0; top: 0">
+    <rect width="390" height="844" fill="#EEEEF0"/>
+    <rect x="228" y="120" width="150" height="130" rx="22" fill="#DDEFE3"/>
+    <ellipse cx="262" cy="220" rx="22" ry="14" fill="#D6EBFF"/>
+    <rect x="-10" y="440" width="150" height="120" rx="22" fill="#DDEFE3"/>
+    <g stroke="#FFFFFF" stroke-linecap="round" fill="none">
+      <path d="M-20 250 L410 330" stroke-width="18"/>
+      <path d="M160 -20 L230 870" stroke-width="18"/>
+      <path d="M-20 110 L410 160" stroke-width="8"/>
+      <path d="M-20 400 L410 470" stroke-width="8"/>
+      <path d="M-20 600 L410 640" stroke-width="8"/>
+      <path d="M60 -20 L110 870" stroke-width="8"/>
+      <path d="M330 -20 L360 870" stroke-width="8"/>
+      <path d="M260 250 L300 520" stroke-width="6"/>
+    </g>
+    <g font-family="Plus Jakarta Sans, sans-serif" font-size="11" font-weight="700" fill="#6B6A7C">
+      <text x="20" y="236" transform="rotate(10 20 236)">Av. México</text>
+      <text x="236" y="480">Providencia</text>
+      <text x="16" y="430">Chapultepec</text>
+    </g>
+  </svg>
+
+  <div style="position: absolute; left: 14px; right: 14px; top: 38px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; gap: 8px">
+      <label style="flex: 1; position: relative; display: block">
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Buscar amigo o evento</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; left: 14px; top: 13px"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input type="search" placeholder="Buscar amigo o evento" style="width: 100%; height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; padding: 0 14px 0 40px; font-size: 16px; font-family: inherit; box-sizing: border-box; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+      </label>
+      <button type="button" aria-label="Modo fantasma" style="flex: none; width: 44px; height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3 3.8M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/></svg>
+      </button>
+    </div>
+    <div style="display: flex; gap: 8px">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+        <button type="button" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(17, 17, 20, 0.08); background: {{f.bg}}; color: {{f.fg}}; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer">{{f.label}}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div aria-hidden="true" style="position: absolute; left: 41px; top: 245px; width: 120px; height: 120px; border-radius: 50%; background: rgba(61, 59, 212, 0.10); border: 2px dashed #3D3BD4; box-sizing: border-box"></div>
+  <div aria-hidden="true" style="position: absolute; left: 236px; top: 368px; width: 120px; height: 120px; border-radius: 50%; background: rgba(61, 59, 212, 0.10); border: 2px dashed #3D3BD4; box-sizing: border-box"></div>
+  <div aria-hidden="true" style="position: absolute; left: 20px; top: 150px; width: 100px; height: 100px; border-radius: 50%; background: rgba(61, 59, 212, 0.10); border: 2px dashed #3D3BD4; box-sizing: border-box"></div>
+
+  <div aria-hidden="true" style="position: absolute; left: 176px; top: 336px; width: 40px; height: 40px; border-radius: 50%; background: rgba(61, 59, 212, 0.22)"></div>
+  <div aria-hidden="true" style="position: absolute; left: 186px; top: 346px; width: 20px; height: 20px; border-radius: 50%; background: #3D3BD4; border: 3px solid #FFFFFF; box-sizing: border-box; box-shadow: 0 0 0 1px rgba(17, 17, 20, 0.15)"></div>
+
+  <button type="button" onClick="{{selRun}}" aria-label="Social Run 5K, evento público, 34 personas" style="position: absolute; left: 290px; top: 140px; background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+    <span style="width: 50px; height: 50px; border-radius: 16px; background: #FF7A45; border: 3px solid {{ringRun}}; box-sizing: border-box; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); display: flex; align-items: center; justify-content: center">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#111114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+    </span>
+    <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Social Run · 34</span>
+  </button>
+  <button type="button" onClick="{{selSofi}}" aria-label="Sofi, café, ubicación exacta por match" style="position: absolute; left: 225px; top: 247px; background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+    <span style="width: 48px; height: 48px; border-radius: 50%; background: #FFEDB8; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringSofi}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">SO</span>
+    <span style="background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Café · match</span>
+  </button>
+  <button type="button" onClick="{{selDani}}" aria-label="Dani, comer, zona aproximada" style="position: absolute; left: 77px; top: 279px; background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+    <span style="width: 48px; height: 48px; border-radius: 50%; background: #E3DFFF; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringDani}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">DA</span>
+    <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Comer</span>
+  </button>
+  <button type="button" onClick="{{selRegina}}" aria-label="Regina, estudiar, zona aproximada" style="position: absolute; left: 272px; top: 401px; background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+    <span style="width: 48px; height: 48px; border-radius: 50%; background: #FFDDE8; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringRegina}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">RE</span>
+    <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Estudiar</span>
+  </button>
+  <button type="button" onClick="{{selMau}}" aria-label="Mau, correr, zona aproximada" style="position: absolute; left: 46px; top: 175px; background: transparent; border: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer">
+    <span style="width: 48px; height: 48px; border-radius: 50%; background: #CDEFDF; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; border: 3px solid {{ringMau}}; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); box-sizing: border-box">MA</span>
+    <span style="background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px">Correr</span>
+  </button>
+
+  <button type="button" aria-label="Centrar en mi ubicación" style="position: absolute; right: 16px; top: 458px; width: 44px; height: 44px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #3D3BD4; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+  </button>
+
+  <section aria-label="Seleccionado en el mapa" style="position: absolute; left: 12px; right: 12px; bottom: 92px; height: 236px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 24px; box-shadow: 0 10px 30px rgba(17, 17, 20, 0.10); box-sizing: border-box; padding: 14px 16px 14px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <div style="flex: none; width: 48px; height: 48px; border-radius: {{sel.radius}}; background: {{sel.avatar}}; border: 1px solid rgba(17, 17, 20, 0.08); box-sizing: border-box; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center">{{sel.initials}}</div>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+        <span style="font-weight: 800; font-size: 16px">{{sel.name}} · {{sel.category}}</span>
+        <span style="font-size: 13px; color: #5B5B66; font-weight: 500">{{sel.where}} · {{sel.ago}}</span>
+      </div>
+      <span style="flex: none; background: {{sel.badgeBg}}; color: {{sel.badgeFg}}; border: 1px solid rgba(17, 17, 20, 0.08); font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px">{{sel.badge}}</span>
+    </div>
+    <h2 style="margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 21px; font-weight: 800; line-height: 1.15">{{sel.title}}</h2>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <a href="{{sel.secHref}}" style="height: 46px; border-radius: 14px; border: 1px solid rgba(17, 17, 20, 0.08); background: #FFFFFF; color: #111114; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; text-decoration: none">{{sel.sec}}</a>
+      <a href="{{sel.ctaHref}}" style="height: 46px; border-radius: 14px; background: #3D3BD4; color: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); box-shadow: 0 6px 18px rgba(17, 17, 20, 0.08); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; text-decoration: none">{{sel.cta}}</a>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span aria-hidden="true" style="flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px dashed #3D3BD4; background: rgba(61, 59, 212, 0.10); box-sizing: border-box"></span>
+      <span style="font-size: 12px; color: #5B5B66; font-weight: 500">Círculo = zona aproximada. Exacta solo con match.</span>
+    </div>
+  </section>
+
+  <nav aria-label="Navegación principal" style="position: absolute; left: 12px; right: 12px; bottom: 12px; height: 68px; background: #FFFFFF; border: 1px solid rgba(17, 17, 20, 0.08); border-radius: 22px; box-shadow: 0 10px 30px rgba(17, 17, 20, 0.10); display: flex; justify-content: space-around; align-items: center; padding: 0 4px; box-sizing: border-box">
+    <a href="Feed.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M3 7v10M21 7v10"/></svg>
+      Explorar
+    </a>
+    <a href="Mapa.dc.html" aria-current="page" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #3D3BD4; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+      Mapa
+    </a>
+    <a href="Publicar.dc.html" aria-label="Publicar plan" style="width: 50px; height: 50px; border-radius: 16px; background: #111114; color: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </a>
+    <a href="Amigos.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.2c2.8.3 5 2.4 5 5.8"/></svg>
+      Amigos
+    </a>
+    <a href="Perfil.dc.html" style="width: 60px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5B5B66; text-decoration: none; font-size: 11px; font-weight: 700">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+      Perfil
+    </a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'sofi', filter: 'Todos' };
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state || {};
+    var approx = { badge: 'Aprox.', badgeBg: '#F1F1F4', badgeFg: '#111114', sec: 'Ver plan', secHref: 'Feed.dc.html', cta: 'Jalo', ctaHref: 'Match.dc.html', radius: '50%' };
+    function mk(base, extra) { var o = {}; var k; for (k in base) { o[k] = base[k]; } for (k in extra) { o[k] = extra[k]; } return o; }
+    var items = {
+      sofi: mk(approx, { name: 'Sofi', initials: 'SO', avatar: '#FFEDB8', category: 'Café', where: 'Av. Providencia y Rubén Darío', ago: 'en vivo', title: 'Por un café en Providencia, ¿alguien?', badge: 'Exacta', badgeBg: '#3D3BD4', badgeFg: '#FFFFFF', cta: 'Cómo llegar' }),
+      dani: mk(approx, { name: 'Dani', initials: 'DA', avatar: '#E3DFFF', category: 'Comer', where: 'a ~1 km · Chapultepec', ago: 'hace 2 min', title: 'Tortas ahogadas, voy saliendo' }),
+      regina: mk(approx, { name: 'Regina', initials: 'RE', avatar: '#FFDDE8', category: 'Estudiar', where: 'a ~1.5 km · Providencia', ago: 'hace 9 min', title: 'Repaso para el parcial en la biblio' }),
+      mau: mk(approx, { name: 'Mau', initials: 'MA', avatar: '#CDEFDF', category: 'Correr', where: 'a ~3 km · Colomos', ago: 'hace 12 min', title: '5 km suavecito en el Metropolitano' }),
+      run: mk(approx, { name: 'Social Run 5K', initials: '5K', avatar: '#FF7A45', radius: '14px', category: 'Evento', where: 'Bosque Los Colomos', ago: 'sáb 7:00', title: '34 van · 3 amigos tuyos · cupo 50', badge: 'Público', badgeBg: '#CDEFDF', badgeFg: '#111114', sec: 'Ver evento', secHref: 'Evento.dc.html', cta: 'Me uno', ctaHref: 'Evento.dc.html' })
+    };
+    var sel = s.sel || 'sofi';
+    function ring(id) { return sel === id ? '#3D3BD4' : '#FFFFFF'; }
+    function pick(id) { return function () { self.setState({ sel: id }); }; }
+    var filters = ['Todos', 'Amigos', 'Eventos'].map(function (l) {
+      var on = (s.filter || 'Todos') === l;
+      return { label: l, pressed: on ? 'true' : 'false', bg: on ? '#3D3BD4' : '#FFFFFF', fg: on ? '#FFFFFF' : '#111114', pick: function () { self.setState({ filter: l }); } };
+    });
+    return {
+      sel: items[sel],
+      filters: filters,
+      ringSofi: ring('sofi'), ringDani: ring('dani'), ringRegina: ring('regina'), ringMau: ring('mau'), ringRun: ring('run'),
+      selSofi: pick('sofi'), selDani: pick('dani'), selRegina: pick('regina'), selMau: pick('mau'), selRun: pick('run')
+    };
+  }
+}
+</script>
+</body>
+</html>
