@@ -38,6 +38,7 @@ module "compute" {
 
   memory_size          = var.lambda_memory
   location_ttl_seconds = var.location_ttl_seconds
+  jwt_ttl_hours        = var.jwt_ttl_hours
   subnet_ids           = module.network.private_subnet_ids
   security_group_id    = module.network.lambda_sg_id
 

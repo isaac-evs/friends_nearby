@@ -1,5 +1,10 @@
 # Changes needed in `infra/` for the Go backend
 
+> **Status:** items 1 and 2 under "Required" are implemented in `infra/`
+> (Go runtime, `infra/scripts/build-lambdas.sh`, generated `JWT_SECRET`). The
+> "Please verify" table has been checked against the Terraform code; still
+> untested against a real AWS account.
+
 For the person who owns the Terraform. Everything below is based on the current
 `infra/modules/*` code. Nothing here has been applied or tested against AWS.
 
