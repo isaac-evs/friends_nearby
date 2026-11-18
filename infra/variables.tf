@@ -31,3 +31,9 @@ variable "cors_origins" {
   type    = list(string)
   default = ["*"]
 }
+
+variable "jwt_ttl_hours" {
+  description = "Lifetime of issued JWTs"
+  type        = number
+  default     = 168
+}

@@ -1,13 +1,15 @@
-data "archive_file" "api" {
-  type        = "zip"
-  source_file = "${path.root}/src/api.mjs"
-  output_path = "${path.root}/.build/api.zip"
+# Go binaries are built by scripts/build-lambdas.sh into <infra>/.build/*.zip
+# (each zip holds a single executable named "bootstrap").
+locals {
+  api_zip    = "${path.root}/.build/api.zip"
+  worker_zip = "${path.root}/.build/worker.zip"
 }
 
-data "archive_file" "worker" {
-  type        = "zip"
-  source_file = "${path.root}/src/worker.mjs"
-  output_path = "${path.root}/.build/worker.zip"
+# Signing key for the backend's own JWTs (HS256). Note: it is stored in the
+# Terraform state, so keep the state private/encrypted.
+resource "random_password" "jwt_secret" {
+  length  = 48
+  special = false
 }
 
 data "aws_iam_policy_document" "assume" {
@@ -67,10 +69,11 @@ resource "aws_cloudwatch_log_group" "api" {
 resource "aws_lambda_function" "api" {
   function_name    = "${var.name}-api"
   role             = aws_iam_role.api.arn
-  runtime          = "nodejs20.x"
-  handler          = "api.handler"
-  filename         = data.archive_file.api.output_path
-  source_code_hash = data.archive_file.api.output_base64sha256
+  runtime          = "provided.al2023"
+  handler          = "bootstrap"
+  architectures    = ["x86_64"]
+  filename         = local.api_zip
+  source_code_hash = filebase64sha256(local.api_zip)
   memory_size      = var.memory_size
   timeout          = 15
 
@@ -92,6 +95,8 @@ resource "aws_lambda_function" "api" {
       MEDIA_BUCKET         = var.media_bucket_id
       CDN_DOMAIN           = var.cdn_domain
       WS_MANAGEMENT_URL    = var.ws_management_url
+      JWT_SECRET           = random_password.jwt_secret.result
+      JWT_TTL_HOURS        = tostring(var.jwt_ttl_hours)
     }
   }
   depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy_attachment.api_vpc]
@@ -128,10 +133,11 @@ resource "aws_iam_role_policy" "worker" {
 resource "aws_lambda_function" "worker" {
   function_name    = "${var.name}-worker"
   role             = aws_iam_role.worker.arn
-  runtime          = "nodejs20.x"
-  handler          = "worker.handler"
-  filename         = data.archive_file.worker.output_path
-  source_code_hash = data.archive_file.worker.output_base64sha256
+  runtime          = "provided.al2023"
+  handler          = "bootstrap"
+  architectures    = ["x86_64"]
+  filename         = local.worker_zip
+  source_code_hash = filebase64sha256(local.worker_zip)
   memory_size      = var.memory_size
   timeout          = 60
 

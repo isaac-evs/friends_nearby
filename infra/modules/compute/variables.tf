@@ -24,3 +24,4 @@ variable "cdn_domain" { type = string }
 
 variable "ws_management_url" { type = string }
 variable "ws_execution_arn" { type = string }
+variable "jwt_ttl_hours" { type = number }
