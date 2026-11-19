@@ -67,7 +67,7 @@ export function IconButton({
       type="button"
       aria-label={label}
       {...rest}
-      className={cn('flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink shadow-sm', className)}
+      className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-ink', className)}
     >
       {children}
     </button>
@@ -79,7 +79,7 @@ export function IconLink({ label, className, children, ...rest }: { label: strin
     <Link
       aria-label={label}
       {...rest}
-      className={cn('flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-ink shadow-sm', className)}
+      className={cn('flex size-11 shrink-0 items-center justify-center rounded-full text-ink', className)}
     >
       {children}
     </Link>

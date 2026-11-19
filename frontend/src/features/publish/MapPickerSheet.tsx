@@ -6,7 +6,7 @@ import { useApp } from '@/app/store'
 import { formatApproxDistance } from '@/lib/format'
 
 const PlaceMap = lazy(() => import('./PlaceMap'))
-const hasWebGL = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')) } catch { return false } }
+import { hasWebGL } from '@/features/map/MapLazy'
 const STEP_M = 100
 
 /**

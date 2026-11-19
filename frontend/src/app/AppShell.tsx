@@ -39,7 +39,7 @@ export function AppShell() {
       </DesktopShell>
     )
   }
-  const showTabs = TAB_ROUTES.includes(pathname)
+  const showTabs = TAB_ROUTES.includes(pathname) || pathname.startsWith('/plan/')
   return (
     // Entre celular y desktop todo es como en móvil (columna de 480 px), salvo el mapa, que se extiende a todo el ancho.
     <div className={cn('mx-auto flex min-h-dvh w-full flex-col', pathname !== '/mapa' && 'max-w-[480px]')}>

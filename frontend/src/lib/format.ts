@@ -33,6 +33,23 @@ export function formatAgo(iso: string, now = Date.now()): string {
   return `hace ${Math.round(min / 60)} h`
 }
 
+/** Distancia de un amigo, ya redondeada a 100 m por el servidor: "100 m", "800 m", "1.5 km". */
+export function formatFriendDistance(m: number): string {
+  if (m < 1000) return `${Math.max(100, Math.round(m / 100) * 100)} m`
+  const km = m < 5000 ? Math.round(m / 500) / 2 : Math.round(m / 1000)
+  return `${Number.isInteger(km) ? km : km.toFixed(1)} km`
+}
+
+/**
+ * Dónde y cuándo se vio por última vez a un amigo: "a 100 m · ahora" si se actualizó hace menos de 1 minuto y, si se
+ * desconectó, "Última ubicación a 800 m · hace 15 min". No hay pausa: al desconectarse queda su última ubicación.
+ */
+export function formatLastSeen(distanceM: number, updatedAt: string, now = Date.now()): string {
+  const where = `a ${formatFriendDistance(distanceM)}`
+  const min = (now - new Date(updatedAt).getTime()) / MIN
+  return min < 1 ? `${where} · ahora` : `Última ubicación ${where} · ${formatAgo(updatedAt, now)}`
+}
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** "hoy", "ayer" o "hace N días" (por día calendario, no por horas). */

@@ -1,8 +1,7 @@
 import { useId, useState } from 'react'
 import { SlidersHorizontal, X } from 'lucide-react'
-import { ModalSheet, ToggleRow } from '@/design'
-import { EyeOff } from 'lucide-react'
-import { useActions, useApp } from '@/app/store'
+import { ModalSheet } from '@/design'
+import { useApp } from '@/app/store'
 import { cn } from '@/lib/cn'
 import { RangeOptions } from '../range/RangeControl'
 import { radiusLabel } from '@/lib/reach'
@@ -13,7 +12,6 @@ import { DayChips } from '../explore/DayChips'
 
 function Panel() {
   const { state } = useApp()
-  const { toggleGhost } = useActions()
   return (
     <div className="flex flex-col gap-5">
       <section aria-label="Día" className="flex flex-col gap-2">
@@ -27,10 +25,6 @@ function Panel() {
         <RangeOptions />
       </section>
       <section aria-label="Visibilidad" className="flex flex-col gap-1">
-        <ToggleRow
-          last icon={<EyeOff aria-hidden="true" size={20} strokeWidth={2} />} title="Modo fantasma" checked={state.ghost} onChange={toggleGhost}
-          subtitle={state.ghost ? 'Nadie te ve y tú no ves a tus amigos cercanos ni te puedes unir a nada: solo ves qué hay.' : 'Oculta tu ubicación y también deja de mostrarte a tus amigos cercanos. No puedes unirte a nada.'}
-        />
         <LiveStatus />
       </section>
       <section aria-label="Qué es cada cosa" className="flex flex-col gap-2">
@@ -42,19 +36,18 @@ function Panel() {
 }
 
 /**
- * Configuración del mapa: un solo botón con ícono. Dentro, el día, el rango, el modo fantasma, quién te ve y qué significa cada
+ * Configuración del mapa: un solo botón con ícono. Dentro, el día, el rango, quién te ve y qué significa cada
  * marcador (con los créditos del mapa), para no llenar la pantalla. Desktop: panel junto al botón; móvil: hoja.
  */
 export function MapSettings({ variant, align = 'right', className }: { variant: 'popover' | 'sheet'; align?: 'left' | 'right'; className?: string }) {
   const [open, setOpen] = useState(false)
-  const ghost = useApp().state.ghost
   const id = useId()
   return (
     <div className={cn('relative', className)}>
       <button
-        type="button" aria-label={ghost ? 'Configuración del mapa (modo fantasma activo)' : 'Configuración del mapa'} aria-expanded={open} aria-controls={variant === 'popover' ? id : undefined} aria-haspopup={variant === 'sheet' ? 'dialog' : undefined}
+        type="button" aria-label="Configuración del mapa" aria-expanded={open} aria-controls={variant === 'popover' ? id : undefined} aria-haspopup={variant === 'sheet' ? 'dialog' : undefined}
         onClick={() => setOpen((v) => !v)}
-        className={cn('pointer-events-auto flex size-11 items-center justify-center rounded-md border shadow-md', ghost ? 'border-ink bg-ink text-white' : open ? 'border-primary bg-surface text-primary' : 'border-line bg-surface text-ink')}
+        className={cn('pointer-events-auto flex size-11 items-center justify-center rounded-md border shadow-md', open ? 'border-primary bg-surface text-primary' : 'border-line bg-surface text-ink')}
       >
         {open && variant === 'popover' ? <X aria-hidden="true" size={20} /> : <SlidersHorizontal aria-hidden="true" size={20} />}
       </button>

@@ -10,14 +10,24 @@
 }
 
 /*
- * Amigo cercano sin plan: su aro parpadea suave (1.8 s por ciclo, muy por debajo de 3 destellos/s).
+ * Amigo cercano sin plan: un aro verde se expande y se desvanece alrededor de su foto (1.8 s por ciclo, muy por debajo de 3 destellos/s); la foto no cambia de opacidad.
  * Con `prefers-reduced-motion` el marcador queda fijo (`motion-reduce:animate-none`) y el estado "sin plan" se dice con texto en la hoja y la lista.
  */
 @keyframes chill-blink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 60%, transparent); }
-  50% { opacity: 0.6; box-shadow: 0 0 0 9px color-mix(in srgb, var(--color-success) 0%, transparent); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 65%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 11px color-mix(in srgb, var(--color-success) 0%, transparent); }
 }
-@theme { --animate-chill: chill-blink 1.8s ease-in-out infinite; }
+@keyframes alert-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-danger) 70%, transparent); transform: scale(1); }
+  70%, 100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--color-danger) 0%, transparent); transform: scale(1.1); }
+}
+@keyframes live-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 55%, transparent); transform: scale(1); }
+  70%, 100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--color-primary) 0%, transparent); transform: scale(1.08); }
+}
+@theme { --animate-live-pulse: live-pulse 1.8s ease-out infinite; }
+@theme { --animate-alert-pulse: alert-pulse 1.4s ease-out infinite; }
+@theme { --animate-chill: chill-blink 1.8s ease-out infinite; }
 
 /* Menú lateral: entra desde la derecha (desktop) o sube desde abajo (móvil); sale igual de suave. Sin movimiento si se pide reducirlo. */
 @keyframes drawer-in { from { transform: translateX(100%); } to { transform: none; } }
@@ -32,6 +42,36 @@
   &[data-closing='true'] { animation: sheet-out 240ms ease-in both; @media (min-width: 1024px) { animation-name: drawer-out; } }
   @media (prefers-reduced-motion: reduce) { animation: none !important; }
 }
+/* Errores de acceso: el aviso baja suave y el formulario hace una sacudida corta (una vez). Sin movimiento si se pide reducirlo. */
+@keyframes alert-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes shake { 0%, 100% { transform: none; } 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
+@utility alert-motion {
+  animation: alert-in 260ms var(--ease-out-soft) both;
+  @media (prefers-reduced-motion: reduce) { animation: none !important; }
+}
+@utility shake-motion {
+  animation: shake 420ms ease-in-out both;
+  @media (prefers-reduced-motion: reduce) { animation: none !important; }
+}
+/* Ilustración de la pantalla de acceso: el plan de un amigo llega, se desliza a "Jalo" y vuelve; los pines flotan. */
+@keyframes hero-card { 0%, 12% { transform: none; opacity: 1; } 55% { transform: translateX(0) rotate(0); } 70% { transform: translateX(46px) rotate(5deg); opacity: 1; } 82% { transform: translateX(110%) rotate(9deg); opacity: 0; } 83% { transform: translateX(-30px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes hero-jalo { 0%, 50% { transform: none; filter: none; } 62% { transform: scale(1.12); } 72%, 100% { transform: none; } }
+@keyframes hero-chip { 0%, 66% { opacity: 0; transform: scale(.6) translateY(6px); } 74%, 86% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes hero-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes hero-ping { 0% { transform: scale(.6); opacity: .55; } 100% { transform: scale(1.9); opacity: 0; } }
+@utility hero-card-motion { animation: hero-card 7s ease-in-out infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; } }
+@utility hero-jalo-motion { animation: hero-jalo 7s ease-in-out infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; } }
+@utility hero-chip-motion { animation: hero-chip 7s ease-in-out infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; opacity: 1; } }
+@utility hero-float-motion { animation: hero-float 4.5s ease-in-out infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; } }
+@utility hero-ping-motion { animation: hero-ping 2.6s ease-out infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; opacity: 0; } }
+/* Fondo de la pantalla de acceso: manchas pastel que se mueven despacio e íconos de planes que suben. */
+@keyframes drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(28px, -22px) scale(1.08); } }
+@keyframes rise { 0% { transform: translateY(0) rotate(-8deg); opacity: 0; } 15%, 80% { opacity: .2; } 100% { transform: translateY(-110vh) rotate(10deg); opacity: 0; } }
+@utility drift-motion { animation: drift 14s ease-in-out infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; } }
+@utility rise-motion { animation: rise 16s linear infinite; @media (prefers-reduced-motion: reduce) { animation: none !important; opacity: .15; } }
+/* Vista previa de la pantalla de entrada: el mapa se desplaza despacio, como si se estuviera moviendo. */
+@keyframes map-pan { from { transform: translate(-3%, 2%) scale(1.05); } to { transform: translate(3%, -2%) scale(1.1); } }
+@utility map-pan-motion { animation: map-pan 40s ease-in-out infinite alternate; @media (prefers-reduced-motion: reduce) { animation: none !important; } }
 @utility scrim-motion {
   animation: scrim-in 240ms ease-out both;
   &[data-closing='true'] { animation: scrim-out 240ms ease-in both; }

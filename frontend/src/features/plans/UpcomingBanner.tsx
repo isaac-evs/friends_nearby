@@ -1,11 +1,10 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Navigation, Radio, X } from 'lucide-react'
-import { buttonClass } from '@/design'
+import { CalendarClock, ChevronRight, Clock, Radio, X } from 'lucide-react'
 import { useClock } from '@/app/hooks'
 import { countdownLabel, minutesUntilStart } from '@/lib/planTime'
 import { cn } from '@/lib/cn'
-import { directionsHref, useMyPlans, type MyPlan } from './useMyPlans'
+import { useMyPlans } from './useMyPlans'
 
 /**
  * Estado de tu plan o evento, dentro de la app (no es push; eso está fuera del MVP, [PROPUESTA] recordatorios reales con un
@@ -19,48 +18,40 @@ export function UpcomingBanner({ compact, className }: { compact?: boolean; clas
   const { pathname } = useLocation()
   const mine = useMyPlans(now)
   const [hidden, setHidden] = useState<string[]>([])
-  // En el mapa, en Mis planes y en el match ya está todo dicho.
-  if (pathname === '/mapa' || pathname === '/planes' || pathname.startsWith('/match/')) return null
+  // En el mapa, en Mis planes, en el match y dentro de un plan (ahí ya estás viendo el plan) ya está todo dicho.
+  if (pathname === '/mapa' || pathname === '/planes' || pathname.startsWith('/match/') || pathname.startsWith('/plan/')) return null
 
   const live = mine.find((p) => p.phase === 'live' && !hidden.includes(`live:${p.key}`))
   const soon = live ? undefined : mine.find((p) => p.phase === 'upcoming' && minutesUntilStart(p, now) <= 60 && !hidden.includes(p.key))
   const p = live ?? soon
   if (!p) return null
   const urgent = !live && minutesUntilStart(p, now) <= 15
+  const left = countdownLabel(p, now).replace(/^en curso · /, '')
 
   return (
-    <Card compact={compact} className={className} tone={live ? 'live' : urgent ? 'urgent' : 'soon'} onHide={() => setHidden((h) => [...h, live ? `live:${p.key}` : p.key])}>
-      {live ? <>En curso: «{p.title}» · {countdownLabel(p, now).replace('en curso · ', '')}.</> : <>Tu plan «{p.title}» {countdownLabel(p, now)}.</>}
-      <Actions p={p} live={!!live} compact={compact} />
-    </Card>
+    <Card compact={compact} className={className} tone={live ? 'live' : urgent ? 'urgent' : 'soon'} href={p.href} onHide={() => setHidden((h) => [...h, live ? `live:${p.key}` : p.key])}
+      kicker={live ? 'En curso' : urgent ? 'Va a empezar' : 'Próximo'} title={p.title} meta={live ? left : `${left} · ${p.placeName}`} />
   )
 }
 
-function Card({ compact, className, tone, onHide, children }: { compact?: boolean; className?: string; tone: 'live' | 'urgent' | 'soon'; onHide: () => void; children: ReactNode[] | ReactNode }) {
-  const [text, actions] = Array.isArray(children) ? children : [children, null]
-  const Icon = tone === 'live' ? Radio : Bell
+/** Aviso compacto y tocable (lleva directo al plan): ícono, estado, título y una línea de contexto. */
+function Card({ compact, className, tone, href, onHide, kicker, title, meta }: { compact?: boolean; className?: string; tone: 'live' | 'urgent' | 'soon'; href: string; onHide: () => void; kicker: string; title: string; meta: string }) {
+  const Icon = tone === 'live' ? Radio : tone === 'urgent' ? Clock : CalendarClock
   return (
-    <div role="status" className={cn('flex flex-col gap-2 rounded-xl border border-line p-3 shadow-sm', tone === 'live' ? 'bg-cat-musica' : tone === 'urgent' ? 'bg-accent-soft' : 'bg-surface', className)}>
-      <div className="flex items-start gap-2.5">
-        <Icon aria-hidden="true" size={18} className="mt-0.5 shrink-0" />
-        <p className={cn('flex-1 font-bold', compact ? 'text-caption' : 'text-sm')}>{text}</p>
-        <button type="button" aria-label="Ocultar aviso" onClick={onHide} className="-m-2 flex size-11 shrink-0 items-center justify-center"><X aria-hidden="true" size={18} /></button>
-      </div>
-      {actions}
-    </div>
-  )
-}
-
-function Actions({ p, live, compact }: { p: MyPlan; live: boolean; compact?: boolean }) {
-  const way = directionsHref(p)
-  const cls = (v: 'primary' | 'secondary') => buttonClass(v, 'md', false, 'h-11 flex-1 rounded-md px-3 text-sm')
-  const see = live ? p.href : '/planes'
-  return (
-    <div className={cn('flex gap-2', compact && 'flex-col')}>
-      {way.external
-        ? <a href={way.href} target="_blank" rel="noopener noreferrer" className={cls(live ? 'secondary' : 'primary')}><Navigation aria-hidden="true" size={16} />Cómo llegar<span className="sr-only"> (abre tu app de mapas en otra pestaña)</span></a>
-        : <Link to={way.href} className={cls(live ? 'secondary' : 'primary')}><Navigation aria-hidden="true" size={16} />Cómo llegar</Link>}
-      <Link to={see} className={cls(live ? 'primary' : 'secondary')}>{live ? 'Ver' : 'Mis planes'}</Link>
+    <div role="status" className={cn('relative flex items-center overflow-hidden rounded-xl border border-line shadow-none', tone === 'live' ? 'bg-cat-musica' : tone === 'urgent' ? 'bg-accent-soft' : 'bg-surface', className)}>
+      <Link to={href} aria-label={`${kicker}: ${title}. ${meta}`} className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 py-2.5 pr-1 pl-3">
+        <span aria-hidden="true" className={cn('relative flex flex-none items-center justify-center', tone === 'live' ? 'text-success-text' : tone === 'urgent' ? 'text-accent-text' : 'text-primary')}>
+          <Icon size={19} strokeWidth={2.4} />
+          {tone === 'live' && <span className="absolute -top-1 -right-1 size-3 animate-pulse rounded-full border-2 border-cat-musica bg-success motion-reduce:animate-none" />}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className={cn('text-caption font-extrabold tracking-[0.6px] uppercase', tone === 'live' ? 'text-success-text' : tone === 'urgent' ? 'text-accent-text' : 'text-muted')}>{kicker}</span>
+          <span className={cn('truncate font-extrabold', compact ? 'text-sm' : 'text-[15px]')}>{title}</span>
+          <span className="truncate text-caption font-semibold text-text">{meta}</span>
+        </span>
+        <ChevronRight aria-hidden="true" size={18} className="flex-none text-muted" />
+      </Link>
+      <button type="button" aria-label="Ocultar aviso" onClick={onHide} className="flex size-11 flex-none items-center justify-center text-muted"><X aria-hidden="true" size={16} /></button>
     </div>
   )
 }

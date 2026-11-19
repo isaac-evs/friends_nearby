@@ -106,6 +106,8 @@ func (h *Handler) handleHTTP(ctx context.Context, ev events.APIGatewayV2HTTPRequ
 		return h.socialUser(r)
 	case method == "GET" && path == "/me":
 		return h.getMe(r)
+	case method == "POST" && path == "/me/delete":
+		return h.deleteAccount(r)
 	case method == "PATCH" && path == "/me":
 		return h.patchMe(r)
 	case method == "POST" && path == "/me/photo-upload-url":

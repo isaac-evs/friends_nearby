@@ -36,7 +36,7 @@ export function useMyPlans(now: number): MyPlan[] {
       if (p.authorId === ME_ID) {
         out.push({
           key: `plan:${p.id}`, kind: 'plan', id: p.id, title: p.line, categoryLabel: PLAN_CATEGORIES[p.category].label, startsAt: p.startsAt, durationMin: p.durationMin,
-          placeName: p.place.name, placeCenter: p.place.center, role: 'organizador', href: '/planes', photoUrl: p.photoUrl, phase: planPhase(p, now),
+          placeName: p.place.name, placeCenter: p.place.center, role: 'organizador', href: `/plan/${p.id}`, photoUrl: p.photoUrl, phase: planPhase(p, now),
         })
       }
     }
@@ -45,7 +45,7 @@ export function useMyPlans(now: number): MyPlan[] {
       if (!p || p.authorId === ME_ID) continue
       out.push({
         key: `match:${m.id}`, kind: 'plan', id: p.id, title: p.line, categoryLabel: PLAN_CATEGORIES[p.category].label, startsAt: p.startsAt, durationMin: p.durationMin,
-        placeName: p.place.name, placeCenter: p.place.center, role: 'voy', href: `/match/${m.id}`, photoUrl: p.photoUrl, phase: planPhase(p, now),
+        placeName: p.place.name, placeCenter: p.place.center, role: 'voy', href: `/plan/${p.id}`, photoUrl: p.photoUrl, phase: planPhase(p, now),
       })
     }
     for (const e of state.events) {

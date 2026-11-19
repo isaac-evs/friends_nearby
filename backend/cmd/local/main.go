@@ -65,7 +65,13 @@ func main() {
 	}
 
 	hub := newHub()
-	queue := newLocalQueue(&worker.Handler{Sink: fileSink{dir: ".local/history"}})
+	s3 := awsadapters.NewS3(awsCfg, cfg.MediaBucket, cfg.HistoryBucket, cfg.S3Endpoint)
+	// With S3Mock (docker compose) location history batches go to the history bucket like in AWS; without it, to files.
+	var sink ports.HistorySink = fileSink{dir: ".local/history"}
+	if cfg.S3Endpoint != "" && cfg.HistoryBucket != "" {
+		sink = s3
+	}
+	queue := newLocalQueue(&worker.Handler{Sink: sink})
 	go queue.run(ctx)
 
 	handler := &api.Handler{App: &app.App{
@@ -75,7 +81,7 @@ func main() {
 		Loc:       location.New(rdb, cfg.LocationTTL),
 		Pusher:    hub,
 		Queue:     queue,
-		Presigner: awsadapters.NewS3(awsCfg, cfg.MediaBucket, ""),
+		Presigner: s3,
 		Mailer:    localMailer{},
 	}}
 
@@ -109,6 +115,9 @@ func setDefaults() {
 		"DYNAMODB_ENDPOINT":     "http://localhost:8000",
 		"MEDIA_BUCKET":          "friends-nearby-local-media",
 		"CDN_DOMAIN":            "cdn.local",
+		"S3_ENDPOINT":           "http://localhost:9000",
+		"MEDIA_BASE_URL":        "http://localhost:9000/friends-nearby-local-media",
+		"HISTORY_BUCKET":        "friends-nearby-local-history",
 		"JWT_SECRET":            "local-dev-secret-change-me",
 		"AWS_REGION":            "us-east-1",
 		"AWS_ACCESS_KEY_ID":     "local",

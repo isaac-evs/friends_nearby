@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Attendance, Event, Match, Plan } from '@/api/schemas'
-import { commitmentsOf, findConflict, GHOST_JOIN_REASON, joinBlock, overlaps } from './commitments'
+import { commitmentsOf, findConflict, joinBlock, overlaps } from './commitments'
 
 const now = new Date(2026, 10, 18, 18, 0).getTime()
 const at = (min: number) => new Date(now + min * 60_000).toISOString()
@@ -51,10 +51,6 @@ describe('puedo unirme', () => {
   })
   it('no, si ya terminó', () => expect(joinBlock(empty, { ...t(-90, 60), lateJoin: true }, 'plan:x', now)).toBe('Ya terminó.'))
   it('no, si ya vas', () => expect(joinBlock({ ...empty, plans: [sofi], matches: [match('sofi')] }, { ...t(-20, 60), lateJoin: true }, 'plan:sofi', now)).toBe('Ya vas a este plan.'))
-  it('no, en modo fantasma: solo ver qué hay', () => {
-    expect(joinBlock({ ...empty, ghost: true }, { ...t(30, 60), lateJoin: true }, 'plan:x', now)).toBe(GHOST_JOIN_REASON)
-    expect(joinBlock({ ...empty, ghost: false }, { ...t(30, 60), lateJoin: true }, 'plan:x', now)).toBeNull()
-  })
   it('no, si el plan ya está lleno (límite de personas)', () => {
     expect(joinBlock(empty, { ...t(30, 60), lateJoin: true, capacity: 4, joinedCount: 4 }, 'plan:x', now)).toBe('Ya está lleno.')
     expect(joinBlock(empty, { ...t(30, 60), lateJoin: true, capacity: 4, joinedCount: 3 }, 'plan:x', now)).toBeNull()
@@ -63,12 +59,12 @@ describe('puedo unirme', () => {
   })
   it('un evento usa su hora de fin, no una duración', () => {
     const s = { ...empty, events: [event('e1', 0, 120, 'me')] }
-    expect(joinBlock(s, { ...t(60, 30), lateJoin: true }, 'plan:otro', now)).toContain('Ya tienes «Evento e1»')
+    expect(joinBlock(s, { ...t(60, 30), lateJoin: true }, 'plan:otro', now)).toContain('Ya tienes "Evento e1"')
     expect(joinBlock(s, { ...t(120, 30), lateJoin: true }, 'plan:otro', now)).toBeNull()
   })
   it('no, si ya tienes otro plan a esa hora (solo uno a la vez)', () => {
     const s = { ...empty, plans: [plan('mio', 'me', 0, 120)] }
-    expect(joinBlock(s, { ...t(30, 60), lateJoin: true }, 'plan:otro', now)).toContain('Ya tienes «Plan mio» a esa hora')
+    expect(joinBlock(s, { ...t(30, 60), lateJoin: true }, 'plan:otro', now)).toContain('Ya tienes "Plan mio" a esa hora')
     expect(joinBlock(s, { ...t(130, 60), lateJoin: true }, 'plan:otro', now)).toBeNull() // después de que termine: sí
   })
 })

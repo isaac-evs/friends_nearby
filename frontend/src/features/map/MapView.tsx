@@ -55,7 +55,7 @@ export default function MapView({
   attributionStyle?: CSSProperties
 }) {
   const ref = useRef<MapRef>(null)
-  const { location, ghost } = useApp().state
+  const { state: { location }, locationIssue, connected } = useApp()
   const origin = location.center
   const [zoom, setZoom] = useState(START_ZOOM)
   const first = useRef(true)
@@ -134,7 +134,7 @@ export default function MapView({
         </Source>
 
         <Marker longitude={origin.lng} latitude={origin.lat} anchor="center" style={{ zIndex: 1 }}>
-          <MeMarker ghost={ghost} />
+          <MeMarker issue={!!locationIssue} live={connected && location.status === 'granted'} />
         </Marker>
 
         {groups.map((g) => {
@@ -176,8 +176,8 @@ export default function MapView({
             return (
               <Marker onClick={stop} key={it.id} longitude={p.lng} latitude={p.lat} anchor="center" style={{ zIndex: selected ? 3 : 2 }}>
                 <PersonMarker
-                  person={it.user} src={it.user.avatarUrl} selected={selected} exact={!!it.exact} noPlan={!it.plan} availability={it.availability} onSelect={() => onSelect(it.id)}
-                  description={`${it.user.name}: ${it.plan ? 'con plan' : 'sin plan'}, ${state}, ${it.availability === 'busy' ? 'ocupado' : 'disponible'}`}
+                  person={it.user} src={it.user.avatarUrl} selected={selected} exact={!!it.exact} noPlan={!it.plan} onSelect={() => onSelect(it.id)}
+                  description={`${it.user.name}: ${it.plan ? 'con plan' : 'sin plan'}, ${state}`}
                 />
               </Marker>
             )

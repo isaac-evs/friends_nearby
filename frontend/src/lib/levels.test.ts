@@ -26,9 +26,13 @@ describe('niveles 1–100', () => {
   })
   it('conserva el nombre del seed y limita el rango', () => {
     expect(levelInfo(7).name).toBe('Social de barrio')
-    expect(clampLevel(0)).toBe(1)
+    expect(clampLevel(0)).toBe(0) // easter egg: nivel 0
+    expect(clampLevel(-50)).toBe(-9)
     expect(clampLevel(250)).toBe(100)
     expect(clampLevel(Number.NaN)).toBe(1)
     expect(levelInfo(100).name).toBe('Máxima leyenda')
+    expect(levelInfo(0).name).toBe('Bajo tierra')
+    expect(levelInfo(-3).name).toBe('Bajo cero')
+    expect(contrast(levelInfo(0).fill, levelInfo(0).ink)).toBeGreaterThanOrEqual(4.5)
   })
 })

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { AvatarStack } from '@/design'
 import { useApp } from '@/app/store'
 import { attendeesLabel } from '@/lib/history'
@@ -7,6 +8,7 @@ import type { PlanHistoryItem } from '@/api/schemas'
 /** Un plan o evento al que fuiste y quién fue (solo nombre y avatar; quien bloqueaste no aparece). */
 export function HistoryRow({ item }: { item: PlanHistoryItem }) {
   const { state } = useApp()
+  const planId = item.kind === 'plan' && state.pastPlans.some((p) => `plan:${p.id}` === item.id) ? item.id.slice(5) : null
   const people = item.attendeeIds.filter((id) => !state.blocks.includes(id)).map((id) => state.users[id]).filter((u): u is NonNullable<typeof u> => !!u)
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3">
@@ -18,6 +20,7 @@ export function HistoryRow({ item }: { item: PlanHistoryItem }) {
         {people.length > 0 && <AvatarStack people={people} size={34} max={5} />}
         <span className="text-caption font-semibold text-text">{attendeesLabel(people.map((u) => u.name))}</span>
       </div>
+      {planId && <Link to={`/plan/${planId}`} className="inline-flex min-h-11 items-center self-start text-sm font-bold text-primary">Ver plan y chat</Link>}
     </li>
   )
 }

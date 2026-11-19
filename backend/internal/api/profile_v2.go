@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/isaac-evs/friends_nearby/backend/internal/auth"
@@ -99,4 +100,101 @@ func (h *Handler) mediaPresign(r *request) httpResp {
 	}
 	t := newSocialTx(h, r)
 	return respond(200, map[string]string{"uploadUrl": url, "publicUrl": t.mediaURL(key), "key": key})
+}
+
+// deleteAccount: borra tu cuenta (`POST /me/delete {password}`). Pide la contraseña. Antes de borrar la identidad:
+// cancela los planes y eventos que organizabas y te saca de aquellos a los que ibas, sin penalizaciones. Es irreversible.
+func (h *Handler) deleteAccount(r *request) httpResp {
+	var in struct {
+		Password string `json:"password"`
+	}
+	if e := r.decode(&in); e != nil {
+		return responseError(e)
+	}
+	u, e := h.App.Store.GetUser(r.ctx, r.userID)
+	if e != nil {
+		return responseError(e)
+	}
+	if u == nil || !auth.CheckPassword(u.PasswordHash, in.Password) {
+		return respond(400, errBody("La contraseña no es correcta."))
+	}
+	if e = h.leaveEverything(r, u.UserID); e != nil {
+		return responseError(e)
+	}
+	if e = h.App.Store.DeleteAccount(r.ctx, u); e != nil {
+		return responseError(e)
+	}
+	_ = h.App.Loc.Delete(r.ctx, u.UserID)
+	_ = h.App.Loc.DeleteNear(r.ctx, u.UserID)
+	return respond(200, map[string]bool{"deleted": true})
+}
+
+// leaveEverything: sus planes y eventos activos se cancelan y de los demás sale (un documento por transacción).
+func (h *Handler) leaveEverything(r *request, id string) error {
+	now := nowISO()
+	plans, e := h.App.Store.ListDocuments(r.ctx, plansPK)
+	if e != nil {
+		return e
+	}
+	for _, d := range plans {
+		var plan socialPlan
+		if e = json.Unmarshal(d.Data, &plan); e != nil {
+			return e
+		}
+		m, joined := plan.Members[id]
+		if plan.ID == "" || plan.Canceled || !active(plan.Expires) || (plan.Author != id && !joined) {
+			continue
+		}
+		if plan.Author == id {
+			plan.Canceled, plan.CanceledAt = true, now
+		} else if m.Status == "going" {
+			m.Status, m.LeftAt = "left", now
+			plan.Members[id] = m
+			plan.Joined--
+		}
+		t := newSocialTx(h, r)
+		if e = t.load(plansPK, plan.ID, &json.RawMessage{}); e != nil {
+			return e
+		}
+		if e = t.save(plansPK, plan.ID, plan); e != nil {
+			return e
+		}
+		if e = t.commit(); e != nil {
+			return e
+		}
+	}
+	events, e := h.App.Store.ListDocuments(r.ctx, eventsPK)
+	if e != nil {
+		return e
+	}
+	for _, d := range events {
+		var ev socialEvent
+		if e = json.Unmarshal(d.Data, &ev); e != nil {
+			return e
+		}
+		m, joined := ev.Members[id]
+		if ev.ID == "" || ev.Canceled || !active(ev.Ends) || (ev.Owner != id && !joined) {
+			continue
+		}
+		if ev.Owner == id {
+			ev.Canceled = true
+		} else {
+			if m.Status == "going" {
+				ev.Going--
+			}
+			m.Status = "left"
+			ev.Members[id] = m
+		}
+		t := newSocialTx(h, r)
+		if e = t.load(eventsPK, ev.ID, &json.RawMessage{}); e != nil {
+			return e
+		}
+		if e = t.save(eventsPK, ev.ID, ev); e != nil {
+			return e
+		}
+		if e = t.commit(); e != nil {
+			return e
+		}
+	}
+	return nil
 }

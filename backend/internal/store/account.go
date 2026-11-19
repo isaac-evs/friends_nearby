@@ -70,3 +70,47 @@ func (s *Store) ChangePassword(ctx context.Context, id, oldHash, newHash string)
 	}
 	return u.SessionVersion, nil
 }
+
+// DeleteAccount borra la identidad: el usuario y sus marcadores de correo y usuario (en una transacción, así ya no se puede
+// entrar), sus amistades, sus conexiones y todo lo que hay bajo `user#<id>` (perfil social, invitaciones, encuentros).
+func (s *Store) DeleteAccount(ctx context.Context, u *models.User) error {
+	table := aws.String(s.cfg.UsersTable)
+	key := func(k string) map[string]types.AttributeValue {
+		return map[string]types.AttributeValue{"user_id": &types.AttributeValueMemberS{Value: k}}
+	}
+	if _, e := s.db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{TransactItems: []types.TransactWriteItem{
+		{Delete: &types.Delete{TableName: table, Key: key(u.UserID), ConditionExpression: aws.String("attribute_exists(user_id)")}},
+		{Delete: &types.Delete{TableName: table, Key: key(emailPrefix + NormalizeEmail(u.Email))}},
+		{Delete: &types.Delete{TableName: table, Key: key(usernamePrefix + NormalizeUsername(u.Username))}},
+	}}); e != nil {
+		return e
+	}
+	friends, e := s.ListFriendships(ctx, u.UserID)
+	if e != nil {
+		return e
+	}
+	for _, f := range friends {
+		if e = s.DeleteFriendship(ctx, u.UserID, f.FriendID); e != nil {
+			return e
+		}
+	}
+	conns, e := s.ConnectionIDsByUser(ctx, u.UserID)
+	if e != nil {
+		return e
+	}
+	for _, c := range conns {
+		if e = s.DeleteConnection(ctx, c); e != nil {
+			return e
+		}
+	}
+	docs, e := s.ListDocuments(ctx, "user#"+u.UserID)
+	if e != nil {
+		return e
+	}
+	for _, d := range docs {
+		if _, e = s.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{TableName: aws.String(s.SocialTable()), Key: docKey(d.PK, d.SK)}); e != nil {
+			return e
+		}
+	}
+	return nil
+}

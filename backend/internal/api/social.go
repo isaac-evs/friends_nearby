@@ -7,6 +7,8 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/isaac-evs/friends_nearby/backend/internal/models"
 	"github.com/isaac-evs/friends_nearby/backend/internal/store"
@@ -64,11 +66,12 @@ type personal struct {
 	GrantEpoch    map[string]int    `json:"grantEpoch"`
 	Radius        int               `json:"radiusM"`
 	Visibility    int               `json:"visibilityRadiusM"`
-	Availability  string            `json:"availability,omitempty"`
 	Bio           string            `json:"bio,omitempty"`
 	Avatar        string            `json:"avatarKey,omitempty"`
 	Cover         string            `json:"coverKey,omitempty"`
 	Commitments   map[string]bool   `json:"commitments"`
+	// G6: últimos 20 compromisos ("ok" cumplido, "miss" faltó o canceló tarde). Confiabilidad = ok de los últimos 20.
+	Record []string `json:"record,omitempty"`
 }
 type publicPlace struct {
 	Name    string `json:"name"`
@@ -81,6 +84,28 @@ type member struct {
 	Joined   string `json:"joinedAt"`
 	Verified string `json:"verifiedAt"`
 	Rewarded bool   `json:"rewarded"`
+	// G6: quién confirmó su llegada (si el GPS falló), última vez que mandó un mensaje rápido y si ya se le evaluó la asistencia.
+	ConfirmedBy string `json:"confirmedBy,omitempty"`
+	LastMsgAt   string `json:"lastMsgAt,omitempty"`
+	Settled     bool   `json:"settled,omitempty"`
+	LeftAt      string `json:"leftAt,omitempty"`
+}
+type planMsg struct {
+	ID   string `json:"id,omitempty"`
+	User string `json:"userId"`
+	Text string `json:"text"`
+	At   string `json:"at"`
+}
+type rosterEntry struct {
+	UserID      string `json:"userId"`
+	Organizer   bool   `json:"organizer"`
+	ArrivedAt   string `json:"arrivedAt,omitempty"`
+	ConfirmedBy string `json:"confirmedBy,omitempty"`
+	// A cuánto está del lugar (redondeado a 100 m, sin coordenadas). Solo para integrantes y desde 10 min antes; nunca de quien llegó.
+	DistanceM *int `json:"distanceM,omitempty"`
+	// Cuándo se unió: quien entra con el plan en curso no llega "tarde" (ver `joinedInProgress`).
+	JoinedAt string `json:"joinedAt,omitempty"`
+	LocAt    string `json:"locAt,omitempty"`
 }
 type socialPlan struct {
 	ID        string            `json:"id"`
@@ -100,6 +125,14 @@ type socialPlan struct {
 	Late      bool              `json:"lateJoin"`
 	Members   map[string]member `json:"members,omitempty"`
 	Canceled  bool              `json:"canceled"`
+	// Historial de cancelados: cuándo se canceló el plan.
+	CanceledAt string `json:"canceledAt,omitempty"`
+	// G6: último cambio de hora o lugar, mensajes rápidos y quiénes van (solo para integrantes).
+	Changed string `json:"changedAt,omitempty"`
+	// Quien organiza elige cómo se ve el chat del plan (uno de `chatThemes`).
+	ChatTheme string        `json:"chatTheme,omitempty"`
+	Timeline  []planMsg     `json:"timeline,omitempty"`
+	Roster    []rosterEntry `json:"roster,omitempty"`
 }
 type socialEvent struct {
 	ID        string            `json:"id"`
@@ -119,11 +152,22 @@ type socialEvent struct {
 	PhotoKey  string            `json:"photoKey,omitempty"`
 	Late      bool              `json:"lateJoin"`
 	Approval  bool              `json:"requiresApproval"`
+	Verify    string            `json:"verification"`
 	Friends   []string          `json:"friendsGoingIds"`
 	XP        int               `json:"xp"`
 	Paces     []string          `json:"paces,omitempty"`
 	Members   map[string]member `json:"members,omitempty"`
 	Canceled  bool              `json:"canceled"`
+	// Lo que quien organiza controla: descripción, avisos, y si hay chat (con sus mensajes, solo para quienes van).
+	Description   string         `json:"description,omitempty"`
+	Announcements []announcement `json:"announcements,omitempty"`
+	ChatEnabled   bool           `json:"chatEnabled"`
+	Timeline      []planMsg      `json:"timeline,omitempty"`
+}
+type announcement struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+	At   string `json:"at"`
 }
 type socialMatch struct {
 	ID        string            `json:"id"`
@@ -146,45 +190,48 @@ type invitation struct {
 	At     string `json:"at"`
 }
 type socialAction struct {
-	Type         string          `json:"type"`
-	ID           string          `json:"id"`
-	UserID       string          `json:"userId"`
-	Kind         string          `json:"kind"`
-	Action       string          `json:"action"`
-	Message      string          `json:"message"`
-	Reason       string          `json:"reason"`
-	Category     string          `json:"category"`
-	Line         string          `json:"line"`
-	Starts       string          `json:"startsAt"`
-	Ends         string          `json:"endsAt"`
-	Duration     int             `json:"durationMin"`
-	Policy       string          `json:"joinPolicy"`
-	Capacity     int             `json:"capacity"`
-	Late         bool            `json:"lateJoin"`
-	Place        *publicPlace    `json:"place"`
-	PhotoKey     string          `json:"photoKey"`
-	InviteIDs    []string        `json:"inviteIds"`
-	EventType    string          `json:"eventType"`
-	Title        string          `json:"title"`
-	PlaceName    string          `json:"placeName"`
-	Center       *point          `json:"center"`
-	Alias        string          `json:"alias"`
-	Approval     bool            `json:"requiresApproval"`
-	Pace         string          `json:"pace"`
-	Location     *chosenLocation `json:"location"`
-	Open         *openMode       `json:"openMode"`
-	Draft        json.RawMessage `json:"draft"`
-	Radius       int             `json:"radiusM"`
-	Minutes      int             `json:"minutes"`
-	Accept       bool            `json:"accept"`
-	Availability string          `json:"availability"`
-	Name         string          `json:"name"`
-	Username     string          `json:"username"`
-	Bio          string          `json:"bio"`
-	MediaKind    string          `json:"mediaKind"`
-	Key          string          `json:"key"`
-	RequestID    string          `json:"requestId"`
-	Enabled      *bool           `json:"enabled"`
+	Type        string          `json:"type"`
+	ID          string          `json:"id"`
+	UserID      string          `json:"userId"`
+	Kind        string          `json:"kind"`
+	Action      string          `json:"action"`
+	Message     string          `json:"message"`
+	Reason      string          `json:"reason"`
+	Category    string          `json:"category"`
+	Line        string          `json:"line"`
+	Starts      string          `json:"startsAt"`
+	Ends        string          `json:"endsAt"`
+	Duration    int             `json:"durationMin"`
+	Policy      string          `json:"joinPolicy"`
+	Capacity    int             `json:"capacity"`
+	Late        bool            `json:"lateJoin"`
+	Place       *publicPlace    `json:"place"`
+	PhotoKey    string          `json:"photoKey"`
+	InviteIDs   []string        `json:"inviteIds"`
+	EventType   string          `json:"eventType"`
+	Title       string          `json:"title"`
+	PlaceName   string          `json:"placeName"`
+	Center      *point          `json:"center"`
+	Alias       string          `json:"alias"`
+	Approval    bool            `json:"requiresApproval"`
+	Verify      string          `json:"verification"`
+	Pace        string          `json:"pace"`
+	Description string          `json:"description"`
+	ChatEnabled *bool           `json:"chatEnabled"`
+	Location    *chosenLocation `json:"location"`
+	Open        *openMode       `json:"openMode"`
+	Draft       json.RawMessage `json:"draft"`
+	Radius      int             `json:"radiusM"`
+	Minutes     int             `json:"minutes"`
+	Accept      bool            `json:"accept"`
+	Name        string          `json:"name"`
+	Username    string          `json:"username"`
+	Bio         string          `json:"bio"`
+	MediaKind   string          `json:"mediaKind"`
+	Key         string          `json:"key"`
+	RequestID   string          `json:"requestId"`
+	Accuracy    float64         `json:"accuracy"`
+	Enabled     *bool           `json:"enabled"`
 }
 type socialTx struct {
 	h        *Handler
@@ -236,7 +283,7 @@ func (t *socialTx) save(pk, sk string, v any) error {
 func (t *socialTx) person(id string) (personal, error) {
 	p := personal{Model: 2, Location: chosenLocation{Status: "unknown"}, Open: openMode{Big: true}, Level: 1, Radius: 5000, Visibility: 3000, Swipes: map[string]string{}, Close: map[string]string{}, Exact: map[string]string{}, ExactRequests: map[string]string{}, GrantEpoch: map[string]int{}, Commitments: map[string]bool{}, Blocks: []string{}, Rewards: []xpEvent{}, History: []historyItem{}}
 	e := t.load("user#"+id, "profile", &p)
-	if p.Level < 1 {
+	if p.Level < minLevel || p.Level > 100 {
 		p.Level = 1
 	}
 	return p, e
@@ -290,6 +337,21 @@ func contains(a []string, s string) bool {
 	}
 	return false
 }
+
+// cleanChat: texto libre del chat del plan. Quita espacios y caracteres de control; 1–280 caracteres.
+func cleanChat(v string) (string, bool) {
+	v = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' {
+			return ' '
+		}
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, v)), " ")
+	n := utf8.RuneCountInString(v)
+	return v, n >= 1 && n <= maxChatRunes
+}
 func validChoice(v, list string) bool { return contains(strings.Split(list, ","), v) }
 func validPoint(p point) bool {
 	return !math.IsNaN(p.Lat) && !math.IsNaN(p.Lng) && p.Lat >= -90 && p.Lat <= 90 && p.Lng >= -180 && p.Lng <= 180
@@ -305,6 +367,14 @@ func reward(p *personal, amount int, reason, id string) {
 		if v.ID == id {
 			return
 		}
+	}
+	if p.Level <= 0 {
+		if amount < recoverXP {
+			return
+		}
+		// Con ganar 10 XP vuelves al nivel 1; lo que sobre cuenta.
+		p.Level, p.XP = 1, 0
+		amount -= recoverXP
 	}
 	p.XP += amount
 	for p.XP >= 500 && p.Level < 100 {
@@ -374,4 +444,146 @@ func responseError(e error) httpResp {
 		return respond(409, errBody("Ese nombre de usuario ya está en uso."))
 	}
 	return internalError("social action", e)
+}
+
+// ---------------------------------------------------------------- G6: reglas de confiabilidad
+
+const (
+	checkInMeters   = 250 // radio exacto para confirmar la llegada (sin margen extra)
+	checkInLeadMin  = 10  // el check-in y el lobby abren 10 min antes
+	graceAfterEdit  = 2 * time.Hour
+	noShowPenalty   = 80
+	finishXP        = 30 // quien organiza gana XP al terminar su plan
+	arrivedBonusXP  = 5  // + por cada persona que llegó a tu plan
+	maxArrivedBonus = 25
+	lateCancelXP    = 60
+	startedCancelXP = 100
+	minLevel        = -9 // easter egg: por debajo del nivel 1 hay nivel 0 y niveles negativos; con 10 XP vuelves al 1
+	recoverXP       = 10
+	recordSize      = 20
+	messageCooldown = time.Second // chat del plan: libre, pero sin ráfagas
+	maxChatRunes    = 280
+	maxTimeline     = 100
+	staleLocation   = 15 * time.Minute // una ubicación más vieja que esto no cuenta como "a cuánto está"
+)
+
+var chatThemes = "indigo,naranja,verde,oscuro,rojo"
+
+// historyDays: cuánto tiempo siguen consultables (con su chat) los planes que ya terminaron.
+const historyDays = 30
+
+const (
+	maxDescription   = 1000
+	maxAnnouncements = 20
+	maxAnnounceRunes = 500
+)
+
+var quickMessages = "Ya voy,Llego en 5,Llego en 10,Voy tarde,Ya estoy aquí,¿Dónde están?"
+
+// cancelPenalty: XP que se pierde por cancelar con `minutes` minutos antes del inicio (negativo = ya empezó) y si cuenta como falla.
+func cancelPenalty(minutes int) (xp int, miss bool) {
+	switch {
+	case minutes > 90:
+		return 10, false
+	case minutes >= 15:
+		return 25 + (90-minutes)*25/75, false
+	case minutes < 0:
+		return startedCancelXP, true // ya empezó y no llegaste: cuesta más
+	default:
+		return lateCancelXP, true
+	}
+}
+
+func addRecord(p *personal, v string) {
+	p.Record = append(p.Record, v)
+	if len(p.Record) > recordSize {
+		p.Record = p.Record[len(p.Record)-recordSize:]
+	}
+}
+
+// penalize resta XP (nunca baja de 0 ni de nivel) una sola vez por `id`.
+func penalize(p *personal, amount int, reason, id string, miss bool) {
+	for _, v := range p.Rewards {
+		if v.ID == id {
+			return
+		}
+	}
+	if debt := amount - p.XP; debt > 0 {
+		p.XP = 0
+		// Easter egg: sin XP que perder, el nivel 1 baja al 0 y cada falla más, a niveles negativos. Los niveles 2+ no bajan.
+		if p.Level <= 1 {
+			p.Level = max(minLevel, p.Level-1)
+		}
+	} else {
+		p.XP -= amount
+	}
+	p.Rewards = append(p.Rewards, xpEvent{id, -amount, reason, nowISO()})
+	if len(p.Rewards) > 500 {
+		p.Rewards = p.Rewards[len(p.Rewards)-500:]
+	}
+	if miss {
+		addRecord(p, "miss")
+	}
+}
+
+// friendDistance redondea a múltiplos de 100 m (mínimo 100): la distancia de un amigo es aproximada, nunca una coordenada.
+func friendDistance(m int) int { return max(100, (m+50)/100*100) }
+
+// recordOrEmpty evita serializar una lista vacía como `null`.
+func recordOrEmpty(r []string) []string {
+	if r == nil {
+		return []string{}
+	}
+	return r
+}
+
+// arrivalXP: cuánto vale llegar según la puntualidad. El check-in abre 10 min antes: temprano paga más; tarde, menos.
+func arrivalXP(starts, at time.Time) (int, string) {
+	d := at.Sub(starts)
+	switch {
+	case d <= -5*time.Minute:
+		return 30, "temprano"
+	case d <= 5*time.Minute:
+		return 20, "a tiempo"
+	case d <= 15*time.Minute:
+		return 12, "tarde"
+	case d <= 30*time.Minute:
+		return 8, "tarde"
+	default:
+		return 5, "muy tarde"
+	}
+}
+
+// joinInProgressGrace: unirse hasta 2 min después del inicio sigue siendo "a tiempo" (el plan creado con "ahora" empieza ya).
+const joinInProgressGrace = 2 * time.Minute
+
+// joinedInProgress: te uniste con el plan ya iniciado. Quien entra así no está obligado a nada: no llega tarde, no cuenta
+// como no-show y salirse no penaliza (ya lo viste empezado).
+func joinedInProgress(plan socialPlan, m member) bool {
+	return m.Joined != "" && instant(m.Joined).After(instant(plan.Starts).Add(joinInProgressGrace))
+}
+
+// dueAt: a qué hora se espera que llegue alguien: el inicio del plan o, si se unió después, cuando se unió.
+func dueAt(plan socialPlan, m member) time.Time {
+	if j := instant(m.Joined); m.Joined != "" && j.After(instant(plan.Starts)) {
+		return j
+	}
+	return instant(plan.Starts)
+}
+
+// cleanText: texto libre de una o varias líneas (descripciones y avisos): sin caracteres de control, sin espacios de más, con tope.
+func cleanText(v string, max int) string {
+	v = strings.TrimSpace(strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' {
+			return r
+		}
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, v))
+	if utf8.RuneCountInString(v) > max {
+		v = string([]rune(v)[:max])
+	}
+	return v
 }

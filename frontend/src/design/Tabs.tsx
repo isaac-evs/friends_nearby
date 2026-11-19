@@ -1,7 +1,8 @@
 import { useRef, type KeyboardEvent } from 'react'
 import { cn } from '@/lib/cn'
 
-export interface TabDef<T extends string> { value: T; label: string }
+/** `live`: punto verde parpadeante junto al nombre (algo está pasando ahora). */
+export interface TabDef<T extends string> { value: T; label: string; live?: boolean }
 
 /** ids estables para enlazar pestaña ↔ panel (`aria-controls` / `aria-labelledby`). */
 export const tabId = (base: string, v: string) => `${base}-tab-${v}`
@@ -35,7 +36,10 @@ export function Tabs<T extends string>({
             onClick={() => onChange(t.value)} onKeyDown={(e) => onKey(e, i)}
             className={cn('-mb-px h-12 border-b-[3px] text-[15px] font-bold transition-colors', on ? 'border-primary text-ink' : 'border-transparent text-muted')}
           >
-            {t.label}
+            <span className="inline-flex items-center justify-center gap-1.5">
+              {t.label}
+              {t.live && <><span aria-hidden="true" className="size-2.5 animate-pulse rounded-full bg-success motion-reduce:animate-none" /><span className="sr-only"> (hay uno ahora)</span></>}
+            </span>
           </button>
         )
       })}

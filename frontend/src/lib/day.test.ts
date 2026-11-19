@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayLabel, dayPhrase, dayRange, inDay } from './day'
+import { dateOfOffset, dayLabel, dayPhrase, dayRange, inDay, offsetOfDate } from './day'
 
 const now = new Date(2026, 10, 18, 18, 0).getTime() // miércoles 18 nov, 18:00
 const at = (d: number, h: number, m = 0) => new Date(2026, 10, 18 + d, h, m).toISOString()
@@ -32,5 +32,19 @@ describe('día que se mira', () => {
     expect(dayLabel(3, now)).toMatch(/^Sáb 21$/)
     expect(dayPhrase(0, now)).toBe('hoy')
     expect(dayPhrase(3, now)).toBe('el sáb 21')
+  })
+})
+
+describe('otra fecha', () => {
+  const now = new Date(2026, 10, 19, 15, 0).getTime()
+  it('convierte fecha ↔ desplazamiento', () => {
+    expect(offsetOfDate('2026-11-19', now)).toBe(0)
+    expect(offsetOfDate('2026-12-25', now)).toBe(36)
+    expect(dateOfOffset(36, now)).toBe('2026-12-25')
+  })
+  it('rechaza fechas pasadas, inválidas o a más de un año', () => {
+    expect(offsetOfDate('2026-11-18', now)).toBeNull()
+    expect(offsetOfDate('nada', now)).toBeNull()
+    expect(offsetOfDate('2028-01-01', now)).toBeNull()
   })
 })

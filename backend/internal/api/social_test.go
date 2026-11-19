@@ -144,12 +144,6 @@ func TestClosePresenceAndExplicitExactConsent(t *testing.T) {
 			t.Fatal("raw GPS persisted to history")
 		}
 	}
-	action(c, b, map[string]any{"type": "setGhost", "enabled": true})
-	action(c, b, map[string]any{"type": "setGhost", "enabled": false})
-	locate(c, aid, 19.432345)
-	if len(state(c, b)["exactLocations"].(map[string]any)) != 0 {
-		t.Fatal("incoming exact grant revived after ghost")
-	}
 	action(c, a, map[string]any{"type": "startExact", "userId": bid, "minutes": 30})
 	locate(c, aid, 19.432345)
 	action(c, a, map[string]any{"type": "stopExact", "userId": bid})
@@ -324,4 +318,369 @@ func TestInvitationsAndOverlappingReservations(t *testing.T) {
 		t.Fatal("invited guest did not join")
 	}
 	rejected(c, d, publishInput(), 409)
+}
+
+func planInState(c *client, token, pid string) map[string]any {
+	for _, p := range state(c, token)["plans"].([]any) {
+		if m := p.(map[string]any); m["id"] == pid {
+			return m
+		}
+	}
+	return nil
+}
+
+func TestPlanVisibilityChatAndDistanceToVenue(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, bid := c.register("bob")
+	d, did := c.register("diana")
+	e, _ := c.register("erika")
+	for _, tok := range []string{a, b, d, e} {
+		setZone(c, tok)
+	}
+	makeFriends(c, a, b, aid)
+	code, _ := c.do("POST", "/friends/requests", b, map[string]string{"username": "diana"})
+	want(t, "bob→diana", code, 201)
+	code, _ = c.do("POST", "/friends/"+bid+"/accept", d, nil)
+	want(t, "diana accepts", code, 200)
+	pid := publish(c, a)
+
+	// Ni amigo de quien organiza ni invitado: no ve el plan ni puede unirse.
+	if planInState(c, d, pid) != nil || planInState(c, e, pid) != nil {
+		t.Fatal("a stranger can see the plan")
+	}
+	rejected(c, d, map[string]any{"type": "jalo", "id": pid}, 403)
+
+	// Un amigo lo invita: solo entonces ve el lugar, y no ve a desconocidos entre quienes van.
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	action(c, b, map[string]any{"type": "invitePeople", "id": pid, "inviteIds": []string{did}})
+	if planInState(c, d, pid) == nil {
+		t.Fatal("invited friend-of-friend cannot see the plan")
+	}
+	if ids := planInState(c, d, pid)["memberIds"].([]any); len(ids) != 2 || !(ids[0] == bid || ids[1] == bid) {
+		t.Fatalf("invitee sees strangers: %v", ids)
+	}
+
+	// Chat libre solo entre integrantes, con límite de largo.
+	rejected(c, d, map[string]any{"type": "planMessage", "id": pid, "message": "hola"}, 400)
+	action(c, b, map[string]any{"type": "planMessage", "id": pid, "message": "  Voy con 🥤 y\nhielo  "})
+	rejected(c, b, map[string]any{"type": "planMessage", "id": pid, "message": strings.Repeat("x", 281)}, 400)
+	rejected(c, b, map[string]any{"type": "planMessage", "id": pid, "message": "   "}, 400)
+	tl := planInState(c, a, pid)["timeline"].([]any)
+	if m := tl[len(tl)-1].(map[string]any); m["text"] != "Voy con 🥤 y hielo" || m["userId"] != bid {
+		t.Fatalf("bad timeline %v", tl)
+	}
+
+	// A cuánto está del lugar: solo integrantes, redondeado, sin coordenadas.
+	locate(c, bid, 19.432)
+	var found bool
+	for _, r := range planInState(c, a, pid)["roster"].([]any) {
+		if m := r.(map[string]any); m["userId"] == bid {
+			found = true
+			if m["distanceM"] != float64(200) {
+				t.Fatalf("distance %v", m["distanceM"])
+			}
+			if _, leaks := m["lat"]; leaks {
+				t.Fatal("roster leaks coordinates")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("bob missing from roster")
+	}
+	if planInState(c, d, pid)["roster"] != nil {
+		t.Fatal("non-member sees the roster")
+	}
+}
+
+func TestChatThemeDeleteAndCheckInReason(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, _ := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+
+	// Solo quien organiza cambia el tema del chat y borra mensajes.
+	rejected(c, b, map[string]any{"type": "setChatTheme", "id": pid, "message": "verde"}, 403)
+	rejected(c, a, map[string]any{"type": "setChatTheme", "id": pid, "message": "fucsia"}, 400)
+	action(c, a, map[string]any{"type": "setChatTheme", "id": pid, "message": "verde"})
+	if planInState(c, b, pid)["chatTheme"] != "verde" {
+		t.Fatal("theme not shared")
+	}
+	action(c, b, map[string]any{"type": "planMessage", "id": pid, "message": "hola"})
+	msg := planInState(c, a, pid)["timeline"].([]any)[0].(map[string]any)
+	rejected(c, b, map[string]any{"type": "deleteChatMessage", "id": pid, "message": msg["id"]}, 403)
+	action(c, a, map[string]any{"type": "deleteChatMessage", "id": pid, "message": msg["id"]})
+	if tl := planInState(c, a, pid)["timeline"]; tl != nil && len(tl.([]any)) != 0 {
+		t.Fatalf("message not deleted: %v", tl)
+	}
+
+	// El check-in lejos dice a cuánto estás.
+	code, out := c.do("POST", "/app/actions", b, map[string]any{"type": "checkIn", "id": pid, "requestId": uuid.NewString(), "center": map[string]any{"lat": 19.44, "lng": -99.134}, "accuracy": 10})
+	want(t, "far check-in", code, 400)
+	if !strings.Contains(out["error"].(string), "estás a unos") {
+		t.Fatalf("no distance in %v", out)
+	}
+	action(c, b, map[string]any{"type": "checkIn", "id": pid, "requestId": uuid.NewString(), "center": map[string]any{"lat": 19.4341, "lng": -99.134}, "accuracy": 10})
+}
+
+func TestFinishedPlanStaysInHistoryForParticipants(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, _ := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	action(c, b, map[string]any{"type": "planMessage", "id": pid, "message": "nos vemos"})
+	action(c, a, map[string]any{"type": "endPlan", "id": pid})
+	if planInState(c, a, pid) != nil {
+		t.Fatal("finished plan still listed as active")
+	}
+	for _, tok := range []string{a, b} {
+		past := state(c, tok)["pastPlans"].([]any)
+		if len(past) != 1 || past[0].(map[string]any)["id"] != pid || len(past[0].(map[string]any)["timeline"].([]any)) != 1 {
+			t.Fatalf("history missing: %v", past)
+		}
+	}
+	d, _ := c.register("diana")
+	if len(state(c, d)["pastPlans"].([]any)) != 0 {
+		t.Fatal("history leaked to a stranger")
+	}
+}
+
+func meLevel(c *client, token string) (level, totalXP float64) {
+	st := state(c, token)
+	m := st["users"].(map[string]any)[st["session"].(map[string]any)["userId"].(string)].(map[string]any)
+	return m["level"].(float64), m["totalXp"].(float64)
+}
+
+func TestLeavingAfterStartCostsMoreAndLevelOneGoesToZeroThenRecovers(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, _ := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	action(c, b, map[string]any{"type": "leavePlan", "id": pid}) // el plan ya empezó y no llegaste: −100 XP
+	if lvl, _ := meLevel(c, b); lvl != 0 {
+		t.Fatalf("level 1 without XP should drop to 0, got %v", lvl)
+	}
+	// Con ganar ≥ 10 XP se vuelve al nivel 1.
+	action(c, a, map[string]any{"type": "removePlan", "id": pid})
+	pid2 := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid2})
+	action(c, b, map[string]any{"type": "checkIn", "id": pid2, "requestId": uuid.NewString(), "center": map[string]any{"lat": 19.4341, "lng": -99.134}, "accuracy": 10})
+	if lvl, _ := meLevel(c, b); lvl != 1 {
+		t.Fatalf("expected recovery to level 1, got %v", lvl)
+	}
+}
+
+func TestCheckInFallsBackToLastKnownLocation(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, bid := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	// Sin lectura del dispositivo ni ubicación conocida: no hay forma de verificar.
+	rejected(c, b, map[string]any{"type": "checkIn", "id": pid}, 400)
+	// Con la última ubicación conocida dentro del rango (250 m), basta.
+	locate(c, bid, 19.434)
+	action(c, b, map[string]any{"type": "checkIn", "id": pid})
+	for _, r := range planInState(c, a, pid)["roster"].([]any) {
+		if m := r.(map[string]any); m["userId"] == bid && m["arrivedAt"] == nil {
+			t.Fatal("bob was not verified")
+		}
+	}
+}
+
+func TestArrivalXPDependsOnPunctuality(t *testing.T) {
+	for _, tc := range []struct {
+		startedMinAgo int
+		xp            float64
+		label         string
+	}{{-8, 30, "temprano"}, {-1, 20, "a tiempo"}} {
+		c := newClient(t)
+		a, aid := c.register("alice")
+		b, _ := c.register("bob")
+		setZone(c, a)
+		setZone(c, b)
+		makeFriends(c, a, b, aid)
+		in := publishInput()
+		in["startsAt"] = time.Now().Add(-time.Duration(tc.startedMinAgo) * time.Minute).UTC().Format(time.RFC3339)
+		in["durationMin"] = 120
+		pid := action(c, a, in)["result"].(map[string]any)["id"].(string)
+		action(c, b, map[string]any{"type": "jalo", "id": pid})
+		out := action(c, b, map[string]any{"type": "checkIn", "id": pid, "center": map[string]any{"lat": 19.4341, "lng": -99.134}})
+		res := out["result"].(map[string]any)
+		if res["xp"] != tc.xp || res["punctuality"] != tc.label {
+			t.Fatalf("started %d min ago: got %v", tc.startedMinAgo, res)
+		}
+	}
+}
+
+func TestCanceledPlansHistory(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, _ := c.register("bob")
+	d, did := c.register("diana")
+	setZone(c, a)
+	setZone(c, b)
+	setZone(c, d)
+	makeFriends(c, a, b, aid)
+	code, _ := c.do("POST", "/friends/requests", d, map[string]string{"username": "alice"})
+	want(t, "diana→alice", code, 201)
+	_ = did
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	action(c, b, map[string]any{"type": "leavePlan", "id": pid})
+	left := state(c, b)["canceledPlans"].([]any)
+	if len(left) != 1 || left[0].(map[string]any)["kind"] != "left" {
+		t.Fatalf("leaving not in history: %v", left)
+	}
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	action(c, a, map[string]any{"type": "removePlan", "id": pid})
+	for _, tok := range []string{a, b} {
+		list := state(c, tok)["canceledPlans"].([]any)
+		if len(list) != 1 || list[0].(map[string]any)["kind"] != "canceled" {
+			t.Fatalf("canceled plan missing: %v", list)
+		}
+	}
+	if got := state(c, a)["canceledPlans"].([]any)[0].(map[string]any)["byMe"]; got != true {
+		t.Fatal("organizer should see byMe")
+	}
+	if len(state(c, d)["canceledPlans"].([]any)) != 0 {
+		t.Fatal("canceled history leaked to a stranger")
+	}
+}
+
+func TestDeleteAccountCleansUpAndFreesIdentity(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, bid := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	bobPlan := action(c, b, map[string]any{"type": "publishPlan", "category": "cafe", "line": "Plan de Bob", "startsAt": time.Now().Add(3 * time.Hour).UTC().Format(time.RFC3339), "durationMin": 60, "joinPolicy": "friends", "lateJoin": true, "place": map[string]any{"name": "Café", "center": map[string]any{"lat": 19.434, "lng": -99.134}}})["result"].(map[string]any)["id"].(string)
+
+	code, _ := c.do("POST", "/me/delete", b, map[string]string{"password": "incorrecta1"})
+	want(t, "wrong password", code, 400)
+	code, _ = c.do("POST", "/me/delete", b, map[string]string{"password": "password123"})
+	want(t, "delete", code, 200)
+
+	// Ya no puede entrar y su correo y usuario quedan libres.
+	code, _ = c.do("POST", "/auth/login", "", map[string]string{"email": "bob@example.com", "password": "password123"})
+	if code == 200 {
+		t.Fatal("deleted account can still log in")
+	}
+	_, _ = c.register("bob")
+	// Su plan se canceló y de los demás salió.
+	if planInState(c, a, bobPlan) != nil {
+		t.Fatal("deleted user's plan still active")
+	}
+	for _, m := range planInState(c, a, pid)["memberIds"].([]any) {
+		if m == bid {
+			t.Fatal("deleted user still listed in a plan")
+		}
+	}
+}
+
+func TestEventsRequireOpenModeEvenWhenInvited(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, bid := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	open(c, a, true)
+	in := eventInput()
+	in["inviteIds"] = []string{bid}
+	id := action(c, a, in)["result"].(map[string]any)["id"].(string)
+	rejected(c, b, map[string]any{"type": "joinEvent", "id": id}, 403)
+	// Aceptar la invitación tampoco salta el modo abierto: el cliente te lleva a activarlo primero.
+	inv := state(c, b)["invites"].([]any)
+	rejected(c, b, map[string]any{"type": "respondInvite", "id": inv[0].(map[string]any)["id"], "accept": true}, 403)
+	open(c, b, true)
+	action(c, b, map[string]any{"type": "respondInvite", "id": inv[0].(map[string]any)["id"], "accept": true})
+	if len(state(c, b)["attendances"].([]any)) != 1 {
+		t.Fatal("could not join after enabling open mode")
+	}
+}
+
+func eventByID(c *client, token, id string) map[string]any {
+	for _, e := range state(c, token)["events"].([]any) {
+		if m := e.(map[string]any); m["id"] == id {
+			return m
+		}
+	}
+	return nil
+}
+
+func TestEventDescriptionEditCancelAnnouncementsAndChat(t *testing.T) {
+	c := newClient(t)
+	a, _ := c.register("alice")
+	b, _ := c.register("bob")
+	d, _ := c.register("diana")
+	for _, tok := range []string{a, b, d} {
+		setZone(c, tok)
+		open(c, tok, true)
+	}
+	in := eventInput()
+	in["requiresApproval"] = false
+	in["capacity"] = 5
+	in["description"] = "  Visita guiada\ncon café  "
+	id := action(c, a, in)["result"].(map[string]any)["id"].(string)
+	action(c, b, map[string]any{"type": "joinEvent", "id": id})
+	if got := eventByID(c, a, id)["description"]; got != "Visita guiada\ncon café" {
+		t.Fatalf("description %q", got)
+	}
+
+	// Solo quien organiza edita, cancela, publica avisos y activa el chat.
+	for _, typ := range []string{"cancelEvent", "postAnnouncement", "setEventChat", "updateEvent"} {
+		rejected(c, b, map[string]any{"type": typ, "id": id, "message": "x"}, 403)
+	}
+	action(c, a, map[string]any{"type": "postAnnouncement", "id": id, "message": "Llevar identificación"})
+	if an := eventByID(c, b, id)["announcements"].([]any); len(an) != 1 {
+		t.Fatalf("announcement missing: %v", an)
+	}
+	rejected(c, a, map[string]any{"type": "postAnnouncement", "id": id, "message": "   "}, 400)
+
+	// Chat: apagado por defecto; con él encendido solo escriben quienes van.
+	rejected(c, b, map[string]any{"type": "eventMessage", "id": id, "message": "hola"}, 400)
+	action(c, a, map[string]any{"type": "setEventChat", "id": id, "accept": true})
+	action(c, b, map[string]any{"type": "eventMessage", "id": id, "message": "¿A qué hora?"})
+	rejected(c, d, map[string]any{"type": "eventMessage", "id": id, "message": "yo no voy"}, 403)
+	if tl := eventByID(c, b, id)["timeline"].([]any); len(tl) != 1 {
+		t.Fatalf("chat timeline: %v", tl)
+	}
+	if eventByID(c, d, id)["timeline"] != nil {
+		t.Fatal("chat leaked to a non-attendee")
+	}
+	msg := eventByID(c, a, id)["timeline"].([]any)[0].(map[string]any)
+	action(c, a, map[string]any{"type": "deleteEventMessage", "id": id, "message": msg["id"]})
+
+	// Editar: no se puede bajar el cupo por debajo de quienes ya van; con datos válidos se actualiza.
+	edit := map[string]any{"type": "updateEvent", "id": id, "title": "Museo (nueva hora)", "description": "Otra descripción", "startsAt": in["startsAt"], "endsAt": in["endsAt"], "placeName": "Museo público", "center": in["center"], "capacity": 1, "lateJoin": true, "requiresApproval": false}
+	rejected(c, a, edit, 400)
+	edit["capacity"] = 8
+	action(c, a, edit)
+	if e := eventByID(c, b, id); e["title"] != "Museo (nueva hora)" || e["capacity"] != float64(8) || e["description"] != "Otra descripción" {
+		t.Fatalf("not edited: %v", e)
+	}
+
+	action(c, a, map[string]any{"type": "cancelEvent", "id": id})
+	if eventByID(c, b, id) != nil || eventByID(c, a, id) != nil {
+		t.Fatal("canceled event still listed")
+	}
 }

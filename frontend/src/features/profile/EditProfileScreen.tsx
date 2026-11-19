@@ -1,11 +1,10 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, Circle } from 'lucide-react'
-import { Button, Field, IconButton, ImageUpload, Notice, useToast } from '@/design'
+import { ArrowLeft, Trash2 } from 'lucide-react'
+import { Button, Field, IconButton, ModalSheet, PasswordChecklist, PasswordField, ImageUpload, Notice, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { api } from '@/api/client'
 import { PasswordChangeInput, ProfileBioInput, ProfileNameInput, UsernameInput } from '@/api/schemas'
-import { passwordRules } from '@/lib/password'
 import { cn } from '@/lib/cn'
 
 /** `/perfil/editar`: nombre, contraseña, foto de perfil y portada. Endpoints [PROPUESTA] (ver docs/especificacion.md §7). */
@@ -16,34 +15,42 @@ export function EditProfileScreen() {
   const me = state.users.me!
 
   return (
-    <div className="flex flex-col gap-6 px-[22px] pt-8 pb-10 lg:max-w-[600px] lg:p-0">
+    <div className="flex flex-col gap-6 px-[22px] pt-8 pb-10 lg:max-w-[1040px] lg:p-0">
       <header className="flex items-center gap-3">
         <IconButton label="Volver al perfil" onClick={() => nav('/perfil')}><ArrowLeft aria-hidden="true" size={20} strokeWidth={2.4} /></IconButton>
         <h1 className="text-h1 font-extrabold">Editar perfil</h1>
       </header>
 
-      <Section title="Fotos">
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-meta font-bold">Portada</h3>
-          <ImageUpload
-            kind="cover" label="Portada" noun="portada" hintId="photo-hint" value={me.coverUrl} userId={me.id} name={me.name}
-            upload={(b) => api.profile.uploadMedia('cover', b)} onChange={(u) => setProfileImage('cover', u)} onRemove={() => setProfileImage('cover', null)}
-          />
+      {/* Desktop: dos columnas (fotos y descripción | nombre, usuario y contraseña); la zona de peligro abajo, a todo el ancho. */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+        <div className="flex flex-col gap-6">
+          <Section title="Fotos">
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-meta font-bold">Portada</h3>
+              <ImageUpload
+                kind="cover" label="Portada" noun="portada" hintId="photo-hint" value={me.coverUrl} userId={me.id} name={me.name}
+                upload={(b) => api.profile.uploadMedia('cover', b)} onChange={(u) => setProfileImage('cover', u)} onRemove={() => setProfileImage('cover', null)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-meta font-bold">Foto de perfil</h3>
+              <ImageUpload
+                kind="avatar" label="Foto de perfil" noun="foto" hintId="photo-hint" value={me.avatarUrl} userId={me.id} name={me.name}
+                upload={(b) => api.profile.uploadMedia('avatar', b)} onChange={(u) => setProfileImage('avatar', u)} onRemove={() => setProfileImage('avatar', null)}
+              />
+            </div>
+            <p id="photo-hint" className="text-caption font-medium text-muted">JPG, PNG o WebP · hasta 5 MB. Quitamos los datos ocultos de la foto, como su ubicación.</p>
+          </Section>
+          <BioForm />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-meta font-bold">Foto de perfil</h3>
-          <ImageUpload
-            kind="avatar" label="Foto de perfil" noun="foto" hintId="photo-hint" value={me.avatarUrl} userId={me.id} name={me.name}
-            upload={(b) => api.profile.uploadMedia('avatar', b)} onChange={(u) => setProfileImage('avatar', u)} onRemove={() => setProfileImage('avatar', null)}
-          />
+        <div className="flex flex-col gap-6">
+          <NameForm />
+          <UsernameForm />
+          <PasswordForm />
         </div>
-        <p id="photo-hint" className="text-caption font-medium text-muted">JPG, PNG o WebP · hasta 5 MB. Quitamos los datos ocultos de la foto, como su ubicación.</p>
-      </Section>
+      </div>
 
-      <NameForm />
-      <UsernameForm />
-      <BioForm />
-      <PasswordForm />
+      <DeleteAccount />
     </div>
   )
 }
@@ -174,7 +181,6 @@ function PasswordForm() {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => { setV((p) => ({ ...p, [k]: e.target.value })); setDone(false) }
-  const rules = passwordRules(v.next)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -203,21 +209,72 @@ function PasswordForm() {
   return (
     <Section title="Contraseña">
       <form noValidate onSubmit={submit} className="flex flex-col gap-3">
-        <Field label="Contraseña actual" type="password" autoComplete="current-password" value={v.current} onChange={set('current')} error={errors.current} />
-        <Field label="Contraseña nueva" type="password" autoComplete="new-password" value={v.next} onChange={set('next')} error={errors.next} aria-describedby="pw-rules" />
-        <ul id="pw-rules" aria-label="Requisitos de la contraseña nueva" className="flex flex-col gap-1">
-          {rules.map((r) => (
-            <li key={r.id} className={cn('flex items-center gap-2 text-caption font-semibold', r.ok ? 'text-ink' : 'text-muted')}>
-              {r.ok ? <Check aria-hidden="true" size={14} strokeWidth={3} className="text-success" /> : <Circle aria-hidden="true" size={14} />}
-              {r.label}
-              <span className="sr-only">{r.ok ? ' (cumplido)' : ' (pendiente)'}</span>
-            </li>
-          ))}
-        </ul>
-        <Field label="Confirma la contraseña nueva" type="password" autoComplete="new-password" value={v.confirm} onChange={set('confirm')} error={errors.confirm} />
+        <PasswordField label="Contraseña actual" autoComplete="current-password" value={v.current} onChange={set('current')} error={errors.current} />
+        <PasswordField label="Contraseña nueva" autoComplete="new-password" value={v.next} onChange={set('next')} error={errors.next} aria-describedby="pw-rules" />
+        <PasswordChecklist id="pw-rules" value={v.next} />
+        <PasswordField label="Confirma la contraseña nueva" autoComplete="new-password" value={v.confirm} onChange={set('confirm')} error={errors.confirm} />
         {done && <Notice tone="safety" icon="shield" role="status">Listo, tu contraseña cambió.</Notice>}
         <Button type="submit" variant="dark" full loading={loading}>Cambiar contraseña</Button>
       </form>
     </Section>
+  )
+}
+
+const CONFIRM_WORD = 'ELIMINAR'
+
+/** Zona de peligro: eliminar la cuenta. Pide entender lo que pasa, escribir ELIMINAR y tu contraseña. Es irreversible. */
+function DeleteAccount() {
+  const { signOut } = useActions()
+  const toast = useToast()
+  const nav = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [word, setWord] = useState('')
+  const [understood, setUnderstood] = useState(false)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string>()
+  const [loading, setLoading] = useState(false)
+  const ready = understood && word.trim().toUpperCase() === CONFIRM_WORD && password.length > 0
+  const close = () => { setOpen(false); setWord(''); setUnderstood(false); setPassword(''); setError(undefined) }
+
+  const remove = async () => {
+    setLoading(true); setError(undefined)
+    try {
+      await api.profile.deleteAccount(password)
+      close()
+      signOut()
+      toast('Tu cuenta se eliminó')
+      nav('/entrar')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No pudimos eliminar tu cuenta. Intenta de nuevo.')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <section aria-labelledby="sec-danger" className="flex flex-col gap-3 rounded-lg border border-danger/40 bg-accent-soft p-4">
+      <h2 id="sec-danger" className="text-h3 font-extrabold text-danger">Eliminar cuenta</h2>
+      <p className="text-sm leading-normal text-text">Borra tu cuenta y tus datos personales. No se puede deshacer.</p>
+      <Button type="button" variant="secondary" className="self-start !text-danger" icon={<Trash2 aria-hidden="true" size={16} />} onClick={() => setOpen(true)}>Eliminar mi cuenta</Button>
+
+      <ModalSheet open={open} title="¿Eliminar tu cuenta?" onClose={close}>
+        <div className="flex flex-col gap-3.5">
+          <ul className="flex flex-col gap-1.5 text-sm leading-normal text-text">
+            <li>• Tu perfil, tus amistades, tu XP, tu nivel y tu historial se borran.</li>
+            <li>• Los planes y eventos que organizas se cancelan, sin penalización para quienes iban.</li>
+            <li>• Sales de los planes a los que ibas.</li>
+            <li>• Tu correo y tu usuario quedan libres. <strong>No hay forma de recuperarlos.</strong></li>
+          </ul>
+          <label className="flex min-h-11 items-start gap-2.5 text-sm font-semibold">
+            <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} className="mt-0.5 size-5 shrink-0 accent-primary" />
+            Entiendo que se borra todo y que no se puede deshacer.
+          </label>
+          <Field label={`Escribe ${CONFIRM_WORD} para confirmar`} value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+          <PasswordField label="Tu contraseña" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
+          <div className="grid grid-cols-2 gap-2.5">
+            <Button variant="secondary" onClick={close}>Cancelar</Button>
+            <Button variant="dark" className="!bg-danger" disabled={!ready} loading={loading} onClick={remove}>Eliminar para siempre</Button>
+          </div>
+        </div>
+      </ModalSheet>
+    </section>
   )
 }

@@ -28,12 +28,12 @@ const endsAfter = (startIso: string, min: number) => new Date(new Date(startIso)
 
 export const SEED_USERS: User[] = [
   { id: ME_ID, name: 'Alan', handle: '@alan', level: 7, bio: 'Corro en las mañanas y tomo café en las tardes. Siempre con ganas de jalar.', streakWeeks: 4, hangouts: 9, eventsCount: 6, totalXp: 3340 },
-  { id: 'sofi', name: 'Sofi', availability: 'available', handle: '@sofi', level: 6, bio: 'Café, brunch y conversaciones largas.', streakWeeks: 3, friendsCount: 24, hangouts: 12, eventsCount: 4, totalXp: 2860 },
-  { id: 'mau', name: 'Mau', availability: 'busy', handle: '@mau', level: 8, bio: 'Fondista de fin de semana. Pregunta por el próximo 5K.', streakWeeks: 6, friendsCount: 31, hangouts: 20, eventsCount: 9, totalXp: 3990 },
+  { id: 'sofi', name: 'Sofi', handle: '@sofi', level: 6, bio: 'Café, brunch y conversaciones largas.', streakWeeks: 3, friendsCount: 24, hangouts: 12, eventsCount: 4, totalXp: 2860 },
+  { id: 'mau', name: 'Mau', handle: '@mau', level: 8, bio: 'Fondista de fin de semana. Pregunta por el próximo 5K.', streakWeeks: 6, friendsCount: 31, hangouts: 20, eventsCount: 9, totalXp: 3990 },
   { id: 'regina', name: 'Regina', handle: '@regina', level: 4, streakWeeks: 1, friendsCount: 12, hangouts: 7, eventsCount: 2, totalXp: 1720 },
-  { id: 'dani', name: 'Dani', availability: 'busy', handle: '@dani', level: 5, streakWeeks: 2, friendsCount: 18, hangouts: 10, eventsCount: 3, totalXp: 2310 },
+  { id: 'dani', name: 'Dani', handle: '@dani', level: 5, streakWeeks: 2, friendsCount: 18, hangouts: 10, eventsCount: 3, totalXp: 2310 },
   { id: 'leo', name: 'Leo', handle: '@leo', level: 3, streakWeeks: 0, friendsCount: 9, hangouts: 4, eventsCount: 1, totalXp: 1240 },
-  { id: 'nico', name: 'Nico', availability: 'available', handle: '@nico', level: 9, bio: 'Siempre cerca de la cancha. Cuando no hay plan, estoy chilling.', streakWeeks: 1, friendsCount: 27, hangouts: 11, eventsCount: 3, totalXp: 4120 },
+  { id: 'nico', name: 'Nico', handle: '@nico', level: 9, bio: 'Siempre cerca de la cancha. Cuando no hay plan, estoy chilling.', streakWeeks: 1, friendsCount: 27, hangouts: 11, eventsCount: 3, totalXp: 4120 },
   // Gente que no es tu amiga y activó el ranking: solo se ve su nombre, su nivel y su XP.
   { id: 'ximena', name: 'Ximena Torres', handle: '@xime.t', level: 21, streakWeeks: 9, friendsCount: 64, hangouts: 30, eventsCount: 12, totalXp: 10350 },
   { id: 'rodri', name: 'Rodri Peña', handle: '@rodri.p', level: 18, streakWeeks: 7, friendsCount: 48, hangouts: 26, eventsCount: 8, totalXp: 8980 },

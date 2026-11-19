@@ -1,13 +1,19 @@
 import { lazy, Suspense, type ComponentProps } from 'react'
 import { MapPinOff } from 'lucide-react'
 
+let webgl: boolean | undefined
+/** ¿Hay WebGL? Se prueba UNA vez: cada `getContext` abre un contexto y el navegador solo permite unos 16. */
 export function hasWebGL(): boolean {
+  if (webgl !== undefined) return webgl
   try {
     const c = document.createElement('canvas')
-    return !!(c.getContext('webgl2') || c.getContext('webgl'))
+    const gl = c.getContext('webgl2') || c.getContext('webgl')
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    webgl = !!gl
   } catch {
-    return false
+    webgl = false
   }
+  return webgl
 }
 
 const MapView = lazy(() => import('./MapView'))

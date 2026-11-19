@@ -37,13 +37,14 @@ export function ChipLink({ className, children, ...rest }: { className?: string;
 /** Pill informativa (no interactiva). */
 export function Pill({
   tone = 'surface', className, children,
-}: { tone?: 'surface' | 'accent' | 'muted' | 'primary' | 'dark'; className?: string; children: ReactNode }) {
+}: { tone?: 'surface' | 'accent' | 'muted' | 'primary' | 'dark' | 'live'; className?: string; children: ReactNode }) {
   const tones = {
     surface: 'bg-surface text-ink border border-line',
     accent: 'bg-accent-soft text-accent-text',
     muted: 'bg-surface-muted text-text',
     primary: 'bg-primary text-white',
     dark: 'bg-ink text-white',
+    live: 'bg-cat-musica text-success-text',
   }
   return (
     <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-caption font-bold', tones[tone], className)}>

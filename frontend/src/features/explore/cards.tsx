@@ -16,7 +16,7 @@ export function planToCard(plan: Plan, author: User, from: LatLng, now = Date.no
     category: cat.label,
     time: planPhase(plan, now) === 'live' ? `En curso · hasta ${timeLabel(new Date(planEnd(plan)).toISOString())}` : startLabel(plan.startsAt, now),
     xp: '+20 XP',
-    person: { id: author.id, name: author.name },
+    person: { id: author.id, name: author.name, avatarUrl: author.avatarUrl },
     where: `${plan.place.name} · a ${formatApproxDistance(planDistanceM(plan, from))}`,
     title: plan.line,
     chip: plan.joinedCount === 1 ? '1 ya jaló' : `${plan.joinedCount} ya jalaron`,

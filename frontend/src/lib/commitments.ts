@@ -7,12 +7,10 @@ import { planEnd, planPhase, planStart, type Timed } from '@/lib/planTime'
 
 const ME = 'me'
 
-/** Por qué no puedes unirte en modo fantasma. */
-export const GHOST_JOIN_REASON = 'Modo fantasma: solo puedes ver qué hay. Apágalo para unirte.'
 
 export interface Commitment extends Timed { key: string; kind: 'plan' | 'evento'; id: string; title: string; role: 'organizador' | 'voy' }
 
-export interface CommitmentSource { plans: Plan[]; matches: Match[]; events: Event[]; attendances: Attendance[]; /** Modo fantasma: solo se puede VER lo que hay. */ ghost?: boolean }
+export interface CommitmentSource { plans: Plan[]; matches: Match[]; events: Event[]; attendances: Attendance[]; }
 
 export function commitmentsOf(s: CommitmentSource): Commitment[] {
   const out: Commitment[] = []
@@ -43,14 +41,12 @@ export function joinBlock(
 ): string | null {
   const list = commitmentsOf(s)
   if (list.some((c) => c.key === key)) return 'Ya vas a este plan.'
-  // En modo fantasma no ves a tus amigos cercanos y tampoco te puedes unir a nada: solo ver qué hay.
-  if (s.ghost) return GHOST_JOIN_REASON
   const phase = planPhase(item, now)
   if (phase === 'ended') return 'Ya terminó.'
   if (phase === 'live' && !item.lateJoin) return 'Ya empezó y no admite más gente.'
   const filled = item.joinedCount ?? item.going
   if (item.capacity !== undefined && filled !== undefined && filled >= item.capacity) return 'Ya está lleno.'
   const c = findConflict(list, item)
-  if (c) return `Ya tienes «${c.title}» a esa hora. Solo puedes tener un plan a la vez.`
+  if (c) return `Ya tienes "${c.title}" a esa hora. Solo puedes tener un plan a la vez.`
   return null
 }

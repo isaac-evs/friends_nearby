@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Availability, Event, Plan, PlanPlace, User } from '@/api/schemas'
+import type { Event, Plan, PlanPlace, User } from '@/api/schemas'
 import type { LatLng } from '@/lib/geo'
 import { api } from '@/api/client'
 import { ME_ID } from '@/api/me'
@@ -15,7 +15,7 @@ import { inDay } from '@/lib/day'
  */
 export interface MapPerson {
   kind: 'person'; id: string; user: User; cell: LatLng; distanceM: number; updatedAt: string
-  exact: LatLng | null; exactUntil?: string; availability: Availability; plan?: Plan
+  exact: LatLng | null; exactUntil?: string; plan?: Plan
   /**
    * Plan o evento EN CURSO en el que está ahora (si se ve en el mapa): se dibuja como círculo en la esquina de ese plan o
    * evento, sin marcador propio ni círculo aproximado (ya se sabe dónde está).
@@ -33,7 +33,7 @@ export const personId = (userId: string) => `person-${userId}`
 
 /**
  * Elementos visibles del mapa. Privacidad:
- *  - Personas: SOLO amigos cercanos de los dos (y nunca si estás en modo fantasma: es de dos vías) (solicitud aceptada por ambos), sin pausa de ubicación ni bloqueo. Foto, sin nombre.
+ *  - Personas: SOLO amigos cercanos de los dos (solicitud aceptada por ambos), sin pausa de ubicación ni bloqueo. Foto, sin nombre.
  *    Quien no comparte contigo sigue en tu lista de amigos pero no sale en el mapa. Los invitados (no amigos) nunca salen.
  *  - Planes: los de tus amigos, en su lugar exacto; los terminados y cancelados desaparecen.
  *  - Eventos: solo con el modo abierto; no exponen a nadie más que al organizador.
@@ -48,8 +48,7 @@ export function useMapItems(filter: MapFilter, query: string, opts?: { ignoreDay
     const out: MapItem[] = []
     const livePlans = state.plans.filter((p) => new Date(p.expiresAt).getTime() > now)
 
-    // En modo fantasma tampoco ves a tus amigos cercanos (solo qué planes y eventos hay).
-    if (!state.ghost && (filter === 'todos' || filter === 'amigos')) {
+    if (filter === 'todos' || filter === 'amigos') {
       for (const pr of state.presence) {
         const fs = state.friendships[pr.userId]
         const user = state.users[pr.userId]
@@ -61,7 +60,7 @@ export function useMapItems(filter: MapFilter, query: string, opts?: { ignoreDay
         const grant = state.exactGrants.find((g) => g.userId === user.id && new Date(g.until).getTime() > now)
         out.push({
           kind: 'person', id: personId(user.id), user, cell: pr.cell, distanceM: dist, updatedAt: pr.updatedAt,
-          exact: api.live.exactLocation(user.id, state.exactGrants, now), exactUntil: grant?.until, availability: user.availability ?? 'available', plan,
+          exact: api.live.exactLocation(user.id, state.exactGrants, now), exactUntil: grant?.until, plan,
         })
       }
     }
@@ -95,7 +94,7 @@ export function useMapItems(filter: MapFilter, query: string, opts?: { ignoreDay
       if (at) it.atId = at
     }
     return out
-  }, [opts?.ignoreDay, state.attendees, state.plans, state.friendships, state.users, state.blocks, state.matches, state.exactGrants, state.events, state.presence, state.ghost, state.dayOffset, state.location.center, state.openMode.enabled, state.radiusM, filter, query, now])
+  }, [opts?.ignoreDay, state.attendees, state.plans, state.friendships, state.users, state.blocks, state.matches, state.exactGrants, state.events, state.presence, state.dayOffset, state.location.center, state.openMode.enabled, state.radiusM, filter, query, now])
 }
 
 /** Punto que se dibuja: la posición exacta solo si te la compartieron; si no, la celda aproximada (personas) o el lugar (planes y eventos). */

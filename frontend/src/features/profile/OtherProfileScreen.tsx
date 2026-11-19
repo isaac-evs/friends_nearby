@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Activity, MoreHorizontal, Send, UserPlus } from 'lucide-react'
-import { Avatar, AvatarStack, Button, ModalSheet, Notice, Pill, StreakBadge, useToast } from '@/design'
+import { Avatar, AvatarStack, Button, ModalSheet, Notice, Pill, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { avatarColor } from '@/lib/avatar'
 import { eventWhenShort } from '@/lib/format'
@@ -34,12 +34,13 @@ export function OtherProfileScreen() {
   return (
     <div className="relative flex min-h-dvh flex-col bg-bg lg:min-h-0 lg:bg-transparent">
       <header className="relative h-[200px] border-b border-line px-[22px] pt-[34px] lg:rounded-card lg:border lg:px-8 lg:pt-8" style={{ background: avatarColor(u.id) }}>
+        {u.coverUrl && <img src={u.coverUrl} alt="" className="absolute inset-0 size-full object-cover lg:rounded-card" />}
         <div className="flex justify-between">
           <button type="button" aria-label="Volver" onClick={() => nav(-1)} className="flex size-11 items-center justify-center rounded-full border border-line bg-surface"><ArrowLeft aria-hidden="true" size={20} strokeWidth={2.4} /></button>
           <button type="button" aria-label="Más opciones" aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu((v) => !v)} className="flex size-11 items-center justify-center rounded-full border border-line bg-surface"><MoreHorizontal aria-hidden="true" size={20} /></button>
         </div>
         {u.metAt && <span className="absolute right-[22px] bottom-[18px] rounded-[12px] border border-line bg-accent px-2.5 py-1 text-caption font-bold">Se conocieron en Social Run</span>}
-        <Avatar userId={u.id} name={u.name} size={96} className="absolute bottom-[-46px] left-[22px] [&>span]:border-2 [&>span]:border-white [&>span]:shadow-md" />
+        <Avatar userId={u.id} name={u.name} size={96} src={u.avatarUrl} className="absolute bottom-[-46px] left-[22px] [&>span]:border-2 [&>span]:border-white [&>span]:shadow-md" />
       </header>
 
       {menu && (
@@ -56,7 +57,6 @@ export function OtherProfileScreen() {
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[30px] leading-none font-extrabold tracking-[-0.8px]">{u.name}</h1>
-            <StreakBadge weeks={u.streakWeeks} />
           </div>
           <span className="text-meta font-bold text-muted">{u.handle}{u.city ? ` · ${u.city}` : ''}</span>
           <div className="flex flex-wrap gap-1.5">

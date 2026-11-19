@@ -13,9 +13,7 @@ export function WhoSeesSheet({ open, onClose, manage = true }: { open: boolean; 
   return (
     <ModalSheet open={open} title="Quién te ve" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        {state.ghost ? (
-          <p role="status" className="rounded-md bg-ink px-3 py-2.5 text-sm font-bold text-white">Modo fantasma: nadie te ve ahora, ni tus cercanos.</p>
-        ) : viewers.length === 0 ? (
+        {viewers.length === 0 ? (
           <p role="status" className="rounded-md bg-surface-muted px-3 py-2.5 text-sm font-bold">Nadie ve tu ubicación ahora.</p>
         ) : (
           <>

@@ -14,8 +14,8 @@ export function InviteButton({ userId, name, className }: { userId: string; name
   if (!mine) return <ButtonLink to={`/publicar?invitar=${userId}`} className={className} aria-label={`Invitar a ${name} a un plan`}>Invitar</ButtonLink>
   return (
     <Button
-      className={className} aria-label={`Invitar a ${name} a «${mine.title}»`}
-      onClick={async () => { const n = await invitePeople(mine.id, [userId]); if (n === null) return; toast(n ? `Invitaste a ${name} a «${mine.title}»` : `${name} ya tiene tu invitación`) }}
+      className={className} aria-label={`Invitar a ${name} a "${mine.title}"`}
+      onClick={async () => { const n = await invitePeople(mine.id, [userId]); if (n === null) return; toast(n ? `Invitaste a ${name} a "${mine.title}"` : `${name} ya tiene tu invitación`) }}
     >
       Invitar
     </Button>

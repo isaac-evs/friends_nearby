@@ -30,10 +30,11 @@ export function Avatar({ userId, name, size = 44, online, paused, self, text, sr
           SIZES[size],
           self && 'bg-primary text-white',
           paused && 'border-dashed border-line-dashed bg-surface-sunken',
+          src && 'overflow-hidden border-transparent',
         )}
         style={self || paused ? undefined : { background: avatarColor(userId) }}
       >
-        {src ? <img src={src} alt="" className="size-full rounded-full object-cover" /> : (text ?? initials(name))}
+        {src ? <img src={src} alt="" referrerPolicy="no-referrer" className="block size-full rounded-full object-cover" /> : (text ?? initials(name))}
       </span>
       {online && (
         <span aria-hidden="true" className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-surface bg-success" />

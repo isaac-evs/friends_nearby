@@ -6,7 +6,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react'
 import type {
-  Attendance, Availability, Badge, CloseStatus, Event, EventType, ExactShare, Friendship, Invite, JoinPolicy, Match, Plan, PlanCategory, PlanHistoryItem, PlanPlace, Presence, SwipeAction, User, XpEvent,
+  Attendance, Badge, CloseStatus, Event, EventType, ExactShare, Friendship, Invite, JoinPolicy, Match, Plan, PlanCategory, PlanHistoryItem, PlanPlace, Presence, SwipeAction, User, XpEvent,
 } from '@/api/schemas'
 import type { Bootstrap } from '@/api/client'
 import { ME_ID } from '@/api/me'
@@ -47,7 +47,6 @@ export interface AppState {
   session: { email: string } | null
   /** `center`: mi ubicación aproximada (celda redondeada). Solo en memoria: nunca se guarda en el navegador. */
   location: { status: LocationStatus; center: LatLng }
-  ghost: boolean
   openMode: OpenMode
   xp: number
   xpGoal: number
@@ -91,7 +90,7 @@ const MOCK_NEVER_ANSWERS = new Set(['regina'])
 
 const PERSIST_KEY = 'jalas.mock.v1'
 interface Persisted {
-  session: AppState['session']; location: { status: LocationStatus }; ghost: boolean; openMode: OpenMode; blocks: string[]
+  session: AppState['session']; location: { status: LocationStatus }; openMode: OpenMode; blocks: string[]
   /** Preferencia no sensible: con quién eres amigo cercano (solo `mutual` o `none`). Nunca coordenadas. */
   close: Record<string, CloseStatus>
   radiusM: number
@@ -126,7 +125,6 @@ export function initialState(b: Bootstrap): AppState {
   return {
     session: p.session ?? null,
     location: { status: p.location?.status ?? 'unknown', center: b.myCenter },
-    ghost: p.ghost ?? false,
     openMode: p.openMode ?? { enabled: false, adult: false, bigEvents: true, smallPlans: false },
     xp: 340,
     xpGoal: 500,
@@ -159,10 +157,8 @@ type Action =
   | { type: 'signIn'; email: string; name?: string }
   | { type: 'signOut' }
   | { type: 'setLocation'; status: LocationStatus; center?: LatLng }
-  | { type: 'setAvailability'; availability: Availability | null }
   | { type: 'setVisibilityRadius'; radiusM: number }
   | { type: 'setDay'; offset: number }
-  | { type: 'toggleGhost' }
   | { type: 'setOpenMode'; patch: Partial<OpenMode> }
   | { type: 'swipe'; kind: 'plan' | 'event'; id: string; action: SwipeAction }
   | { type: 'resetSwipes'; kind: 'plan' | 'event' }
@@ -229,19 +225,10 @@ export function reducer(s: AppState, a: Action): AppState {
       return { ...s, session: null }
     case 'setLocation':
       return { ...s, location: { status: a.status, center: a.center ? roundToCell(a.center) : s.location.center } }
-    case 'setAvailability': {
-      const me = { ...s.users[ME_ID]! }
-      if (a.availability) me.availability = a.availability
-      else delete me.availability
-      return { ...s, users: { ...s.users, [ME_ID]: me } }
-    }
     case 'setDay':
       return { ...s, dayOffset: Math.min(MAX_DAY_OFFSET, Math.max(0, Math.round(a.offset))) }
     case 'setVisibilityRadius':
       return { ...s, visibilityRadiusM: a.radiusM }
-    case 'toggleGhost':
-      // Al esconderte se corta TODA ubicación exacta: la que compartías y la que te compartían (en fantasma tampoco ves a tus cercanos).
-      return s.ghost ? { ...s, ghost: false } : { ...s, ghost: true, exactShares: [], exactGrants: [], exactPending: [] }
     case 'setOpenMode':
       return { ...s, openMode: { ...s.openMode, ...a.patch } }
     case 'swipe':
@@ -355,14 +342,14 @@ export function reducer(s: AppState, a: Action): AppState {
       return to === 'mutual' ? next : clearExact(next, a.userId)
     }
     case 'exactStart': {
-      // Solo entre amigos cercanos, nunca en modo fantasma, y siempre con fin.
-      if (s.ghost || s.friendships[a.userId]?.close !== 'mutual' || !(new Date(a.until).getTime() > Date.now())) return s
+      // Solo entre amigos cercanos y siempre con fin.
+      if (s.friendships[a.userId]?.close !== 'mutual' || !(new Date(a.until).getTime() > Date.now())) return s
       return { ...s, exactShares: [...s.exactShares.filter((x) => x.userId !== a.userId), { userId: a.userId, until: a.until }] }
     }
     case 'exactStop':
       return { ...s, exactShares: s.exactShares.filter((x) => x.userId !== a.userId) }
     case 'exactAsk':
-      if (s.ghost || s.friendships[a.userId]?.close !== 'mutual' || s.exactPending.includes(a.userId)) return s
+      if (s.friendships[a.userId]?.close !== 'mutual' || s.exactPending.includes(a.userId)) return s
       return { ...s, exactPending: [...s.exactPending, a.userId] }
     case 'exactAskCancel':
       return { ...s, exactPending: s.exactPending.filter((x) => x !== a.userId) }
@@ -419,12 +406,10 @@ export interface Actions {
   signOut: () => void
   setLocation: (status: LocationStatus, center?: LatLng) => void
   /** Cómo estás (o `null` para no mostrar nada). No cambia quién ve tu ubicación. */
-  setAvailability: (availability: Availability | null) => void
   /** Día que se mira (0 = hoy, 1 = mañana…). */
   setDay: (offset: number) => void
   /** Qué tan lejos pueden estar tus amigos cercanos para verte. */
   setVisibilityRadius: (radiusM: number) => void
-  toggleGhost: () => void
   setOpenMode: (patch: Partial<OpenMode>) => void
   swipe: (kind: 'plan' | 'event', id: string, action: SwipeAction) => void
   resetSwipes: (kind: 'plan' | 'event') => void
@@ -488,9 +473,9 @@ export function AppProvider({ children, data }: { children: ReactNode; data: Boo
   useEffect(() => {
     // Solo `mutual` o `none`: las solicitudes pendientes no se guardan (y el seed vuelve a ponerlas).
     const close = Object.fromEntries(Object.values(state.friendships).filter((f) => f.close === 'mutual' || f.close === 'none').map((f) => [f.userId, f.close]))
-    const p: Persisted = { session: state.session, location: { status: state.location.status }, ghost: state.ghost, openMode: state.openMode, blocks: state.blocks, close, radiusM: state.radiusM, visibilityRadiusM: state.visibilityRadiusM }
+    const p: Persisted = { session: state.session, location: { status: state.location.status }, openMode: state.openMode, blocks: state.blocks, close, radiusM: state.radiusM, visibilityRadiusM: state.visibilityRadiusM }
     try { localStorage.setItem(PERSIST_KEY, JSON.stringify(p)) } catch { /* sin storage: seguimos en memoria */ }
-  }, [state.session, state.location, state.ghost, state.openMode, state.blocks, state.friendships, state.radiusM, state.visibilityRadiusM])
+  }, [state.session, state.location, state.openMode, state.blocks, state.friendships, state.radiusM, state.visibilityRadiusM])
 
   /** Unirse a un plan ("Jalo"): respeta "un plan a la vez", que no haya terminado y si admite gente en curso. */
   const joinPlan = (planId: string): string | null => {
@@ -520,10 +505,8 @@ export function AppProvider({ children, data }: { children: ReactNode; data: Boo
     signIn: (email, name) => dispatch({ type: 'signIn', email, name }),
     signOut: () => dispatch({ type: 'signOut' }),
     setLocation: (status, center) => dispatch({ type: 'setLocation', status, center }),
-    setAvailability: (availability) => dispatch({ type: 'setAvailability', availability }),
     setDay: (offset) => dispatch({ type: 'setDay', offset }),
     setVisibilityRadius: (radiusM) => dispatch({ type: 'setVisibilityRadius', radiusM }),
-    toggleGhost: () => dispatch({ type: 'toggleGhost' }),
     setOpenMode: (patch) => dispatch({ type: 'setOpenMode', patch }),
     swipe: (kind, id, action) => dispatch({ type: 'swipe', kind, id, action }),
     resetSwipes: (kind) => dispatch({ type: 'resetSwipes', kind }),

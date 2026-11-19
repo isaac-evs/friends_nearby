@@ -4,13 +4,18 @@ import { activeShares, canSeeMyLocation, closeFriendIds, durationLabel, EXACT_DU
 
 const f = (userId: string, status: Friendship['status'], close: CloseStatus): Friendship => ({ userId, status, close, mutualFriendIds: [], locationPaused: false })
 const base = (over: Partial<PrivacyState> = {}): PrivacyState => ({
-  ghost: false,
   blocks: [],
   friendships: Object.fromEntries([
     f('sofi', 'friends', 'mutual'), f('mau', 'friends', 'mutual'), f('dani', 'friends', 'requested_in'), f('leo', 'friends', 'none'), f('regina', 'friends', 'requested_out'),
     f('pau', 'requested_in', 'mutual'), f('karla', 'none', 'mutual'), f('beto', 'requested_out', 'mutual'),
   ].map((x) => [x.userId, x])),
   ...over,
+})
+
+describe('closeFriendIds',()=>{
+  it('cuenta solo amistades cercanas de los dos y no bloqueadas', () => {
+    expect(closeFriendIds(base({ blocks: ['mau'] }))).toEqual(['sofi'])
+  })
 })
 
 describe('quién ve tu ubicación', () => {
@@ -23,14 +28,8 @@ describe('quién ve tu ubicación', () => {
   it('quien no es amigo nunca la ve, aunque quedara un estado "mutual"', () => {
     for (const id of ['pau', 'karla', 'beto', 'nadie']) expect(canSeeMyLocation(base(), id)).toBe(false)
   })
-  it('el modo fantasma la oculta a todos, también a los cercanos', () => {
-    expect(locationViewers(base({ ghost: true }))).toEqual([])
-  })
   it('un cercano bloqueado no la ve', () => {
     expect(locationViewers(base({ blocks: ['sofi'] }))).toEqual(['mau'])
-  })
-  it('closeFriendIds ignora el fantasma pero no a bloqueados ni a no amigos', () => {
-    expect(closeFriendIds(base({ ghost: true, blocks: ['mau'] }))).toEqual(['sofi'])
   })
 })
 
@@ -38,10 +37,6 @@ describe('texto de vista previa', () => {
   it('dice que la ve solo a quien la ve', () => {
     expect(locationLineText(base(), 'sofi')).toBe('Ve tu ubicación aproximada')
     for (const id of ['dani', 'leo', 'regina', 'karla', 'pau']) expect(locationLineText(base(), id)).toBe('No ve tu ubicación')
-  })
-  it('con fantasma nadie la ve y el texto lo explica', () => {
-    expect(locationLineText(base({ ghost: true }), 'sofi')).toBe('No te ve: modo fantasma')
-    expect(locationLineText(base({ ghost: true }), 'dani')).toBe('No ve tu ubicación')
   })
 })
 

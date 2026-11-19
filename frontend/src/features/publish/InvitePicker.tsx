@@ -14,7 +14,7 @@ export const MAX_INVITES = 10
 export function InvitePicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
   const { state } = useApp()
   // Cerca de ti: solo amigos cercanos (de los dos) que te muestran su ubicación aproximada, con su distancia y cuándo se actualizó.
-  const nearby = (state.ghost ? [] : state.presence) // en modo fantasma no ves dónde andan tus cercanos
+  const nearby = state.presence
     .flatMap((pr) => {
       const f = state.friendships[pr.userId]
       const u = state.users[pr.userId]

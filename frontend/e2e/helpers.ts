@@ -5,7 +5,7 @@ import AxeBuilder from '@axe-core/playwright'
 export async function signIn(page: Page) {
   await page.goto('/entrar')
   await page.getByLabel('Correo').fill('alan@correo.com')
-  await page.getByLabel('Contraseña').fill('contraseña1')
+  await page.getByLabel('Contraseña', { exact: true }).fill('contraseña1')
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByRole('heading', { name: /Tus amigos cercanos ven dónde andas/ })).toBeVisible()
   await page.getByRole('button', { name: /la elijo en el mapa/ }).click()

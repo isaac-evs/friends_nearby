@@ -8,7 +8,6 @@ import { JoinButton, useJoinBlock } from './JoinButton'
 import { PlanDetailSheet } from './PlanDetailSheet'
 import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
 import { eventRange, formatApproxDistance, formatNearby, staleLabel, timeLabel } from '@/lib/format'
-import { AVAILABILITY_LABEL } from '@/features/profile/ProfileMenu'
 import { InviteButton } from './InviteButton'
 import type { MapEventItem, MapItem, MapPerson, MapPlan } from './useMapData'
 
@@ -26,7 +25,7 @@ function EventSheet({ item, className }: { item: MapEventItem; className?: strin
   return (
     <BottomSheet label="Seleccionado en el mapa" className={className}>
       <div className="flex items-center gap-3">
-        <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-md border border-line bg-accent">{t.icon({ size: 26, strokeWidth: 2.2 })}</span>
+        <span aria-hidden="true" className="flex shrink-0 items-center justify-center text-ink">{t.icon({ size: 26, strokeWidth: 2.2 })}</span>
         <div className="flex min-w-0 flex-1 flex-col gap-px">
           <span className="truncate text-base font-extrabold">{e.title}</span>
           <span className="text-meta text-muted">{e.placeName} · a {formatApproxDistance(item.distanceM)}</span>
@@ -45,10 +44,10 @@ function EventSheet({ item, className }: { item: MapEventItem; className?: strin
 
 /**
  * Amigo cercano: foto, nombre, "Amigo cercano", cercanía en rangos ("a menos de 500 m"), hace cuánto se actualizó (si pasó
- * un rato) y su disponibilidad. Si tiene un plan en curso se puede ver o unirse; si no hace nada, se le puede invitar a un plan.
+ * un rato) Si tiene un plan en curso se puede ver o unirse; si no hace nada, se le puede invitar a un plan.
  */
 function PersonSheet({ item, className }: { item: MapPerson; className?: string }) {
-  const { user, exact, exactUntil, plan, availability } = item
+  const { user, exact, exactUntil, plan } = item
   const stale = staleLabel(item.updatedAt)
   return (
     <BottomSheet label="Seleccionado en el mapa" className={className}>
@@ -59,7 +58,6 @@ function PersonSheet({ item, className }: { item: MapPerson; className?: string 
           <span className="text-meta text-muted">Amigo cercano · {formatNearby(item.distanceM)}</span>
           {stale && <span className="text-caption text-muted">{stale}</span>}
         </div>
-        <Pill tone={availability === 'busy' ? 'muted' : 'accent'}>{AVAILABILITY_LABEL[availability]}</Pill>
       </div>
       {exact && <p className="text-caption font-semibold text-text">Ubicación exacta compartida hasta las {timeLabel(exactUntil!)}</p>}
       {plan ? <PersonPlan item={item} plan={plan} /> : <PersonIdle item={item} />}
@@ -74,11 +72,10 @@ function PersonSheet({ item, className }: { item: MapPerson; className?: string 
 }
 
 function PersonIdle({ item }: { item: MapPerson }) {
-  const { user, availability } = item
-  const free = availability === 'available'
+  const { user } = item
   return (
     <>
-      <h2 className="text-[19px] leading-tight font-extrabold">{free ? 'Sin plan por ahora' : 'Sin plan, ocupado'}</h2>
+      <h2 className="text-[19px] leading-tight font-extrabold">Sin plan por ahora</h2>
       <div className="grid grid-cols-2 gap-2">
         <ButtonLink to={`/u/${user.id}`} variant="secondary" className="h-[46px] rounded-md text-sm">Ver perfil</ButtonLink>
         <InviteButton userId={user.id} name={user.name} className="h-[46px] rounded-md text-sm" />

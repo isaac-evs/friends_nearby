@@ -61,9 +61,7 @@ type NearbyFriend struct {
 
 func (a *App) Public(u *models.User) models.PublicUser {
 	p := models.PublicUser{UserID: u.UserID, Username: u.Username, DisplayName: u.DisplayName}
-	if u.PhotoKey != "" && a.Cfg.CDNDomain != "" {
-		p.PhotoURL = "https://" + a.Cfg.CDNDomain + "/" + u.PhotoKey
-	}
+	p.PhotoURL = a.Cfg.MediaURL(u.PhotoKey)
 	return p
 }
 

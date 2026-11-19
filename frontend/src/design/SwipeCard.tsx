@@ -13,7 +13,7 @@ interface TileProps { tileClass: string; icon: ReactNode; category: string; xp: 
 export interface FriendCardProps extends TileProps {
   variant: 'friend'
   time: string
-  person: { id: string; name: string }
+  person: { id: string; name: string; avatarUrl?: string }
   where: string
   title: string
   chip: string
@@ -46,7 +46,7 @@ export function CardBody(p: CardProps) {
       <div className="flex flex-1 flex-col gap-2.5 px-[18px] pt-4 pb-[18px]">
         {isFriend ? (
           <div className="flex items-center gap-3">
-            <Avatar userId={p.person.id} name={p.person.name} size={44} />
+            <Avatar userId={p.person.id} name={p.person.name} size={44} src={p.person.avatarUrl} />
             <div className="flex flex-col gap-px">
               <span className="text-[15px] font-bold">{p.person.name}</span>
               <span className="text-meta text-muted">{p.where}</span>
@@ -171,7 +171,7 @@ export function SwipeStack({
               intent === 'up' && 'left-1/2 -translate-x-1/2 border-ink bg-white text-ink',
             )}
           >
-            {intent === 'right' ? 'Jalo' : intent === 'left' ? 'Paso' : 'Luego'}
+            {intent === 'right' ? '¡Jalo!' : intent === 'left' ? 'Paso' : 'Luego'}
           </span>
         )}
       </div>

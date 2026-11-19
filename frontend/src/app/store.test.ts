@@ -95,32 +95,6 @@ describe('ubicación exacta temporal', () => {
     s = reducer(s, { type: 'exactStop', userId: 'sofi' })
     expect(s.exactShares).toHaveLength(0)
   })
-  it('en modo fantasma no se puede compartir, y activarlo corta lo que compartías', () => {
-    let s = reducer(fresh(), { type: 'exactStart', userId: 'sofi', until: in1h() })
-    s = reducer(s, { type: 'toggleGhost' })
-    expect(s.ghost).toBe(true)
-    expect(s.exactShares).toHaveLength(0)
-    expect(reducer(s, { type: 'exactStart', userId: 'mau', until: in1h() }).exactShares).toHaveLength(0)
-  })
-  it('en modo fantasma también se corta lo que te compartían y no se puede pedir', () => {
-    let s = reducer(fresh(), { type: 'exactAsk', userId: 'sofi' })
-    s = reducer(s, { type: 'exactGrant', userId: 'sofi', until: in1h() })
-    expect(s.exactGrants).toHaveLength(1)
-    s = reducer(s, { type: 'toggleGhost' })
-    expect(s.exactGrants).toHaveLength(0)
-    expect(s.exactPending).toHaveLength(0)
-    expect(reducer(s, { type: 'exactAsk', userId: 'mau' }).exactPending).toHaveLength(0)
-    expect(reducer(s, { type: 'toggleGhost' }).ghost).toBe(false)
-  })
-  it('en modo fantasma no te puedes unir a nada (solo ver qué hay)', () => {
-    const s = reducer(fresh(), { type: 'toggleGhost' })
-    const plan = s.plans.find((p) => p.id === 'plan-sofi')!
-    const match = { id: 'm', planId: plan.id, friendId: 'sofi', createdAt: '', togetherAt: null, meetPoint: 'x', quickMessage: null, myConfirmed: false, theirConfirmed: false, rewarded: false }
-    expect(reducer(s, { type: 'jalo', plan, match }).matches).toHaveLength(0)
-    expect(reducer(s, { type: 'joinEvent', eventId: 'evt-run' }).attendances).toHaveLength(0)
-    const off = reducer(s, { type: 'toggleGhost' })
-    expect(reducer(off, { type: 'jalo', plan, match }).matches).toHaveLength(1)
-  })
   it('pedir la suya: queda pendiente y solo entra si la otra persona la concede', () => {
     let s = reducer(fresh(), { type: 'exactAsk', userId: 'sofi' })
     expect(s.exactPending).toEqual(['sofi'])
@@ -301,14 +275,6 @@ describe('G1: ubicación aproximada, disponibilidad y radio de visibilidad', () 
   it('sin centro nuevo se conserva el anterior', () => {
     const s = fresh()
     expect(reducer(s, { type: 'setLocation', status: 'denied' }).location.center).toEqual(s.location.center)
-  })
-  it('la disponibilidad es opcional y no cambia quién ve tu ubicación', () => {
-    const s = fresh()
-    expect(s.users.me?.availability).toBeUndefined()
-    const busy = reducer(s, { type: 'setAvailability', availability: 'busy' })
-    expect(busy.users.me?.availability).toBe('busy')
-    expect(locationViewers(busy)).toEqual(locationViewers(s))
-    expect(reducer(busy, { type: 'setAvailability', availability: null }).users.me?.availability).toBeUndefined()
   })
   it('el radio de visibilidad de cercanos es de 3 km y se puede cambiar', () => {
     expect(fresh().visibilityRadiusM).toBe(3000)

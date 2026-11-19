@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -101,9 +102,6 @@ func (h *Handler) socialAction(r *request) httpResp {
 	if e = t.commit(); e != nil {
 		return responseError(e)
 	}
-	if in.Type == "setGhost" && in.Enabled != nil && *in.Enabled {
-		_ = h.App.EnterGhost(r.ctx, me)
-	}
 	targets := map[string]bool{r.userID: true}
 	for key := range t.dirty {
 		if strings.HasPrefix(key, "user#") {
@@ -200,13 +198,6 @@ func validTimes(start, end string) bool {
 	return !a.IsZero() && !b.IsZero() && b.After(a) && b.Sub(a) <= 24*time.Hour && b.After(time.Now()) && a.Before(time.Now().AddDate(1, 0, 0))
 }
 func (t *socialTx) requireJoin(id, start, end string, late bool) error {
-	u, e := t.user(id)
-	if e != nil {
-		return e
-	}
-	if u.GhostMode {
-		return denied()
-	}
 	if !active(end) {
 		return invalid("Ya terminó.")
 	}
@@ -343,6 +334,8 @@ func (t *socialTx) joinPlan(p *personal, plan *socialPlan, invited bool) (string
 	p.Swipes["plan:"+plan.ID] = "join"
 	return mid, nil
 }
+
+// joinEvent: todos los eventos piden el modo abierto (adulto), también si te invitaron; el cliente te lleva a activarlo primero.
 func (t *socialTx) joinEvent(p *personal, ev *socialEvent) error {
 	id := t.r.userID
 	if ev.Canceled {
@@ -352,7 +345,7 @@ func (t *socialTx) joinEvent(p *personal, ev *socialEvent) error {
 		return e
 	}
 	if !p.Open.Enabled || !p.Open.Adult {
-		return denied()
+		return &domainError{403, "Los eventos requieren el modo abierto: actívalo primero en tu perfil."}
 	}
 	b, e := t.blocked(id, ev.Owner)
 	if e != nil {
@@ -450,11 +443,6 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			return nil, invalid("Radio no válido.")
 		}
 		p.Visibility = in.Radius
-	case "setAvailability":
-		if in.Availability != "" && !validChoice(in.Availability, "available,busy") {
-			return nil, invalid("Disponibilidad no válida.")
-		}
-		p.Availability = in.Availability
 	case "requestClose", "cancelClose", "acceptClose", "declineClose", "removeClose":
 		ok, e := t.friends(id, in.UserID)
 		if e != nil {
@@ -520,19 +508,8 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		if e != nil {
 			return nil, e
 		}
-		me, e := t.user(id)
-		if e != nil {
-			return nil, e
-		}
-		other, e := t.user(in.UserID)
-		if e != nil {
-			return nil, e
-		}
 		switch in.Type {
 		case "startExact":
-			if me.GhostMode || other.GhostMode {
-				return nil, denied()
-			}
 			if !containsInt([]int{30, 60, 120, 240}, in.Minutes) {
 				return nil, invalid("Duración no válida.")
 			}
@@ -542,9 +519,6 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		case "stopExact":
 			delete(p.Exact, in.UserID)
 		case "askExact":
-			if me.GhostMode || other.GhostMode {
-				return nil, denied()
-			}
 			q.ExactRequests[id] = time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339Nano)
 		case "cancelAskExact":
 			delete(q.ExactRequests, id)
@@ -552,18 +526,6 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			delete(p.ExactRequests, in.UserID)
 		}
 		return nil, t.putPerson(in.UserID, q)
-	case "setGhost":
-		if in.Enabled == nil {
-			return nil, invalid("Falta enabled.")
-		}
-		if e := t.changeAccount(id, func(u *models.User) { u.GhostMode = *in.Enabled }); e != nil {
-			return nil, e
-		}
-		if *in.Enabled {
-			p.ExactEpoch++
-			p.Exact = map[string]string{}
-			p.ExactRequests = map[string]string{}
-		}
 	case "updateName":
 		name := strings.TrimSpace(in.Name)
 		if utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 40 {
@@ -646,7 +608,7 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			return nil, e
 		}
 		return plan, nil
-	case "updatePlan", "removePlan", "leavePlan", "invitePeople", "jalo":
+	case "updatePlan", "removePlan", "endPlan", "leavePlan", "invitePeople", "jalo":
 		var plan socialPlan
 		if e := t.load(plansPK, in.ID, &plan); e != nil {
 			return nil, e
@@ -670,7 +632,15 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 				return nil, invalid("Debes cancelar el plan que organizas.")
 			}
 			if m, ok := plan.Members[id]; ok {
+				if m.Status == "going" && m.Verified == "" && !joinedInProgress(plan, m) {
+					// Cancelar tu lugar cuesta XP según qué tan cerca está el inicio; si quien organiza cambió hora o lugar hace < 2 h no hay penalización.
+					if ch := instant(plan.Changed); plan.Changed == "" || time.Since(ch) > graceAfterEdit {
+						xp, miss := cancelPenalty(int(time.Until(instant(plan.Starts)).Minutes()))
+						penalize(p, xp, "Cancelaste tu lugar", "leave:"+plan.ID, miss)
+					}
+				}
 				m.Status = "left"
+				m.LeftAt = nowISO()
 				plan.Members[id] = m
 				plan.Joined--
 				plan.MemberIDs = []string{}
@@ -692,8 +662,31 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		}
 		switch in.Type {
 		case "removePlan":
+			if plan.Joined > 0 && plan.Members[id].Verified == "" {
+				xp, miss := cancelPenalty(int(time.Until(instant(plan.Starts)).Minutes()))
+				penalize(p, xp, "Cancelaste tu plan", "cancel:"+plan.ID, miss)
+			}
 			plan.Canceled = true
+			plan.CanceledAt = nowISO()
 			delete(p.Commitments, "plan:"+plan.ID)
+		case "endPlan":
+			// Terminar ahora: solo un plan que ya empezó y no ha terminado. Conserva lo que duró.
+			now := time.Now().UTC()
+			if !instant(plan.Starts).Before(now) || !active(plan.Expires) {
+				return nil, invalid("Solo puedes terminar un plan que está en curso.")
+			}
+			plan.Duration = max(1, int(now.Sub(instant(plan.Starts)).Minutes()))
+			plan.Expires = now.Format(time.RFC3339Nano)
+			if plan.Author == id {
+				// Terminar tu plan: base + 5 XP por cada persona que de verdad llegó (hasta +25).
+				arrived := 0
+				for uid, m := range plan.Members {
+					if uid != id && m.Status == "going" && m.Verified != "" {
+						arrived++
+					}
+				}
+				reward(p, finishXP+min(arrived*arrivedBonusXP, maxArrivedBonus), "Terminaste tu plan", "finish:"+plan.ID)
+			}
 		case "updatePlan":
 			end := instant(in.Starts).Add(time.Duration(in.Duration) * time.Minute).UTC().Format(time.RFC3339Nano)
 			if in.Duration < 5 || in.Duration > 1440 || !validTimes(in.Starts, end) {
@@ -709,6 +702,7 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			plan.Starts = in.Starts
 			plan.Duration = in.Duration
 			plan.Expires = end
+			plan.Changed = nowISO()
 		case "invitePeople":
 			n, e := t.invite("plan", plan.ID, plan.Line, in.InviteIDs)
 			return n, e
@@ -718,16 +712,13 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		if !p.Open.Enabled || !p.Open.Adult {
 			return nil, denied()
 		}
-		if !validChoice(in.EventType, "correr,deporte,juegos,comida,clase,musica,arte,otro") || utf8.RuneCountInString(strings.TrimSpace(in.Title)) < 3 || utf8.RuneCountInString(in.Title) > 100 || len(strings.TrimSpace(in.PlaceName)) < 2 || len(in.PlaceName) > 160 || in.Center == nil || !validPoint(*in.Center) || in.Capacity < 2 || in.Capacity > 200 || !validTimes(in.Starts, in.Ends) || !validMediaKey(id, in.PhotoKey) || len(in.Alias) > 50 {
+		if !validChoice(in.EventType, "correr,deporte,juegos,comida,clase,musica,arte,otro") || utf8.RuneCountInString(strings.TrimSpace(in.Title)) < 3 || utf8.RuneCountInString(in.Title) > 100 || len(strings.TrimSpace(in.PlaceName)) < 2 || len(in.PlaceName) > 160 || in.Center == nil || !validPoint(*in.Center) || in.Capacity < 2 || in.Capacity > 200 || !validTimes(in.Starts, in.Ends) || !validMediaKey(id, in.PhotoKey) || len(in.Alias) > 50 || !validChoice(in.Verify, ",none,qr") {
 			return nil, invalid("Evento no válido. Selecciona el lugar público en el mapa.")
 		}
 		if e := t.checkSchedule(id, in.Starts, in.Ends, ""); e != nil {
 			return nil, e
 		}
-		ev := socialEvent{ID: uuid.NewString(), Owner: id, Type: in.EventType, Title: strings.TrimSpace(in.Title), Starts: in.Starts, Ends: in.Ends, Place: in.PlaceName, Center: *in.Center, Capacity: in.Capacity, Going: 1, Alias: strings.TrimSpace(in.Alias), Approval: in.Approval, Late: in.Late, PhotoKey: in.PhotoKey, Friends: []string{}, XP: 40, Organizer: map[string]any{"name": "", "verified": false, "eventsCount": p.Events + 1}, Members: map[string]member{id: {Status: "going", Joined: nowISO()}}}
-		if ev.Type == "correr" {
-			ev.Paces = []string{"Tranquilo", "Medio", "Rápido"}
-		}
+		ev := socialEvent{ID: uuid.NewString(), Owner: id, Type: in.EventType, Title: strings.TrimSpace(in.Title), Starts: in.Starts, Ends: in.Ends, Place: in.PlaceName, Center: *in.Center, Capacity: in.Capacity, Going: 1, Alias: strings.TrimSpace(in.Alias), Approval: in.Approval, Verify: eventVerify(in.Verify), Description: cleanText(in.Description, maxDescription), ChatEnabled: in.ChatEnabled != nil && *in.ChatEnabled, Late: in.Late, PhotoKey: in.PhotoKey, Friends: []string{}, XP: 40, Organizer: map[string]any{"name": "", "verified": false, "eventsCount": p.Events + 1}, Members: map[string]member{id: {Status: "going", Joined: nowISO()}}}
 		p.Events++
 		p.Draft = nil
 		p.Commitments["event:"+ev.ID] = true
@@ -739,6 +730,87 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		}
 		reward(p, 60, "Evento organizado", "organize:"+ev.ID)
 		return ev, nil
+	case "updateEvent", "cancelEvent", "postAnnouncement", "deleteAnnouncement", "setEventChat", "eventMessage", "deleteEventMessage":
+		var ev socialEvent
+		if e := t.load(eventsPK, in.ID, &ev); e != nil {
+			return nil, e
+		}
+		if ev.ID == "" || ev.Canceled {
+			return nil, invalid("Evento no encontrado.")
+		}
+		owner := ev.Owner == id
+		if in.Type != "eventMessage" && !owner {
+			return nil, denied()
+		}
+		switch in.Type {
+		case "cancelEvent":
+			ev.Canceled = true
+			delete(p.Commitments, "event:"+ev.ID)
+		case "updateEvent":
+			ends := in.Ends
+			if utf8.RuneCountInString(strings.TrimSpace(in.Title)) < 3 || utf8.RuneCountInString(in.Title) > 100 || in.Capacity < max(2, ev.Going) || in.Capacity > 200 || !validTimes(in.Starts, ends) || len(strings.TrimSpace(in.PlaceName)) < 2 || len(in.PlaceName) > 160 || in.Center == nil || !validPoint(*in.Center) || !validMediaKey(id, in.PhotoKey) {
+				return nil, invalid("Datos del evento no válidos.")
+			}
+			if e := t.checkSchedule(id, in.Starts, ends, "event:"+ev.ID); e != nil {
+				return nil, e
+			}
+			ev.Title, ev.Starts, ev.Ends, ev.Capacity = strings.TrimSpace(in.Title), in.Starts, ends, in.Capacity
+			ev.Place, ev.Center = in.PlaceName, *in.Center
+			ev.Description = cleanText(in.Description, maxDescription)
+			ev.Late, ev.Approval = in.Late, in.Approval
+			if in.PhotoKey != "" {
+				ev.PhotoKey = in.PhotoKey
+			}
+		case "postAnnouncement":
+			text := cleanText(in.Message, maxAnnounceRunes)
+			if text == "" {
+				return nil, invalid("Escribe el aviso (hasta 500 caracteres).")
+			}
+			if len(ev.Announcements) >= maxAnnouncements {
+				return nil, invalid("Ya hay muchos avisos: borra alguno antes de publicar otro.")
+			}
+			ev.Announcements = append(ev.Announcements, announcement{ID: uuid.NewString(), Text: text, At: nowISO()})
+		case "deleteAnnouncement":
+			kept := ev.Announcements[:0:0]
+			for _, an := range ev.Announcements {
+				if an.ID != in.Message {
+					kept = append(kept, an)
+				}
+			}
+			ev.Announcements = kept
+		case "setEventChat":
+			ev.ChatEnabled = in.Accept
+		case "deleteEventMessage":
+			kept := ev.Timeline[:0:0]
+			for _, m := range ev.Timeline {
+				if m.ID != in.Message {
+					kept = append(kept, m)
+				}
+			}
+			ev.Timeline = kept
+		case "eventMessage":
+			m := ev.Members[id]
+			if !ev.ChatEnabled {
+				return nil, invalid("Quien organiza no activó el chat.")
+			}
+			if !owner && m.Status != "going" {
+				return nil, denied()
+			}
+			text, ok := cleanChat(in.Message)
+			if !ok {
+				return nil, invalid("Escribe un mensaje (hasta 280 caracteres).")
+			}
+			if m.LastMsgAt != "" && time.Since(instant(m.LastMsgAt)) < messageCooldown {
+				return nil, invalid("Vas muy rápido: espera un segundo.")
+			}
+			m.LastMsgAt = nowISO()
+			ev.Members[id] = m
+			ev.Timeline = append(ev.Timeline, planMsg{ID: uuid.NewString(), User: id, Text: text, At: nowISO()})
+			if len(ev.Timeline) > maxTimeline {
+				ev.Timeline = ev.Timeline[len(ev.Timeline)-maxTimeline:]
+			}
+		}
+		return nil, t.save(eventsPK, ev.ID, ev)
 	case "joinEvent", "leaveEvent", "setPace", "approveAttendance", "rejectAttendance":
 		var ev socialEvent
 		if e := t.load(eventsPK, in.ID, &ev); e != nil {
@@ -915,13 +987,6 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			if instant(plan.Starts).Add(-30*time.Minute).After(time.Now()) || in.Center == nil || !validPoint(*in.Center) {
 				return nil, invalid("La verificación se activa 30 minutos antes del plan.")
 			}
-			u, e := t.user(id)
-			if e != nil {
-				return nil, e
-			}
-			if u.GhostMode {
-				return nil, denied()
-			}
 			if dist(*in.Center, plan.Place.Center) > 100 {
 				return nil, invalid("Debes estar a menos de 100 m del punto de encuentro.")
 			}
@@ -974,6 +1039,143 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			}
 		}
 		return nil, t.save("matches.v2", m.ID, m)
+	case "checkIn", "confirmArrival", "planMessage", "setChatTheme", "deleteChatMessage":
+		var plan socialPlan
+		if e := t.load(plansPK, in.ID, &plan); e != nil {
+			return nil, e
+		}
+		if plan.ID == "" || plan.Canceled || plan.Members[id].Status != "going" {
+			return nil, invalid("Plan no disponible.")
+		}
+		if !active(plan.Expires) {
+			return nil, invalid("El plan ya terminó.")
+		}
+		if (in.Type == "setChatTheme" || in.Type == "deleteChatMessage") && plan.Author != id {
+			return nil, denied()
+		}
+		if in.Type != "planMessage" && in.Type != "setChatTheme" && in.Type != "deleteChatMessage" && instant(plan.Starts).Add(-checkInLeadMin*time.Minute).After(time.Now()) {
+			return nil, invalid("Se abre 10 minutos antes del plan.")
+		}
+		attend := func(person *personal, uid string) (int, string) {
+			ids := []string{}
+			for k, m := range plan.Members {
+				if m.Status == "going" {
+					ids = append(ids, k)
+				}
+			}
+			item := historyItem{ID: "plan:" + plan.ID, Kind: "plan", Title: plan.Line, Category: plan.Category, Place: plan.Place.Name, At: nowISO(), Attendees: ids}
+			xp, label := arrivalXP(dueAt(plan, plan.Members[uid]), time.Now())
+			reward(person, xp, "Llegaste al plan · "+label, "checkin:"+plan.ID)
+			person.Hangouts++
+			historyOnce(person, item)
+			addRecord(person, "ok")
+			return xp, label
+		}
+		var result any
+		switch in.Type {
+		case "checkIn":
+			here := in.Center
+			if here == nil {
+				// Sin lectura del dispositivo: se usa tu última ubicación conocida (aproximada, de los últimos 5 min).
+				last, e := t.h.App.Loc.GetManyLast(t.r.ctx, []string{id})
+				if e != nil {
+					return nil, e
+				}
+				if l, ok := last[id]; ok && time.Since(time.UnixMilli(l.TS)) < 5*time.Minute {
+					here = &point{l.Lat, l.Lng}
+				}
+			}
+			if here == nil || !validPoint(*here) {
+				return nil, invalid("No pudimos ubicarte. Revisa el permiso de ubicación o pide que te confirmen.")
+			}
+			if away := dist(*here, plan.Place.Center); away > checkInMeters {
+				return nil, invalid(fmt.Sprintf("Aún no estás en el lugar (estás a unos %d m). Acércate un poco más.", (away+25)/50*50))
+			}
+			mem := plan.Members[id]
+			if mem.Verified == "" {
+				mem.Verified = nowISO()
+				plan.Members[id] = mem
+				xp, label := attend(p, id)
+				result = map[string]any{"xp": xp, "punctuality": label}
+			}
+		case "confirmArrival":
+			if (plan.Members[id].Verified == "" && plan.Author != id) || in.UserID == id {
+				return nil, invalid("Primero haz tu check-in (quien organiza puede confirmar sin él).")
+			}
+			target := plan.Members[in.UserID]
+			if target.Status != "going" {
+				return nil, invalid("Esa persona no va en este plan.")
+			}
+			if target.Verified == "" {
+				q, e := t.person(in.UserID)
+				if e != nil {
+					return nil, e
+				}
+				target.Verified = nowISO()
+				target.ConfirmedBy = id
+				plan.Members[in.UserID] = target
+				attend(&q, in.UserID)
+				if e = t.putPerson(in.UserID, q); e != nil {
+					return nil, e
+				}
+			}
+		case "setChatTheme":
+			if !validChoice(in.Message, chatThemes) {
+				return nil, invalid("Tema no válido.")
+			}
+			plan.ChatTheme = in.Message
+		case "deleteChatMessage":
+			kept := plan.Timeline[:0:0]
+			for _, m := range plan.Timeline {
+				if m.ID != in.Message {
+					kept = append(kept, m)
+				}
+			}
+			plan.Timeline = kept
+		case "planMessage":
+			text, ok := cleanChat(in.Message)
+			if !ok {
+				return nil, invalid("Escribe un mensaje (hasta 280 caracteres).")
+			}
+			mem := plan.Members[id]
+			if mem.LastMsgAt != "" && time.Since(instant(mem.LastMsgAt)) < messageCooldown {
+				return nil, invalid("Vas muy rápido: espera un segundo.")
+			}
+			mem.LastMsgAt = nowISO()
+			plan.Members[id] = mem
+			plan.Timeline = append(plan.Timeline, planMsg{ID: uuid.NewString(), User: id, Text: text, At: nowISO()})
+			if len(plan.Timeline) > maxTimeline {
+				plan.Timeline = plan.Timeline[len(plan.Timeline)-maxTimeline:]
+			}
+		}
+		return result, t.save(plansPK, plan.ID, plan)
+	case "settleNoShows":
+		// Planes que ya terminaron y a los que dijiste que ibas sin hacer check-in: falta (−80 XP, cuenta en tu confiabilidad).
+		refs := []string{}
+		for ref := range p.Commitments {
+			if strings.HasPrefix(ref, "plan:") {
+				refs = append(refs, ref)
+			}
+		}
+		for _, ref := range refs {
+			var plan socialPlan
+			if e := t.load(plansPK, strings.TrimPrefix(ref, "plan:"), &plan); e != nil {
+				return nil, e
+			}
+			if plan.ID == "" || active(plan.Expires) {
+				continue
+			}
+			mem := plan.Members[id]
+			if !plan.Canceled && mem.Status == "going" && mem.Verified == "" && !mem.Settled && !joinedInProgress(plan, mem) {
+				penalize(p, noShowPenalty, "No llegaste a un plan", "noshow:"+plan.ID, true)
+				mem.Settled = true
+				plan.Members[id] = mem
+				if e := t.save(plansPK, plan.ID, plan); e != nil {
+					return nil, e
+				}
+			}
+			delete(p.Commitments, ref)
+		}
 	case "block", "report":
 		if in.UserID == id {
 			return nil, invalid("Usuario no válido.")
@@ -1006,4 +1208,12 @@ func containsInt(list []int, value int) bool {
 		}
 	}
 	return false
+}
+
+// eventVerify: cómo se verifica a los asistentes. Sin dato = sin verificación (check-in por geocerca).
+func eventVerify(v string) string {
+	if v == "qr" {
+		return "qr"
+	}
+	return "none"
 }

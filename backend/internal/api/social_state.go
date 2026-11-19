@@ -12,10 +12,7 @@ import (
 )
 
 func (t *socialTx) mediaURL(key string) string {
-	if key == "" || t.h.App.Cfg.CDNDomain == "" {
-		return ""
-	}
-	return "https://" + t.h.App.Cfg.CDNDomain + "/" + key
+	return t.h.App.Cfg.MediaURL(key)
 }
 func (t *socialTx) userView(u *models.User) (map[string]any, error) {
 	p, e := t.person(u.UserID)
@@ -26,12 +23,9 @@ func (t *socialTx) userView(u *models.User) (map[string]any, error) {
 	if e != nil {
 		return nil, e
 	}
-	out := map[string]any{"id": u.UserID, "name": u.DisplayName, "handle": "@" + u.Username, "level": p.Level, "streakWeeks": streak(p.History), "hangouts": p.Hangouts, "eventsCount": p.Events, "totalXp": (p.Level-1)*500 + p.XP, "friendsCount": len(ids)}
+	out := map[string]any{"id": u.UserID, "name": u.DisplayName, "handle": "@" + u.Username, "level": p.Level, "streakWeeks": streak(p.History), "hangouts": p.Hangouts, "eventsCount": p.Events, "totalXp": max(0, (p.Level-1)*500+p.XP), "friendsCount": len(ids)}
 	if p.Bio != "" {
 		out["bio"] = p.Bio
-	}
-	if p.Availability != "" {
-		out["availability"] = p.Availability
 	}
 	avatar := p.Avatar
 	if avatar == "" {
@@ -166,6 +160,8 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 	events := []socialEvent{}
 	matches := []map[string]any{}
 	presence := []map[string]any{}
+	// Amigos (cercanos o no): SOLO a cuántos metros andan, redondeado a 100 m y sin coordenadas; nunca aparecen en el mapa.
+	distances := []map[string]any{}
 	shares := []map[string]string{}
 	grants := []map[string]string{}
 	exactPending := []string{}
@@ -207,7 +203,7 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 			locIDs = append(locIDs, f.FriendID)
 		}
 	}
-	locs, e := h.App.Loc.GetMany(r.ctx, locIDs)
+	locs, e := h.App.Loc.GetManyLast(r.ctx, locIDs)
 	if e != nil {
 		return nil, e
 	}
@@ -242,7 +238,8 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 		}
 		mutual := close == "mutual" && q.Close[r.userID] == "mutual"
 		loc, live := locs[f.FriendID]
-		visible := mutual && !me.GhostMode && !u.GhostMode && live && dist(center, point{loc.Lat, loc.Lng}) <= q.Visibility && dist(center, point{loc.Lat, loc.Lng}) <= p.Radius
+		// Un cercano mutuo siempre te ve (sin radio de visibilidad); solo cuenta tu propio rango de búsqueda.
+		visible := mutual && live && dist(center, point{loc.Lat, loc.Lng}) <= p.Radius
 		common := []string{}
 		otherFriends, e := h.App.Store.AcceptedFriendIDs(r.ctx, f.FriendID)
 		if e != nil {
@@ -255,10 +252,13 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 		}
 		status := map[string]string{models.StatusAccepted: "friends", models.StatusPendingIn: "requested_in", models.StatusPendingOut: "requested_out"}[f.Status]
 		friendships[f.FriendID] = map[string]any{"userId": f.FriendID, "status": status, "close": close, "mutualFriendIds": common, "locationPaused": !visible}
+		if live && f.Status == models.StatusAccepted && (p.Location.Center != nil || own != nil) {
+			distances = append(distances, map[string]any{"userId": f.FriendID, "distanceM": friendDistance(dist(center, point{loc.Lat, loc.Lng})), "updatedAt": time.UnixMilli(loc.TS).UTC().Format(time.RFC3339Nano)})
+		}
 		if visible {
 			presence = append(presence, map[string]any{"userId": f.FriendID, "cell": point{loc.Lat, loc.Lng}, "updatedAt": time.UnixMilli(loc.TS).UTC().Format(time.RFC3339Nano)})
 		}
-		if mutual && !me.GhostMode && !u.GhostMode {
+		if mutual {
 			if until := p.Exact[f.FriendID]; active(until) && p.GrantEpoch[f.FriendID] == q.ExactEpoch {
 				shares = append(shares, map[string]string{"userId": f.FriendID, "until": until})
 			}
@@ -314,10 +314,27 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 		return nil, e
 	}
 	planByID := map[string]socialPlan{}
+	pastPlans := []socialPlan{}
+	canceled := []map[string]any{}
 	for _, d := range planDocs {
 		var plan socialPlan
 		if e = json.Unmarshal(d.Data, &plan); e != nil {
 			return nil, e
+		}
+		if plan.ID != "" {
+			// Historial de cancelados: planes que se cancelaron (los organizaste o ibas) y planes de los que saliste.
+			if c, ok := canceledEntry(r.userID, plan); ok {
+				canceled = append(canceled, c)
+			}
+		}
+		if plan.ID != "" && !plan.Canceled && !active(plan.Expires) {
+			// Historial: los planes que ya terminaron siguen a la vista (con su chat) para quienes fueron.
+			if past, ok, e := t.pastPlanFor(r.userID, plan, addUser); e != nil {
+				return nil, e
+			} else if ok {
+				pastPlans = append(pastPlans, past)
+			}
+			continue
 		}
 		if plan.ID == "" || plan.Canceled || !active(plan.Expires) {
 			continue
@@ -363,6 +380,14 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 			if b {
 				continue
 			}
+			// Quien llegó por una invitación (amigo de un amigo) no ve a desconocidos: solo a sus propios amigos.
+			if !ownOrJoined && uid != plan.Author && uid != r.userID {
+				if fr, e := t.friends(r.userID, uid); e != nil {
+					return nil, e
+				} else if !fr {
+					continue
+				}
+			}
 			plan.MemberIDs = append(plan.MemberIDs, uid)
 			if e = addUser(uid); e != nil {
 				return nil, e
@@ -370,6 +395,46 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 		}
 		plan.Photo = t.mediaURL(plan.PhotoKey)
 		planByID[plan.ID] = plan
+		plan.Roster = nil
+		if ownOrJoined {
+			for uid, m := range plan.Members {
+				if m.Status == "going" && contains(plan.MemberIDs, uid) || uid == plan.Author {
+					plan.Roster = append(plan.Roster, rosterEntry{UserID: uid, Organizer: uid == plan.Author, ArrivedAt: m.Verified, ConfirmedBy: m.ConfirmedBy, JoinedAt: m.Joined})
+				}
+			}
+			// "A cuánto está del lugar": solo entre integrantes, desde 10 min antes, de quien aún no llega, con su última
+			// ubicación reciente y sin modo fantasma. Se entrega la distancia a un punto público, redondeada a 100 m; jamás coordenadas.
+			if begin := instant(plan.Starts).Add(-checkInLeadMin * time.Minute); !time.Now().Before(begin) {
+				pending := []string{}
+				for _, re := range plan.Roster {
+					if re.ArrivedAt == "" {
+						pending = append(pending, re.UserID)
+					}
+				}
+				near, e := h.App.Loc.GetManyLast(r.ctx, pending)
+				if e != nil {
+					return nil, e
+				}
+				for i, re := range plan.Roster {
+					loc, ok := near[re.UserID]
+					if re.ArrivedAt != "" || !ok || time.Since(time.UnixMilli(loc.TS)) > staleLocation {
+						continue
+					}
+					u, e := h.App.Store.GetUser(r.ctx, re.UserID)
+					if e != nil {
+						return nil, e
+					}
+					if u == nil || u.GhostMode {
+						continue
+					}
+					d := friendDistance(dist(plan.Place.Center, point{loc.Lat, loc.Lng}))
+					plan.Roster[i].DistanceM = &d
+					plan.Roster[i].LocAt = time.UnixMilli(loc.TS).UTC().Format(time.RFC3339Nano)
+				}
+			}
+		} else {
+			plan.Timeline = nil
+		}
 		plan.Members = nil
 		plans = append(plans, plan)
 	}
@@ -481,6 +546,9 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 			ev.Organizer["alias"] = ev.Alias
 		}
 		ev.Photo = t.mediaURL(ev.PhotoKey)
+		if !mine && ev.Members[r.userID].Status != "going" {
+			ev.Timeline = nil
+		}
 		ev.Members = nil
 		events = append(events, ev)
 	}
@@ -593,5 +661,62 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 	badges := []map[string]any{{"id": "primer-jale", "label": "Primer jale", "icon": "star", "tile": "bg-cat-comer", "earned": p.Hangouts > 0}, {"id": "anfitrion", "label": "Anfitrión", "icon": "users", "tile": "bg-cat-otro", "earned": p.Events >= 3}, {"id": "racha-10", "label": "Racha 10", "icon": "flame", "tile": "bg-cat-musica", "earned": streak(p.History) >= 10}}
 	sort.Slice(plans, func(i, j int) bool { return plans[i].Starts < plans[j].Starts })
 	sort.Slice(events, func(i, j int) bool { return events[i].Starts < events[j].Starts })
-	return map[string]any{"session": map[string]string{"email": me.Email, "userId": me.UserID}, "location": map[string]any{"status": p.Location.Status, "center": center}, "ghost": me.GhostMode, "openMode": p.Open, "xp": p.XP, "xpGoal": 500, "users": users, "friendships": friendships, "plans": plans, "events": events, "matches": matches, "swipes": p.Swipes, "radiusM": p.Radius, "visibilityRadiusM": p.Visibility, "invites": invites, "exactShares": shares, "exactGrants": grants, "exactPending": exactPending, "exactRequests": incomingExact, "exactLocations": exactLocations, "presence": presence, "history": myHistory, "attendances": attendances, "attendees": attendees, "pendingAttendees": pendingAttendees, "xpEvents": p.Rewards, "blocks": p.Blocks, "reports": []any{}, "badges": badges, "dayOffset": 0, "eventDraft": p.Draft, "rankings": map[string]any{"global": global, "amigos": friendsRank}}, nil
+	return map[string]any{"session": map[string]string{"email": me.Email, "userId": me.UserID}, "location": map[string]any{"status": p.Location.Status, "center": center}, "ghost": me.GhostMode, "openMode": p.Open, "xp": p.XP, "xpGoal": 500, "users": users, "friendships": friendships, "plans": plans, "events": events, "matches": matches, "swipes": p.Swipes, "radiusM": p.Radius, "visibilityRadiusM": p.Visibility, "invites": invites, "exactShares": shares, "exactGrants": grants, "exactPending": exactPending, "exactRequests": incomingExact, "exactLocations": exactLocations, "presence": presence, "friendDistances": distances, "pastPlans": pastPlans, "canceledPlans": canceled, "history": myHistory, "attendances": attendances, "attendees": attendees, "pendingAttendees": pendingAttendees, "xpEvents": p.Rewards, "record": recordOrEmpty(p.Record), "blocks": p.Blocks, "reports": []any{}, "badges": badges, "dayOffset": 0, "eventDraft": p.Draft, "rankings": map[string]any{"global": global, "amigos": friendsRank}}, nil
+}
+
+// pastPlanFor: un plan terminado hace menos de `historyDays`, solo para quien fue (o lo organizó). Sin distancias ni ubicaciones.
+func (t *socialTx) pastPlanFor(me string, plan socialPlan, addUser func(string) error) (socialPlan, bool, error) {
+	if plan.Author != me && plan.Members[me].Status != "going" {
+		return plan, false, nil
+	}
+	if time.Since(instant(plan.Expires)) > historyDays*24*time.Hour {
+		return plan, false, nil
+	}
+	if e := addUser(plan.Author); e != nil {
+		return plan, false, e
+	}
+	plan.MemberIDs = []string{}
+	plan.Roster = nil
+	for uid, m := range plan.Members {
+		if m.Status != "going" && uid != plan.Author {
+			continue
+		}
+		b, e := t.blocked(me, uid)
+		if e != nil {
+			return plan, false, e
+		}
+		if b {
+			continue
+		}
+		if e = addUser(uid); e != nil {
+			return plan, false, e
+		}
+		plan.MemberIDs = append(plan.MemberIDs, uid)
+		plan.Roster = append(plan.Roster, rosterEntry{UserID: uid, Organizer: uid == plan.Author, ArrivedAt: m.Verified, ConfirmedBy: m.ConfirmedBy, JoinedAt: m.Joined})
+	}
+	plan.Photo = t.mediaURL(plan.PhotoKey)
+	plan.Members = nil
+	return plan, true, nil
+}
+
+// canceledEntry: una fila del historial de cancelados (últimos 30 días). `kind`: "canceled" (se canceló el plan; `byMe` si lo
+// organizabas) o "left" (saliste tú). `at` es cuándo; con `startsAt` el cliente calcula "con N min de anticipación".
+func canceledEntry(me string, plan socialPlan) (map[string]any, bool) {
+	mem := plan.Members[me]
+	var at, kind string
+	switch {
+	case plan.Canceled && (plan.Author == me || mem.Status == "going" || mem.Status == "left"):
+		kind, at = "canceled", plan.CanceledAt
+	case !plan.Canceled && mem.Status == "left":
+		kind, at = "left", mem.LeftAt
+	default:
+		return nil, false
+	}
+	if at == "" {
+		at = plan.Starts
+	}
+	if time.Since(instant(at)) > historyDays*24*time.Hour {
+		return nil, false
+	}
+	return map[string]any{"id": plan.ID, "kind": kind, "line": plan.Line, "category": plan.Category, "placeName": plan.Place.Name, "startsAt": plan.Starts, "at": at, "organizerId": plan.Author, "byMe": plan.Author == me}, true
 }

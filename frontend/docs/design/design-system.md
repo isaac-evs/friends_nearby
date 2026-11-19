@@ -30,7 +30,7 @@ Referencia visual: `screens/*.dc.html` (abrirlas como HTML de referencia; depend
 | Acento | `accent` #FF7A45 | Indicadores (punto "Abierto"), pin de evento |
 | Acento suave/texto | `accent-soft` / `accent-text` | Chips de racha y XP (texto `accent-text` sobre `accent-soft` o blanco) |
 | Peligro | `danger` #C43D1B | "Paso", reportar |
-| Éxito | `success` #2BB673 | Barra de cupo, "en línea" |
+| Éxito | `success` #2BB673 · `success-text` #0B5E37 | Barra de cupo, "en línea"; "En curso" = pill `cat-musica` + texto `success-text` (AA) |
 
 **Reglas:** el texto blanco solo va sobre `primary` o `ink`. Los pasteles de categoría siempre llevan ícono y texto `ink`. `accent` nunca se usa como color de texto pequeño (no pasa AA); para texto usa `accent-text`.
 

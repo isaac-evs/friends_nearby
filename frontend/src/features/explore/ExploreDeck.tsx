@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Layers, ShieldCheck, Plus } from 'lucide-react'
 import {
-  Button, ButtonLink, CardBody, Chip, ChipLink, EmptyState, Notice, SegmentedControl, SwipeActions, SwipeStack, type SwipeDir,
+  Button, ButtonLink, CardBody, Chip, ChipLink, EmptyState, SegmentedControl, SwipeActions, SwipeStack, type SwipeDir,
 } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { EVENT_GROUPS } from '@/lib/category'
@@ -44,15 +44,12 @@ export function ExploreDeck({ onInfo, compact, accessory }: { onInfo?: (i: DeckI
         const why = joinBlock(state, current.plan, `plan:${current.plan.id}`, now)
         if (why) { toast(why); return }
         const id = await jalo(current.plan.id)
-        if (id) nav(`/match/${id}`)
+        if (id) { toast('¡Jalo!'); nav(`/plan/${id}`) }
       }
       else { swipe('plan', current.plan.id, dir === 'left' ? 'pass' : 'later'); if (dir === 'up') toast('Guardado en tu lista') }
     } else if (dir === 'right') nav(`/evento/${current.event.id}`)
     else { swipe('event', current.event.id, dir === 'left' ? 'pass' : 'later'); if (dir === 'up') toast('Guardado en tu lista') }
   }
-
-  const myPlan = state.plans.find((p) => p.authorId === 'me')
-  const { removePlan } = useActions()
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -66,15 +63,6 @@ export function ExploreDeck({ onInfo, compact, accessory }: { onInfo?: (i: DeckI
         />
         {accessory}
       </div>
-
-      {myPlan && !open && (
-        <Notice tone="accent" icon="eye" role="status">
-          <span className="flex items-center justify-between gap-2">
-            <span>Tu plan está activo: “{myPlan.line}”</span>
-            <button type="button" onClick={() => removePlan(myPlan.id)} className="min-h-11 shrink-0 px-1 font-bold text-primary underline">Quitar</button>
-          </span>
-        </Notice>
-      )}
 
       {open && !deck.gated && (
         <div role="group" aria-label="Tipo de evento" className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">

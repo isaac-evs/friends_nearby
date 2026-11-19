@@ -47,3 +47,12 @@ describe('formatNearby y staleLabel', () => {
     expect(staleLabel(new Date(now - 12 * 60_000).toISOString(), now)).toBe('actualizado hace 12 min')
   })
 })
+
+describe('formatLastSeen', async () => {
+  const { formatLastSeen } = await import('./format')
+  const now = new Date(2026, 10, 19, 18, 0).getTime()
+  it('conectado: en vivo; desconectado: última ubicación y hace cuánto', () => {
+    expect(formatLastSeen(100, new Date(now - 30_000).toISOString(), now)).toBe('a 100 m · ahora')
+    expect(formatLastSeen(800, new Date(now - 15 * 60_000).toISOString(), now)).toBe('Última ubicación a 800 m · hace 15 min')
+  })
+})

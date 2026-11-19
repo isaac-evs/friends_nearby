@@ -11,11 +11,11 @@ import { PlacePicker, type PlaceValue } from './PlacePicker'
 import { InvitePicker } from './InvitePicker'
 import { LateJoinRow } from './LateJoinRow'
 import { commitmentsOf, findConflict } from '@/lib/commitments'
-import { durationText, timeTodayIso } from '@/lib/planTime'
+import { dayStr, dayTimeIso, durationText, timeTodayIso } from '@/lib/planTime'
 import { api } from '@/api/client'
 
 const DURATIONS = [{ l: '30 min', min: 30 }, { l: '1 h', min: 60 }, { l: '2 h', min: 120 }, { l: '3 h', min: 180 }, { l: 'Otra', min: 0 }]
-const STARTS = [{ l: 'Ahora', after: 0 }, { l: 'En 30 min', after: 30 }, { l: 'En 1 h', after: 60 }, { l: 'Otra hora', after: -1 }]
+const STARTS = [{ l: 'Ahora', after: 0 }, { l: 'En 30 min', after: 30 }, { l: 'En 1 h', after: 60 }, { l: 'Otra hora', after: -1 }, { l: 'Otro día', after: -2 }]
 const JOIN_POLICIES: { v: JoinPolicy; l: string }[] = [{ v: 'friends', l: 'Tus amigos' }, { v: 'friends_and_guests', l: 'Amigos e invitados' }]
 
 /** Pantalla 6: Publicar plan (tipo, línea, hora, duración, lugar exacto obligatorio, foto, límite, quién se puede unir). */
@@ -28,6 +28,7 @@ export function PublishScreen() {
   const [line, setLine] = useState('')
   const [start, setStart] = useState('Ahora')
   const [customTime, setCustomTime] = useState('')
+  const [customDate, setCustomDate] = useState(() => dayStr(1))
   const [dur, setDur] = useState('1 h')
   const [customDur, setCustomDur] = useState('90')
   const [place, setPlace] = useState<PlaceValue>({ name: '' })
@@ -52,7 +53,11 @@ export function PublishScreen() {
     let startsAt = new Date().toISOString()
     const s = STARTS.find((x) => x.l === start)!
     if (s.after > 0) startsAt = new Date(Date.now() + s.after * 60_000).toISOString()
-    if (s.after < 0) {
+    if (s.after === -2) {
+      const iso = dayTimeIso(customDate, customTime)
+      if (!iso) next.time = 'Elige un día y una hora que no hayan pasado.'
+      else startsAt = iso
+    } else if (s.after < 0) {
       const iso = timeTodayIso(customTime)
       if (!iso) next.time = 'Elige una hora de hoy que no haya pasado.'
       else startsAt = iso
@@ -65,20 +70,20 @@ export function PublishScreen() {
     // Solo un plan o evento a la vez.
     if (!next.time && !next.dur) {
       const c = findConflict(commitmentsOf(state), { startsAt, durationMin })
-      if (c) next.conflict = `Ya tienes «${c.title}» a esa hora. Solo puedes tener un plan a la vez: cambia la hora o la duración.`
+      if (c) next.conflict = `Ya tienes "${c.title}" a esa hora. Solo puedes tener un plan a la vez: cambia la hora o la duración.`
     }
     setErrors(next)
     if (Object.keys(next).length) return
     const made = await publishPlan({
       category: cat, line: line.trim(), startsAt, durationMin, joinPolicy: policy, capacity: cap, photoUrl: photo, lateJoin, inviteIds: invites,
-      place: { name: place.name.trim(), center: place.center! },
+      place: { name: place.name.trim(), address: place.address, center: place.center! },
     })
     if (!made) { setErrors({ conflict: 'No pudimos publicar el plan. Revisa la hora y el lugar.' }); return }
     toast(invites.length ? `Plan publicado · invitaste a ${invites.length}` : 'Plan publicado')
     nav('/')
   }
 
-  const startsPreview = start === 'Ahora' ? `quedan ${durLabel}` : start === 'Otra hora' ? `hoy ${customTime || '—'}` : start.toLowerCase()
+  const startsPreview = start === 'Ahora' ? `quedan ${durLabel}` : start === 'Otra hora' ? `hoy ${customTime || '—'}` : start === 'Otro día' ? `${customDate} ${customTime || '—'}` : start.toLowerCase()
 
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] lg:items-start lg:gap-16">
@@ -118,14 +123,20 @@ export function PublishScreen() {
 
       <fieldset>
         <legend className="mb-2 text-meta font-bold">¿Cuándo empieza?</legend>
-        <div className="grid grid-cols-4 gap-1 rounded-lg border border-line bg-surface p-1">
+        <div className="grid grid-cols-5 gap-1 rounded-lg border border-line bg-surface p-1">
           {STARTS.map((x) => (
             <button key={x.l} type="button" aria-pressed={start === x.l} onClick={() => { setStart(x.l); setErrors((e) => ({ ...e, time: undefined })) }}
-              className={cn('h-11 rounded-[12px] text-[13px] font-bold', start === x.l ? 'bg-primary text-white' : 'text-ink')}>
+              className={cn('h-11 rounded-[12px] px-0.5 text-[12px] leading-tight font-bold', start === x.l ? 'bg-primary text-white' : 'text-ink')}>
               {x.l}
             </button>
           ))}
         </div>
+        {start === 'Otro día' && (
+          <div className="mt-2 grid grid-cols-2 gap-2.5">
+            <Field label="Día" type="date" value={customDate} min={dayStr(0)} max={dayStr(365)} onChange={(e) => { setCustomDate(e.target.value); setErrors((x) => ({ ...x, time: undefined, conflict: undefined })) }} />
+            <Field label="Hora de inicio" type="time" value={customTime} onChange={(e) => { setCustomTime(e.target.value); setErrors((x) => ({ ...x, time: undefined, conflict: undefined })) }} error={errors.time} />
+          </div>
+        )}
         {start === 'Otra hora' && (
           <Field className="mt-2" label="Hora de inicio (hoy)" type="time" value={customTime} onChange={(e) => { setCustomTime(e.target.value); setErrors((x) => ({ ...x, time: undefined })) }} error={errors.time} />
         )}
@@ -190,9 +201,7 @@ export function PublishScreen() {
       </fieldset>
 
       <Notice tone="privacy" icon="eye">
-        {state.ghost
-          ? 'Modo fantasma: tu plan se publica igual, pero nadie ve dónde estás tú ni tú ves a tus cercanos. El lugar del plan sí es exacto.'
-          : 'El plan se ve en su lugar exacto, porque ahí es el encuentro. Tu ubicación sigue siendo aproximada.'}
+        El plan se ve en su lugar exacto, porque ahí es el encuentro. Tu ubicación sigue siendo aproximada.
       </Notice>
       {errors.conflict && <p role="alert" className="text-sm font-semibold text-danger">{errors.conflict}</p>}
 
@@ -204,7 +213,7 @@ export function PublishScreen() {
       <div aria-hidden="true" className="flex h-[410px] w-[340px] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card">
         <CardBody
           variant="friend" tileClass={catDef.tile} icon={catDef.icon({ size: 72, strokeWidth: 1.5 })} category={catDef.label}
-          time={startsPreview} xp="+20 XP" person={{ id: me.id, name: me.name }}
+          time={startsPreview} xp="+20 XP" person={{ id: me.id, name: me.name, avatarUrl: me.avatarUrl }}
           where={place.name.trim() ? place.name.trim() : 'Elige el lugar'} title={line.trim() || '¿Qué andas haciendo?'} chip="0 ya jalaron"
         />
       </div>

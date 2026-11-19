@@ -12,27 +12,21 @@ export const FRIEND_PIN_OFFSET = 25
 export const PLAN_PIN_OFFSET = 36
 export const EVENT_PIN_OFFSET = 29
 
-/** Punto de disponibilidad de una persona: verde = disponible, rojo = ocupado. Va junto con texto en el nombre accesible. */
-function AvailabilityDot({ availability }: { availability: 'available' | 'busy' }) {
-  return <span aria-hidden="true" className={cn('absolute right-0 bottom-0.5 size-3.5 rounded-full border-2 border-white', availability === 'busy' ? 'bg-danger' : 'bg-success')} />
-}
-
 /**
- * Amigo cercano: SOLO su foto (sin nombre) + un punto de disponibilidad. Si no tiene plan el aro parpadea suave (verde);
+ * Amigo cercano: SOLO su foto (sin nombre) Si no tiene plan el aro parpadea suave (verde);
  * con movimiento reducido queda fijo. Una ubicación exacta compartida se marca con aro primary. El nombre y el estado van
  * en el nombre accesible, no en pantalla.
  */
 export function PersonMarker({
-  person, selected, exact, noPlan, availability, src, description, onSelect,
+  person, selected, exact, noPlan, src, description, onSelect,
 }: {
-  person: { id: string; name: string }; selected?: boolean; exact?: boolean; noPlan?: boolean; availability: 'available' | 'busy'; src?: string
+  person: { id: string; name: string }; selected?: boolean; exact?: boolean; noPlan?: boolean; src?: string
   description: string; onSelect: () => void
 }) {
   return (
     <button type="button" aria-pressed={selected} onClick={onSelect} className="relative flex min-h-11 min-w-11 items-center justify-center bg-transparent p-0">
-      <span className={cn('relative rounded-full border-[3px] shadow-md', noPlan && !exact && 'animate-chill motion-reduce:animate-none bg-cat-musica', selected ? 'border-primary ring-2 ring-ink' : exact ? 'border-primary' : noPlan ? 'border-success' : 'border-white')}>
+      <span className={cn('relative flex rounded-full border-[3px] shadow-md', noPlan && !exact && 'animate-chill motion-reduce:animate-none bg-cat-musica', selected ? 'border-primary ring-2 ring-ink' : exact ? 'border-primary' : noPlan ? 'border-success' : 'border-white')}>
         <Avatar userId={person.id} name={person.name} size={44} src={src} />
-        <AvailabilityDot availability={availability} />
       </span>
       <span className="sr-only">{description}</span>
     </button>
@@ -118,13 +112,12 @@ export function EventMarker({
   )
 }
 
-/** "Tú": punto primary de 20 px con borde blanco y halo. */
-export function MeMarker({ ghost }: { ghost?: boolean }) {
+/** "Tú": punto primary de 20 px con borde blanco y halo. Con `live` (se está compartiendo tu ubicación) el halo azul late; con `issue` (no se pudo obtener tu ubicación) el punto se pone rojo y el halo parpadea; con movimiento reducido queda fijo. */
+export function MeMarker({ issue, live }: { issue?: boolean; live?: boolean }) {
   return (
-    // En modo fantasma tu punto se ve gris (apagado): tú sí ves dónde estás, nadie más te ve.
     <div aria-hidden="true" className="relative flex size-[42px] items-center justify-center">
-      <span className={cn('absolute inset-0 rounded-full', ghost ? 'bg-muted/20' : 'bg-primary/20')} />
-      <span className={cn('relative block size-5 rounded-full border-[3px] border-white shadow-md', ghost ? 'bg-muted' : 'bg-primary')} />
+      <span className={cn('absolute inset-0 rounded-full', issue ? 'animate-alert-pulse motion-reduce:animate-none bg-danger/25' : live ? 'animate-live-pulse motion-reduce:animate-none bg-primary/25' : 'bg-primary/20')} />
+      <span className={cn('relative block size-5 rounded-full border-[3px] border-white shadow-md', issue ? 'bg-danger' : 'bg-primary')} />
     </div>
   )
 }

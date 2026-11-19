@@ -1,6 +1,5 @@
 import { MapPinned } from 'lucide-react'
 import { Avatar, Button, ButtonLink, EmptyState, Pill } from '@/design'
-import { AVAILABILITY_LABEL } from '@/features/profile/ProfileMenu'
 import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
 import { eventRange, formatApproxDistance, formatNearby, staleLabel, timeLabel } from '@/lib/format'
 import { useClock } from '@/app/hooks'
@@ -28,7 +27,6 @@ export function MapList({ items, emptyHint, onLocate, selectedId }: { items: Map
                 <span className="text-[15px] font-bold">{it.user.name} · {it.plan ? 'con plan' : 'sin plan'}</span>
                 <span className="text-caption text-muted">Amigo cercano · {it.exact ? `ubicación exacta compartida hasta las ${timeLabel(it.exactUntil!)}` : `${formatNearby(it.distanceM)}${staleLabel(it.updatedAt) ? ` · ${staleLabel(it.updatedAt)}` : ''}`}</span>
               </div>
-              <Pill tone={it.availability === 'busy' ? 'muted' : 'accent'}>{AVAILABILITY_LABEL[it.availability]}</Pill>
             </div>
             <p className="text-sm font-bold">{it.plan ? `${it.plan.line} · ${it.plan.place.name}` : 'Sin plan por ahora.'}</p>
             <div className="flex gap-2">
@@ -57,7 +55,7 @@ export function MapList({ items, emptyHint, onLocate, selectedId }: { items: Map
         ) : (
           <li key={it.id} className={card(selectedId === it.id)}>
             <div className="flex items-center gap-3">
-              <span aria-hidden="true" className="flex size-11 items-center justify-center rounded-md bg-accent">{EVENT_TYPES[it.event.type].icon({ size: 22, strokeWidth: 2.2 })}</span>
+              <span aria-hidden="true" className="flex items-center justify-center text-ink">{EVENT_TYPES[it.event.type].icon({ size: 22, strokeWidth: 2.2 })}</span>
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="text-[15px] font-bold">{it.event.title}</span>
                 <span className="text-caption text-muted">{it.event.placeName} · {eventRange(it.event)} · {formatApproxDistance(it.distanceM)}</span>

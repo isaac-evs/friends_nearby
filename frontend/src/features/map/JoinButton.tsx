@@ -27,7 +27,7 @@ export function JoinButton({ plan, className, label = 'Jalo', describedBy }: { p
   return (
     <Button
       className={className} aria-disabled={why ? 'true' : undefined} aria-describedby={why ? describedBy : undefined}
-      onClick={async () => { if (why) { toast(why); return } const id = await jalo(plan.id); if (id) nav(`/match/${id}`) }}
+      onClick={async () => { if (why) { toast(why); return } const id = await jalo(plan.id); if (id) { toast('¡Jalo!'); nav(`/plan/${id}`) } }}
     >
       {label}
     </Button>

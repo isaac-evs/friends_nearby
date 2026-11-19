@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,10 +30,13 @@ type Config struct {
 
 	LocationTTL time.Duration
 
-	EventsQueueURL  string
-	MediaBucket     string
-	HistoryBucket   string
-	CDNDomain       string
+	EventsQueueURL string
+	MediaBucket    string
+	HistoryBucket  string
+	CDNDomain      string
+	// Local development: S3 compatible endpoint (S3Mock) and the public base URL of the media bucket. Empty in AWS.
+	S3Endpoint      string
+	MediaBaseURL    string
 	WSManagementURL string
 
 	JWTSecret string
@@ -59,6 +63,8 @@ func Load(require ...string) (*Config, error) {
 		MediaBucket:      os.Getenv("MEDIA_BUCKET"),
 		HistoryBucket:    os.Getenv("HISTORY_BUCKET"),
 		CDNDomain:        os.Getenv("CDN_DOMAIN"),
+		S3Endpoint:       os.Getenv("S3_ENDPOINT"),
+		MediaBaseURL:     strings.TrimRight(os.Getenv("MEDIA_BASE_URL"), "/"),
 		WSManagementURL:  os.Getenv("WS_MANAGEMENT_URL"),
 		JWTSecret:        os.Getenv("JWT_SECRET"),
 		DynamoEndpoint:   os.Getenv("DYNAMODB_ENDPOINT"),
@@ -101,4 +107,17 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// MediaURL is the public URL of an uploaded object: the CDN in AWS, the S3Mock bucket locally.
+func (c *Config) MediaURL(key string) string {
+	switch {
+	case key == "":
+		return ""
+	case c.MediaBaseURL != "":
+		return c.MediaBaseURL + "/" + key
+	case c.CDNDomain != "":
+		return "https://" + c.CDNDomain + "/" + key
+	}
+	return ""
 }

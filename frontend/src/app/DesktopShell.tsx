@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { Bell, Bookmark, CalendarClock, Layers, Plus, Users } from 'lucide-react'
-import { Avatar, Logo, ProgressBar, StreakBadge } from '@/design'
+import { Avatar, Logo, ProgressBar } from '@/design'
 import { useApp, useMe } from './store'
 import { useSaved } from '@/features/saved/useSaved'
 import { useNotifications } from '@/features/notifications/useNotifications'
@@ -30,7 +30,7 @@ export function DesktopShell({ children, wide }: { children: ReactNode; wide: bo
           </NavLink>
           <NavLink to="/notificaciones" className={link}>
             <Bell aria-hidden="true" size={24} strokeWidth={2.2} className="shrink-0" />Notificaciones
-            {notif.count > 0 && <span aria-label={`${notif.count} sin responder`} className="ml-auto rounded-full bg-accent px-[7px] text-caption font-bold">{notif.count}</span>}
+            {notif.total > 0 && <span aria-label={`${notif.total} ${notif.total === 1 ? 'notificación' : 'notificaciones'}${notif.count > 0 ? `, ${notif.count} esperan tu respuesta` : ''}`} className="ml-auto rounded-full bg-accent px-[7px] text-caption font-bold">{notif.total > 99 ? '99+' : notif.total}</span>}
           </NavLink>
           <NavLink to="/guardados" className={link}>
             <Bookmark aria-hidden="true" size={24} strokeWidth={2.2} className="shrink-0" />Guardados
@@ -41,23 +41,18 @@ export function DesktopShell({ children, wide }: { children: ReactNode; wide: bo
         <Link to="/publicar" className="flex h-[50px] items-center justify-center gap-2 rounded-lg bg-accent text-[15px] font-bold text-ink shadow-md">
           <Plus aria-hidden="true" size={18} strokeWidth={2.6} />Publicar plan
         </Link>
-        {/* Tu tarjeta: foto (lleva a tu perfil), nombre y racha; "Nivel N" arriba de la barra de nivel. */}
-        <div className="mt-auto flex flex-col gap-3">
-        <div className="flex flex-col gap-3.5 rounded-xl border border-line bg-surface p-3.5 shadow-sm">
-          <Link to="/perfil" className="flex items-center gap-3 rounded-md">
-            <span className="sr-only">Mi perfil: </span>
+        {/* Tu perfil, sin marco: foto (lleva a tu perfil), nombre y "Nivel N · XP/meta" con su barra. */}
+        <Link to="/perfil" className="mt-auto flex flex-col gap-3 rounded-md px-1 py-1">
+          <span className="flex items-center gap-3">
             <Avatar userId="me" name={me.name} size={48} self src={me.avatarUrl} />
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="sr-only">Mi perfil: </span>
               <span className="truncate text-[15px] font-extrabold">{me.name}</span>
-              <StreakBadge weeks={me.streakWeeks} className="self-start" />
+              <span className="text-caption font-bold text-muted">Nivel {me.level} · {state.xp}/{state.xpGoal} XP</span>
             </span>
-          </Link>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-caption font-bold">Nivel {me.level}</span>
-            <ProgressBar value={(state.xp / state.xpGoal) * 100} label={`Progreso al nivel ${Math.min(me.level + 1, 100)}`} height="h-3" />
-          </div>
-        </div>
-        </div>
+          </span>
+          <ProgressBar value={Math.max(0, Math.min(100, (state.xp / state.xpGoal) * 100))} label={`Progreso al nivel ${Math.min(me.level + 1, 100)}`} height="h-2.5" />
+        </Link>
       </aside>
       <main className={cn('min-w-0 flex-1', !wide && 'flex justify-center')}>
         {wide ? children : <div className="relative flex min-h-dvh w-full max-w-[1120px] flex-col px-10 py-8">{children}</div>}

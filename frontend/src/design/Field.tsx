@@ -3,8 +3,8 @@ import { cn } from '@/lib/cn'
 
 /** Input con label arriba. 16 px para evitar el zoom de iOS; alto 50, radio `md`, borde `line-input`. */
 export function Field({
-  label, hint, error, icon, className, 'aria-describedby': extraDescribedBy, ...rest
-}: { label: string; hint?: string; error?: string; icon?: ReactNode; className?: string } & InputHTMLAttributes<HTMLInputElement>) {
+  label, hint, error, icon, trailing, className, 'aria-describedby': extraDescribedBy, ...rest
+}: { label: string; hint?: string; error?: string; icon?: ReactNode; trailing?: ReactNode; className?: string } & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId()
   const hintId = `${id}-hint`
   return (
@@ -21,8 +21,10 @@ export function Field({
             'h-[50px] w-full rounded-md border bg-surface px-4 text-base text-ink',
             error ? 'border-danger' : 'border-line-input',
             !!icon && 'pl-10',
+            !!trailing && 'pr-14',
           )}
         />
+        {trailing && <span className="absolute top-1/2 right-1 -translate-y-1/2">{trailing}</span>}
       </span>
       {(error || hint) && (
         <span id={hintId} role={error ? 'alert' : undefined} className={cn('text-caption font-medium', error ? 'text-danger' : 'text-muted')}>

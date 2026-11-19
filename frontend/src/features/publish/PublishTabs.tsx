@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom'
+import { useApp } from '@/app/store'
 
-/** Plan rápido | Evento: segmented control como links (`aria-current`). */
+/** Plan rápido | Evento: segmented control como links (`aria-current`). Los eventos son públicos: solo con el modo abierto activo. */
 export function PublishTabs() {
+  const { state } = useApp()
+  if (!state.openMode.enabled) return null
   const cls = ({ isActive }: { isActive: boolean }) =>
     `flex h-9 items-center justify-center gap-1.5 rounded-[11px] text-sm font-bold ${isActive ? 'bg-surface text-ink shadow-xs' : 'text-muted'}`
   return (

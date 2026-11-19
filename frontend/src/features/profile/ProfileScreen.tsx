@@ -4,6 +4,7 @@ import { Activity, Compass, Flame, Menu, Pencil, Star, Sun, Users } from 'lucide
 import { Avatar, IconLink } from '@/design'
 import { useApp } from '@/app/store'
 import { cn } from '@/lib/cn'
+import { reliability } from '@/lib/lifecycle'
 import { ProfileMenu } from './ProfileMenu'
 import { LevelCard, ProfileStats } from './ProfileParts'
 
@@ -14,6 +15,7 @@ export function ProfileScreen() {
   const { state } = useApp()
   const [menu, setMenu] = useState(false)
   const me = state.users.me!
+  const rel = reliability(state.record)
   const friends = Object.values(state.friendships).filter((f) => f.status === 'friends' && !state.blocks.includes(f.userId)).length
   const plans = state.history.filter((h) => h.kind === 'plan').length
   const events = state.history.filter((h) => h.kind === 'evento').length
@@ -31,7 +33,7 @@ export function ProfileScreen() {
         </div>
         <div className="absolute top-3 right-3 flex gap-2 lg:top-5 lg:right-5">
           <IconLink label="Editar perfil" to="/perfil/editar"><Pencil aria-hidden="true" size={18} /></IconLink>
-          <button type="button" aria-label="Menú" aria-haspopup="dialog" onClick={() => setMenu(true)} className="flex size-11 flex-none items-center justify-center rounded-full border border-line bg-surface shadow-sm"><Menu aria-hidden="true" size={20} /></button>
+          <button type="button" aria-label="Menú" aria-haspopup="dialog" onClick={() => setMenu(true)} className="flex size-11 flex-none items-center justify-center rounded-full"><Menu aria-hidden="true" size={20} /></button>
         </div>
         <div data-testid="profile-avatar" className="absolute -bottom-12 left-4 lg:-bottom-14 lg:left-8">
           <Avatar userId="me" name={me.name} size={96} self src={me.avatarUrl} className="[&>span]:border-4 [&>span]:border-bg [&>span]:shadow-md lg:[&>span]:size-28 lg:[&>span]:text-[36px] lg:[&>span]:border-[5px]" />
@@ -51,6 +53,7 @@ export function ProfileScreen() {
       <div className="flex flex-col gap-3.5 lg:gap-6 lg:pt-14">
         <ProfileStats friends={friends} plans={plans} events={events} />
         <LevelCard level={me.level} to="/perfil/nivel" />
+        {rel && <p className="rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm font-bold"><span aria-hidden="true">✓ </span>{rel.label}<span className="block text-caption font-medium text-muted">de tus últimos compromisos, solo lo ven tus amigos</span></p>}
         <section aria-label="Insignias" className="flex flex-col gap-2">
           <h2 className="text-meta font-bold lg:text-[15px]">Insignias</h2>
           <ul className="grid grid-cols-3 gap-2">

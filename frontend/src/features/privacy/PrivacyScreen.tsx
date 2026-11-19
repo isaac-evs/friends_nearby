@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MapPin, Search, UserPlus } from 'lucide-react'
-import { Avatar, Button, IconButton, Notice, ToggleRow, useToast } from '@/design'
+import { Avatar, Button, IconButton, Notice, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { useNow } from '@/app/hooks'
 import { activeShares, shareWith, locationViewers } from '@/lib/privacy'
@@ -13,11 +13,10 @@ import { ExactSheet } from './ExactSheet'
 /**
  * `/privacidad`: amigos cercanos. Es de DOS vías: invitas, la otra persona acepta y solo entonces se ven la ubicación aproximada.
  * La ubicación exacta es aparte: la comparte quien quiera, por un rato, con cada amigo cercano (ver ExactSheet).
- * El modo fantasma te oculta de todos, también de tus cercanos; tú tampoco los ves ni te unes a nada; corta lo compartido.
  */
 export function PrivacyScreen() {
   const { state } = useApp()
-  const { toggleGhost, requestClose, cancelClose, acceptClose, declineClose } = useActions()
+  const { requestClose, cancelClose, acceptClose, declineClose } = useActions()
   const toast = useToast()
   const nav = useNavigate()
   const tick = useNow(15_000)
@@ -39,8 +38,7 @@ export function PrivacyScreen() {
   const viewers = locationViewers(state).map((id) => state.users[id]!.name).sort((a, b) => a.localeCompare(b))
   const sharing = activeShares(state.exactShares, now).map((x) => state.users[x.userId]?.name.split(' ')[0]).filter(Boolean) as string[]
   let summary: string
-  if (state.ghost) summary = 'Modo fantasma: nadie ve tu ubicación ahora, ni tus cercanos, y tú tampoco los ves ni te puedes unir a nada.'
-  else if (viewers.length === 0) summary = 'Nadie ve tu ubicación aproximada ahora. Invita a un amigo a ser cercano para compartirla.'
+  if (viewers.length === 0) summary = 'Nadie ve tu ubicación aproximada ahora. Invita a un amigo a ser cercano para compartirla.'
   else summary = `Tu ubicación aproximada la ven ${viewers.length} ${viewers.length === 1 ? 'persona' : 'personas'}: ${viewers.join(', ')}.`
 
   const nothing = incoming.length + close.length + invite.length === 0
@@ -56,19 +54,12 @@ export function PrivacyScreen() {
         Amigo cercano es de dos vías: los dos tienen que aceptar. Se ven la ubicación aproximada. Tu ubicación exacta solo la ve quien tú elijas, por un rato.
       </Notice>
 
-      <p role="status" className={cn('rounded-lg border px-3.5 py-3 text-sm font-bold', state.ghost ? 'border-line bg-ink text-white' : 'border-line bg-cat-musica text-ink')}>{summary}</p>
+      <p role="status" className={cn('rounded-lg border px-3.5 py-3 text-sm font-bold', 'border-line bg-cat-musica text-ink')}>{summary}</p>
       {sharing.length > 0 && (
         <p role="status" className="flex items-center gap-2 rounded-lg border border-line bg-accent-soft px-3.5 py-3 text-sm font-bold text-accent-text">
           <MapPin aria-hidden="true" size={18} />Compartes tu ubicación exacta con {sharing.join(', ')}.
         </p>
       )}
-
-      <section aria-label="Modo fantasma" className="flex flex-col rounded-lg border border-line bg-surface py-0.5 pr-2.5 pl-3.5">
-        <ToggleRow
-          last title="Modo fantasma" checked={state.ghost} onChange={toggleGhost}
-          subtitle={state.ghost ? 'Nadie ve tu ubicación y tú no ves a tus cercanos. Sigues viendo qué planes y eventos hay, pero no te puedes unir.' : 'Oculta tu ubicación a todos, también a tus cercanos, y corta la ubicación exacta que compartas.'}
-        />
-      </section>
 
       {incoming.length > 0 && (
         <section aria-labelledby="sol-h" className="flex flex-col gap-2">

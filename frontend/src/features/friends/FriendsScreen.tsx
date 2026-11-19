@@ -6,15 +6,10 @@ import { Avatar, Button, ModalSheet, Pill, SegmentedControl, Tabs, panelId, tabI
 import { useActions, useApp } from '@/app/store'
 import { ME_ID } from '@/api/me'
 import { PLAN_CATEGORIES } from '@/lib/category'
-import { formatAgo, formatNearby } from '@/lib/format'
+import { formatLastSeen } from '@/lib/format'
 import { planPhase } from '@/lib/planTime'
-import { InviteButton } from '@/features/map/InviteButton'
-import { JoinButton, JoinReason } from '@/features/map/JoinButton'
 import { cn } from '@/lib/cn'
 import { useRanking, type RankRow, type RankScope } from './useRanking'
-import { useMapItems } from '@/features/map/useMapData'
-import { RangeControl } from '@/features/range/RangeControl'
-import { startLabel } from '@/lib/planTime'
 
 /** [propuesta] dominio y ruta aún sin definir. */
 const linkFor = (handle: string) => `${window.location.origin}/amigos?usuario=${encodeURIComponent(handle.replace('@', ''))}`
@@ -45,13 +40,18 @@ export function FriendsScreen() {
 
   const visible = (id: string) => !state.blocks.includes(id)
   const requests = Object.values(state.friendships).filter((f) => f.status === 'requested_in' && visible(f.userId))
-  // "Ahora": lo que pasa en este momento entre tus amigos (misma regla de privacidad del mapa; sin día elegido).
-  const mapItems = useMapItems('todos', '', { ignoreDay: true })
-  const idle = mapItems.flatMap((it) => (it.kind === 'person' && !it.plan && it.availability === 'available' ? [it] : [])).sort((a, b) => a.distanceM - b.distanceM)
-  const liveNow = mapItems.flatMap((it) => (it.kind === 'plan' && planPhase(it.plan) === 'live' ? [it] : [])).sort((a, b) => a.distanceM - b.distanceM)
-  const doing = mapItems.flatMap((it) => (it.kind === 'person' && it.plan ? [it] : [])).sort((a, b) => a.distanceM - b.distanceM)
+  // Tus amigos: primero los cercanos, luego el resto. Cada uno dice si está haciendo algo (y te lleva al plan) o dónde se le vio por última vez.
+  const friendRows = Object.values(state.friendships)
+    .filter((f) => f.status === 'friends' && visible(f.userId) && state.users[f.userId])
+    .map((f) => {
+      const u = state.users[f.userId]!
+      const plan = state.plans.find((p) => p.authorId === u.id && planPhase(p) !== 'ended')
+      const d = state.friendDistances.find((x) => x.userId === u.id)
+      const where = d ? formatLastSeen(d.distanceM, d.updatedAt) : null
+      return { u, close: f.close === 'mutual', plan, where, dist: d?.distanceM ?? Infinity }
+    })
+    .sort((a, b) => Number(b.close) - Number(a.close) || a.dist - b.dist || a.u.name.localeCompare(b.u.name))
   const closeReq = Object.values(state.friendships).filter((f) => f.status === 'friends' && f.close === 'requested_in' && visible(f.userId))
-  const paused = Object.values(state.friendships).filter((f) => f.status === 'friends' && f.locationPaused && visible(f.userId))
 
   const term = q.trim().toLowerCase().replace(/^@/, '')
   useEffect(() => { if (term.length < 3) return; const timer = window.setTimeout(() => { void searchUser(term) }, 350); return () => clearTimeout(timer) }, [term, searchUser])
@@ -101,9 +101,13 @@ export function FriendsScreen() {
       <div className="flex flex-col gap-3.5">
 
       <label className="relative block">
-        <span className="sr-only">Buscar por usuario</span>
+        <span className="sr-only">Buscar personas</span>
         <Search aria-hidden="true" size={18} className="absolute top-[15px] left-3.5" />
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Busca por @usuario" className="h-12 w-full rounded-md border border-line bg-surface pr-4 pl-[42px] text-base" />
+        <input
+          type="search" name="people-search" id="people-search" role="searchbox" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar personas"
+          autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" inputMode="search"
+          data-1p-ignore data-lpignore="true" data-form-type="other" data-bwignore
+          className="h-12 w-full rounded-md border border-line bg-surface pr-4 pl-[42px] text-base" />
       </label>
 
       {term.length >= 2 && (
@@ -113,7 +117,7 @@ export function FriendsScreen() {
             const st = state.friendships[u.id]?.status ?? 'none'
             return (
               <div key={u.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface py-1.5 pr-2 pl-2.5">
-                <Avatar userId={u.id} name={u.name} size={40} />
+                <Avatar userId={u.id} name={u.name} size={40} src={u.avatarUrl} />
                 <Link to={`/u/${u.id}`} className="flex min-w-0 flex-1 flex-col"><span className="text-[15px] font-bold">{u.name}</span><span className="text-caption text-muted">{u.handle}</span></Link>
                 {st === 'friends' && <Pill tone="muted">Amigos</Pill>}
                 {st === 'requested_out' && <Pill tone="muted">Solicitud enviada</Pill>}
@@ -161,7 +165,7 @@ export function FriendsScreen() {
             const u = state.users[r.userId]!
             return (
               <div key={u.id} className="flex items-center gap-3 rounded-lg border border-line bg-surface py-[7px] pr-[7px] pl-2.5">
-                <Avatar userId={u.id} name={u.name} size={40} />
+                <Avatar userId={u.id} name={u.name} size={40} src={u.avatarUrl} />
                 <div className="flex min-w-0 flex-1 flex-col gap-px">
                   <Link to={`/u/${u.id}`} className="text-[15px] font-bold">{u.name}</Link>
                   <span className="text-caption text-muted">{u.handle} · {r.mutualFriendIds.length} {r.mutualFriendIds.length === 1 ? 'amigo' : 'amigos'} en común</span>
@@ -176,76 +180,31 @@ export function FriendsScreen() {
 
       </div>
       <div className="flex flex-col gap-3.5 lg:rounded-xl lg:border lg:border-line lg:bg-surface lg:p-5 lg:shadow-sm">
-      <section aria-label="Ahora" className="flex flex-col gap-4">
+      <section aria-label="Tus amigos" className="flex flex-col">
         <div className="flex items-center justify-between">
-          <h2 className="text-h3 font-extrabold">Ahora</h2>
+          <h2 className="text-h3 font-extrabold">Tus amigos{friendRows.length > 0 ? ` · ${friendRows.length}` : ''}</h2>
           <Link to="/mapa" className="flex min-h-11 items-center text-meta font-bold text-primary">Ver en el mapa</Link>
         </div>
-        <RangeControl className="self-start" />
-        {state.ghost && <p role="status" className="rounded-md bg-ink px-3 py-2.5 text-sm font-bold text-white">Modo fantasma: no ves dónde andan tus cercanos ni te puedes unir. Apágalo desde tu perfil.</p>}
-
-        <div aria-label="Disponibles cerca" role="group" className="flex flex-col">
-          <h3 className="mb-1 text-meta font-bold">Disponibles cerca</h3>
-          {idle.length === 0 && <p className="py-1.5 text-sm text-muted">Nadie disponible cerca dentro de tu rango. Puedes ampliarlo.</p>}
-          {idle.map((n) => (
-            <div key={n.id} className="flex items-center gap-3 border-b border-surface-sunken py-[7px]">
-              <Avatar userId={n.user.id} name={n.user.name} size={44} online src={n.user.avatarUrl} />
-              <Link to={`/u/${n.user.id}`} className="flex min-w-0 flex-1 flex-col gap-px">
-                <span className="text-[15px] font-bold">{n.user.name}</span>
-                <span className="text-caption text-muted">Sin plan · {formatNearby(n.distanceM)} · {formatAgo(n.updatedAt)}</span>
-              </Link>
-              <InviteButton userId={n.user.id} name={n.user.name} className="h-11 rounded-md px-3.5 text-sm" />
-            </div>
-          ))}
-        </div>
-
-        <div aria-label="Planes en curso" role="group" className="flex flex-col">
-          <h3 className="mb-1 text-meta font-bold">Planes en curso</h3>
-          {liveNow.length === 0 && <p className="py-1.5 text-sm text-muted">Ningún amigo tiene un plan en curso dentro de tu rango.</p>}
-          {liveNow.map((p) => (
-            <div key={p.id} className="flex flex-col gap-1.5 border-b border-surface-sunken py-[9px]">
-              <div className="flex items-center gap-3">
-                <Avatar userId={p.user.id} name={p.user.name} size={44} src={p.user.avatarUrl} />
-                <Link to={`/mapa?sel=${p.id}`} className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span className="text-[15px] font-bold">{p.plan.line}</span>
-                  <span className="text-caption text-muted">{p.user.name} · {PLAN_CATEGORIES[p.plan.category].label} · {p.place.name} · {formatNearby(p.distanceM)}</span>
-                </Link>
-                {!p.joined && <JoinButton plan={p.plan} className="h-11 rounded-md px-3.5 text-sm" />}
-              </div>
-              <JoinReason plan={p.plan} joined={p.joined} />
-            </div>
-          ))}
-        </div>
-
-        <div aria-label="Qué hacen tus cercanos" role="group" className="flex flex-col">
-          <h3 className="mb-1 text-meta font-bold">Qué hacen tus cercanos</h3>
-          {doing.length === 0 && <p className="py-1.5 text-sm text-muted">Ninguno de tus amigos cercanos tiene plan por ahora.</p>}
-          {doing.map((n) => (
-            <div key={n.id} className="flex items-center gap-3 border-b border-surface-sunken py-[7px]">
-              <Avatar userId={n.user.id} name={n.user.name} size={44} src={n.user.avatarUrl} />
-              <Link to={`/u/${n.user.id}`} className="flex min-w-0 flex-1 flex-col gap-px">
-                <span className="text-[15px] font-bold">{n.user.name} · {PLAN_CATEGORIES[n.plan!.category].label}</span>
-                <span className="text-caption text-muted">{n.plan!.line} · {startLabel(n.plan!.startsAt)}</span>
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {paused.length > 0 && (
-        <section aria-label="En pausa" className="flex flex-col">
-          <h2 className="mb-1 text-meta font-bold">En pausa</h2>
-          {paused.map((f) => {
-            const u = state.users[f.userId]!
+        {friendRows.length === 0 && <p className="py-1.5 text-sm text-muted">Aún no tienes amigos. Busca por @usuario o comparte tu link.</p>}
+        <ul className="flex flex-col">
+          {friendRows.map(({ u, close, plan, where }) => {
+            const doing = plan ? `${PLAN_CATEGORIES[plan.category].label} · ${plan.line}` : null
             return (
-              <div key={u.id} className="flex items-center gap-3 py-[7px]">
-                <Avatar userId={u.id} name={u.name} size={44} paused />
-                <span className="flex flex-1 flex-col gap-px"><span className="text-[15px] font-bold">{u.name}</span><span className="text-caption text-muted">Ubicación en pausa</span></span>
-              </div>
+              <li key={u.id} className="border-b border-surface-sunken last:border-b-0">
+                <Link to={plan ? `/plan/${plan.id}` : `/u/${u.id}`} className="flex min-h-14 items-center gap-3 py-[7px]">
+                  <span className={cn('flex rounded-full p-[3px]', close ? 'bg-primary' : 'bg-transparent')}><Avatar userId={u.id} name={u.name} size={44} src={u.avatarUrl} online={!!plan && planPhase(plan) === 'live'} className="rounded-full ring-2 ring-surface" /></span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-px">
+                    <span className="flex items-center gap-2 text-[15px] font-bold">{u.name}{close && <Pill tone="muted">Cercano</Pill>}</span>
+                    {doing && <span className="truncate text-caption font-bold text-primary">{planPhase(plan!) === 'live' ? 'Haciendo ahora' : 'Tiene un plan'}: {doing}</span>}
+                    {where && <span className="text-caption text-muted">{where}</span>}
+                    {!doing && !where && <span className="text-caption text-muted">{u.handle}</span>}
+                  </span>
+                </Link>
+              </li>
             )
           })}
-        </section>
-      )}
+        </ul>
+      </section>
 
       </div>
       </div>

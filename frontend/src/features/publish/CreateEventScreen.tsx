@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { Button, DateBadge, Field, ImageUpload, Notice, Pill, Toggle, useToast } from '@/design'
+import { Button, DateBadge, Field, ImageUpload, Pill, Toggle, useToast } from '@/design'
 import { useActions, useApp, useMe, type EventDraft } from '@/app/store'
 import { PlacePicker, type PlaceValue } from './PlacePicker'
 import { api } from '@/api/client'
@@ -11,11 +11,8 @@ import { weekdayLong, dayNumber, monthShortUpper } from '@/lib/format'
 import { InvitePicker } from './InvitePicker'
 import { LateJoinRow } from './LateJoinRow'
 import { commitmentsOf, findConflict } from '@/lib/commitments'
-import { eventTimes } from '@/lib/planTime'
+import { dayStr, eventTimes } from '@/lib/planTime'
 import { cn } from '@/lib/cn'
-
-/** Fecha local YYYY-MM-DD de hoy + `n` días. */
-const dayStr = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
 /** Pantalla 12: Crear evento con vista previa en vivo. */
 export function CreateEventScreen() {
@@ -37,14 +34,17 @@ export function CreateEventScreen() {
   const me = useMe()
   const [capacity, setCapacity] = useState(d?.capacity ?? 30)
   const [approve, setApprove] = useState(d?.requiresApproval ?? true)
+  const [description, setDescription] = useState(d?.description ?? '')
+  const [chatOn, setChatOn] = useState(d?.chatEnabled ?? false)
+  const verification = 'none' as const // sin QR: la llegada se verifica con el check-in por ubicación
   const [errors, setErrors] = useState<{ title?: string; place?: string; when?: string; end?: string; conflict?: string }>({})
 
+  // Los eventos son públicos: sin modo abierto no hay opción de crearlos (se vuelve a Plan rápido).
+  const blocked = !state.openMode.enabled
   const dayIso = new Date(`${date}T${time || '00:00'}:00`).toISOString()
   const t = EVENT_TYPES[type]
-  // Los eventos son públicos: para publicar uno hace falta el modo abierto.
-  const blocked = !state.openMode.enabled
 
-  const draft = (): EventDraft => ({ type, title, date, time, endTime, place: place.name, placeCenter: place.center, lateJoin, inviteIds: invites, alias, photoUrl: photo, capacity, requiresApproval: approve })
+  const draft = (): EventDraft => ({ type, title, date, time, endTime, place: place.name, placeCenter: place.center, lateJoin, inviteIds: invites, alias, photoUrl: photo, capacity, requiresApproval: approve, verification, description, chatEnabled: chatOn })
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -59,7 +59,7 @@ export function CreateEventScreen() {
     if (!next.when && !next.end) {
       const times = eventTimes(date, time, endTime)
       const c = times && findConflict(commitmentsOf(state), times)
-      if (c) next.conflict = `Ya tienes «${c.title}» a esa hora. Solo puedes tener un plan o evento a la vez: cambia la fecha o las horas.`
+      if (c) next.conflict = `Ya tienes "${c.title}" a esa hora. Solo puedes tener un plan o evento a la vez: cambia la fecha o las horas.`
     }
     setErrors(next)
     if (Object.keys(next).length || blocked) return
@@ -69,10 +69,13 @@ export function CreateEventScreen() {
     nav(`/evento/${ev.id}`)
   }
 
+  // Todos los eventos piden el modo abierto: sin él te llevamos a activarlo primero.
+  if (blocked) return <Navigate to="/modo-abierto" replace />
+
   return (
     <form noValidate onSubmit={submit} className="flex flex-1 flex-col gap-5 px-5 pt-[34px] lg:grid lg:grid-cols-[minmax(0,620px)_360px] lg:content-start lg:items-start lg:gap-x-16 lg:p-0">
       <div className="flex items-center gap-3 lg:col-span-2">
-        <Link to="/publicar" aria-label="Volver" className="flex size-11 flex-none items-center justify-center rounded-full border border-line bg-surface shadow-sm"><ArrowLeft aria-hidden="true" size={20} strokeWidth={2.4} /></Link>
+        <Link to="/publicar" aria-label="Volver" className="flex size-11 flex-none items-center justify-center rounded-full"><ArrowLeft aria-hidden="true" size={20} strokeWidth={2.4} /></Link>
         <h1 className="flex-1 text-2xl font-extrabold tracking-[-0.6px]">Crear evento</h1>
         <Pill tone="accent" className="py-[5px]">+60 XP al organizar</Pill>
       </div>
@@ -105,6 +108,12 @@ export function CreateEventScreen() {
       </fieldset>
 
       <Field label="Nombre del evento" maxLength={50} placeholder="Picnic y juegos de mesa" value={title} onChange={(e) => { setTitle(e.target.value); setErrors((x) => ({ ...x, title: undefined })) }} error={errors.title} />
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="ev-desc" className="text-sm font-bold">Descripción <span className="font-medium text-muted">(opcional)</span></label>
+        <textarea id="ev-desc" value={description} onChange={(e) => setDescription(e.target.value.slice(0, 1000))} rows={3} placeholder="Qué se va a hacer, qué llevar, a quién va dirigido…" className="w-full resize-none rounded-md border border-line-input bg-surface px-4 py-3 text-base leading-snug placeholder:text-placeholder" />
+        <span className="text-caption text-muted">{description.length}/1000</span>
+      </div>
 
       <fieldset>
         <legend className="mb-2.5 text-sm font-bold">¿Cuándo?</legend>
@@ -158,15 +167,18 @@ export function CreateEventScreen() {
         <span className="flex flex-1 flex-col"><span className="text-sm font-bold">Aprobar a cada persona</span><span className="text-caption font-medium text-muted">Tú decides quién entra antes de compartir detalles</span></span>
         <Toggle checked={approve} onChange={setApprove} label="Aprobar a cada persona" />
       </div>
+      <div className="flex min-h-[56px] items-center gap-3">
+        <span className="flex flex-1 flex-col"><span className="text-sm font-bold">Chat del evento</span><span className="text-caption font-medium text-muted">Quienes van pueden escribir; tú puedes borrar mensajes y apagarlo cuando quieras.</span></span>
+        <Toggle checked={chatOn} onChange={setChatOn} label="Chat del evento" />
+      </div>
 
       {errors.conflict && <p role="alert" className="text-sm font-semibold text-danger">{errors.conflict}</p>}
-      {blocked && <Notice tone="warning" icon="lock" role="alert">Los eventos son públicos: para publicar uno primero activa el modo abierto desde <Link to="/perfil" className="underline">tu perfil</Link>.</Notice>}
 
       </div>
 
       <div className="sticky bottom-0 z-30 -mx-5 mt-auto grid grid-cols-[1fr_1.6fr] gap-2.5 border-t border-line bg-surface px-5 pt-3.5 pb-6 lg:col-span-2 lg:mx-0 lg:mt-4 lg:max-w-[620px] lg:rounded-xl lg:border lg:px-4 lg:pb-3.5 lg:shadow-lg">
         <Button variant="secondary" pill size="md" onClick={async () => { if (!await saveDraft(draft())) return; toast('Borrador guardado') }}>Guardar borrador</Button>
-        <Button type="submit" pill size="md" disabled={blocked} className="shadow-primary">Publicar evento</Button>
+        <Button type="submit" pill size="md" className="shadow-primary">Publicar evento</Button>
       </div>
     </form>
   )

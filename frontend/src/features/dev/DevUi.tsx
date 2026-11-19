@@ -66,8 +66,8 @@ export function DevUi() {
       <Sec title="MapMarker · BottomSheet">
         <div className="relative flex h-60 items-center justify-around overflow-hidden rounded-lg bg-map-land px-4">
           <span aria-hidden="true" className="absolute top-8 left-6 size-[120px] rounded-full border-2 border-dashed border-primary bg-approx-fill" />
-          <PersonMarker person={{ id: 'dani', name: 'Dani' }} noPlan availability="available" description="Dani: sin plan, ubicación aproximada, disponible" onSelect={() => {}} />
-          <PersonMarker person={{ id: 'sofi', name: 'Sofi' }} exact selected availability="busy" description="Sofi: ubicación exacta compartida, ocupada" onSelect={() => {}} />
+          <PersonMarker person={{ id: 'dani', name: 'Dani' }} noPlan description="Dani: sin plan, ubicación aproximada, disponible" onSelect={() => {}} />
+          <PersonMarker person={{ id: 'sofi', name: 'Sofi' }} exact selected description="Sofi: ubicación exacta compartida, ocupada" onSelect={() => {}} />
           <PlanMarker icon={<Coffee aria-hidden="true" size={22} />} tileClass="bg-cat-cafe" label="Café · En curso" live description="Sofi: plan en Café Ámbar, lugar exacto" onSelect={() => {}} />
           <ClusterMarker count={3} people={[{ id: 'mau', name: 'Mau' }, { id: 'nico', name: 'Nico' }, { id: 'dani', name: 'Dani' }]} label="3 amigos cercanos aquí. Abre la lista" onSelect={() => {}} />
           <EventMarker icon={<Coffee aria-hidden="true" size={26} />} label="Social Run · 34" description="evento público" onSelect={() => {}} />

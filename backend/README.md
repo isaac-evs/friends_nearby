@@ -31,7 +31,7 @@ Requirements: Go 1.23+ and Docker.
 
 ```powershell
 cd backend
-docker compose up -d          # DynamoDB Local (8000) + Redis (6379)
+docker compose up -d          # DynamoDB Local (8000) + Redis (6379) + S3Mock (9000)
 go run ./cmd/local            # creates the tables if missing, serves :8080
 ```
 
@@ -39,8 +39,14 @@ Local defaults live in `cmd/local/main.go` (`setDefaults`); any variable you set
 yourself wins. History batches are written to `backend/.local/history/` every 5 s.
 DynamoDB Local runs `-inMemory`, so data resets when its container restarts.
 
-Presigned photo URLs are generated locally but point at the real S3 host, so the
-upload itself will not work offline.
+Photos (profile and plan/event covers) and location-history batches go to **S3Mock**,
+the local S3 (`docker compose` creates the buckets `friends-nearby-local-media`, public
+read and open CORS like the CDN, and `friends-nearby-local-history`; data lives in memory). Override with `S3_ENDPOINT`, `MEDIA_BASE_URL`,
+`HISTORY_BUCKET`; with `S3_ENDPOINT` empty the history falls back to `.local/history/`.
+
+Where "last location" comes from: **Redis**, not S3. `loc:<user>` is the live cell (TTL
+`LOCATION_TTL_SECONDS`, 120 s) and `last:<user>` the last known one (7 days). S3 only keeps
+the history `.jsonl` batches.
 
 ### Quick try (PowerShell)
 

@@ -42,12 +42,54 @@ func New(rdb *redis.Client, ttl time.Duration) *Store {
 func locKey(id string) string  { return "loc:" + id }
 func nearKey(id string) string { return "near:" + id }
 
+// lastKey guarda la ÚLTIMA ubicación aproximada (ya redondeada) mucho más tiempo que `loc:`: al desconectarse alguien sus amigos
+// siguen viendo "Última ubicación a 800 m · hace 15 min" en vez de que desaparezca a los 2 minutos.
+func lastKey(id string) string { return "last:" + id }
+
+// LastTTL es cuánto se recuerda la última ubicación de alguien que se desconectó.
+const LastTTL = 7 * 24 * time.Hour
+
 func (s *Store) Set(ctx context.Context, userID string, loc models.Location) error {
 	b, err := json.Marshal(loc)
 	if err != nil {
 		return err
 	}
+	if err := s.rdb.Set(ctx, lastKey(userID), b, LastTTL).Err(); err != nil {
+		return err
+	}
 	return s.rdb.Set(ctx, locKey(userID), b, s.ttl).Err()
+}
+
+// GetManyLast devuelve la ubicación en vivo de cada usuario o, si ya caducó, la última que se guardó.
+func (s *Store) GetManyLast(ctx context.Context, userIDs []string) (map[string]models.Location, error) {
+	result, err := s.GetMany(ctx, userIDs)
+	if err != nil || len(userIDs) == 0 {
+		return result, err
+	}
+	missing := []string{}
+	keys := []string{}
+	for _, id := range userIDs {
+		if _, ok := result[id]; !ok {
+			missing = append(missing, id)
+			keys = append(keys, lastKey(id))
+		}
+	}
+	if len(keys) == 0 {
+		return result, nil
+	}
+	values, err := s.rdb.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, err
+	}
+	for i, v := range values {
+		if str, ok := v.(string); ok {
+			var loc models.Location
+			if json.Unmarshal([]byte(str), &loc) == nil {
+				result[missing[i]] = loc
+			}
+		}
+	}
+	return result, nil
 }
 
 // Exact coordinates are a separate, short-lived value, written only while an
@@ -119,7 +161,7 @@ func (s *Store) GetMany(ctx context.Context, userIDs []string) (map[string]model
 }
 
 func (s *Store) Delete(ctx context.Context, userID string) error {
-	return s.rdb.Del(ctx, locKey(userID), "exact:"+userID).Err()
+	return s.rdb.Del(ctx, locKey(userID), lastKey(userID), "exact:"+userID).Err()
 }
 
 // IsNear reports whether friend is in viewer's near set.

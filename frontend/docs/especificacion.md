@@ -61,15 +61,16 @@ de la categoría del plan, no de su ubicación). `No molestar` silencia invitaci
 
 | Dato | Quién | Cuándo | Precisión |
 |---|---|---|---|
-| Tu ubicación | Tus **amigos cercanos mutuos** | Siempre que no estés en fantasma y estén dentro de tu **radio de visibilidad** | Aproximada (celda ~300 m) y distancia en rangos ("a menos de 500 m") |
+| Tu ubicación en el mapa | Tus **amigos cercanos mutuos** | Siempre que no estés en fantasma y estén dentro de tu **radio de visibilidad** | Aproximada (celda ~300 m) y distancia en rangos ("a menos de 500 m") |
 | Tu ubicación exacta temporal [HECHO] | El amigo cercano con quien la compartes | 30 min / 1 h / 2 h, se apaga sola | Exacta |
 | Tu distancia al lugar de un plan | Integrantes de **ese** plan | De **10 min antes** del inicio hasta que haces check-in o el plan termina | Distancia redondeada a 50 m + "hace cuánto"; **nunca coordenadas** |
 | Lugar de un plan / evento | Quien puede ver el plan / evento | Mientras no termine o se cancele | Exacta (es un lugar, no una persona) |
 | Que llegaste (check-in) | Integrantes del plan | Desde que lo haces | Sí/no + hora; no se guarda el punto |
-| Un amigo normal (no cercano) | — | Nunca ve tu ubicación; sí ve tus planes | — |
+| Un amigo normal (no cercano) | Tus **amigos** | Siempre que no estés en fantasma | **Solo a cuántos metros andas** ("a 100 m · ahora"), redondeado a 100 m y sin coordenadas; **nunca en el mapa**. Ve tus planes |
 | Un no-amigo (invitado de un amigo) | Te ve solo **dentro del plan** (nombre, foto, distancia al lugar en los 10 min) | Solo ese plan | No aparece en tu mapa, ni tú en el suyo |
 
 Reglas duras (servidor):
+- **Sin pausa:** no existe "pausar" la ubicación. Si cierras la app o te desconectas, tus amigos ven tu **última ubicación guardada** con "hace cuánto" ("Última ubicación a 800 m · hace 15 min"). Con la app abierta la conexión de ubicación se mantiene siempre: se envía al moverte ≥ 30 m (máx. 1 cada 5 s) y un latido cada 40 s (90 s con la pestaña oculta); "ahora" = actualizado hace < 1 min.
 - **Fantasma** oculta tu ubicación a todos (también a cercanos), corta las ubicaciones exactas compartidas y **no**
   pausa tu participación en planes (en el lobby de 10 min se muestra "Ubicación oculta" en lugar de tu distancia).
   Tú sigues viendo tu propio punto y el mapa.
@@ -86,11 +87,7 @@ Reglas duras (servidor):
 - En Amigos cercanos, "Tu zona" pasa a **"Tu ubicación aproximada"**: mini-mapa con un círculo difuso y el texto
   "Tus cercanos te ven en esta área (±300 m)". Sin nombre de barrio.
 
-> **Conflicto pendiente con `CLAUDE.md`:** la regla "nunca coordenadas exactas fuera de un match activo" ya no
-> describe el producto. Texto propuesto: *"Nunca coordenadas exactas de una persona salvo que ella las comparta por un
-> rato con un amigo cercano; los planes y eventos sí tienen lugar exacto porque es un punto de encuentro; nadie que no
-> sea tu amigo cercano ve tu ubicación; nada de ubicación en analítica/logs."* Y la línea de evidencia pasaría a
-> *"captura → no; pruebas E2E y axe sí"*. **Falta tu OK para editar `CLAUDE.md`.**
+> `CLAUDE.md` ya recoge esta regla (actualizada 2026-11-19: amigos normales ven solo la distancia aproximada, nunca el mapa).
 
 ---
 
@@ -228,16 +225,21 @@ publicado ──(T-10 min)──► lobby ──(inicio)──► en curso ─�
      │                     │                     │
      └── cancelado (por quien organiza) ◄────────┘
 ```
-- **T-10 min — Lobby** [NUEVO]: lista de integrantes con **distancia al lugar** ("a 1.2 km", "a 150 m", "Llegó ✓",
+- **T-10 min — Lobby** [NUEVO]: lista de integrantes con **distancia al lugar** ("a 1.2 km", "a 300 m", "Llegó ✓",
   "Ubicación oculta") y **"hace cuánto"** si no se ha actualizado en > 2 min; orden: llegaron → más cerca → más lejos.
   Se avisa a todos ("Tu plan empieza en 10 min"). La ubicación se usa solo para esta distancia y se deja de compartir al
   hacer check-in o al terminar.
 - **Check-in "Ya llegué"** [NUEVO, reemplaza "Ya nos vimos"]: disponible desde T-10 hasta el fin. El servidor
-  verifica que estés a ≤ **150 m** del lugar (más el margen de precisión, tope 100 m). Si el GPS falla: "Que me confirme
-  alguien" → otro integrante que ya hizo check-in te confirma. Se ve "Llegó 19:32".
+  verifica que estés a ≤ **250 m** del lugar (rango exacto, sin margen extra de precisión); el número no se muestra en la interfaz.
+  Al tocarlo el botón dice "Verificando…"; si no llegaste: "Aún no estás verificado" + la distancia aproximada.
+  **Cualquier falla del GPS** (sin permiso, sin señal, impreciso) se resuelve igual: **quien organiza** (aunque no haya
+  hecho check-in) o **alguien que ya llegó** te confirma con "Confirmar" en la lista de quiénes van. Se ve "Verificado · 19:32".
 - **XP, racha e historial** se otorgan con el check-in (no al publicar ni al unirse).
-- **Mensajes rápidos** [NUEVO] (sin chat libre): "Ya voy" · "Llego en 5" · "Llego en 10" · "Voy tarde" · "Ya estoy
-  aquí" · "¿Dónde están?". Aparecen en el plan como línea de tiempo y como notificación. Límite: 1 cada 30 s.
+- **Chat del plan** [DECIDIDO, Alan] (texto libre, hasta 280 caracteres, 1 mensaje por segundo): ícono en el plan que abre el
+  chat a pantalla completa; contador de no leídos; se ve quién mandó cada mensaje. Los mensajes rápidos ("Ya voy" · "Llego en 5" ·
+  "Llego en 10" · "Voy tarde" · "Ya estoy aquí" · "¿Dónde están?") son atajos. **Quien organiza** elige el tema del chat y puede
+  borrar mensajes. Al terminar el plan queda en el historial (30 días) como solo lectura.
+- **Aviso de privacidad y legal**: no va en el plan; vive en el menú del perfil (`/legal`).
 - **Unirse a un plan en curso** desde el mapa o la tarjeta del amigo, si quien organiza lo permitió [HECHO].
 - **Vista de organizador ("Mi plan activo")** [NUEVO]: Empezar ahora (adelanta el inicio si ya están todos), quién
   jaló, lobby con distancias, editar hora/lugar (avisa a todos y libera de penalización a quien cancele en las 2 h
@@ -250,7 +252,8 @@ Valores **propuestos** (ajustables en una tabla de configuración del servidor):
 |---|---|
 | Cancelar > 90 min antes | −10 XP |
 | Cancelar entre 90 y 15 min antes | −25 a −50 XP (sube conforme se acerca el inicio) |
-| Cancelar < 15 min antes o ya empezado (**cancelación tardía**) | −60 XP · cuenta para confiabilidad |
+| Cancelar < 15 min antes (**cancelación tardía**) | −60 XP · cuenta para confiabilidad |
+| Cancelar con el plan **ya empezado** sin haber llegado | −100 XP · cuenta para confiabilidad |
 | Confirmaste y **no hiciste check-in** (no-show) | −80 XP · cuenta para confiabilidad |
 | Quien organiza cancela | Nadie de los demás pierde; quien organiza pierde según la misma tabla si había gente confirmada |
 | Cambio de hora/lugar por quien organiza | Cancelar en las 2 h siguientes no penaliza |
@@ -260,7 +263,30 @@ Valores **propuestos** (ajustables en una tabla de configuración del servidor):
   con más de 4 lugares por una semana (propuesta).
 - **Cómo se muestra:** antes de confirmar la cancelación, hoja con "Perderás 25 XP" y la regla en una línea; después,
   en Historial "−25 XP · Cancelaste 40 min antes". Nada de castigos sorpresa.
-- XP nunca baja de 0 ni te baja de nivel (propuesta para no frustrar; la confiabilidad es la que pesa).
+- **Unirse con el plan en curso** [DECIDIDO, Alan]: quien se une cuando el plan ya empezó (más de 2 min después del inicio) **no
+  llega tarde** (se le espera desde que se unió), **no cuenta como no-show** y **salirse no penaliza**: ya lo vio empezado.
+  Esto aplica solo si el plan admite entrar en curso (`lateJoin`). Si el plan **no** lo admite y quien ya lo tenía llega tarde,
+  o cancela empezado, sí se aplican los puntos menores y las penalizaciones. Un plan creado con "Ahora" empieza ya: unirse en
+  sus primeros 2 min sigue contando como a tiempo.
+- **Recompensas** [HECHO]: se premia lo que cuesta (llegar, llegar a tiempo, lograr que otros lleguen), no publicar.
+
+  | Acción | XP |
+  |---|---|
+  | Llegar ≥ 5 min **antes** del inicio (el check-in abre a T−10) | **+30** ("Llegó temprano") |
+  | Llegar de 5 min antes a 5 min después | **+20** ("Llegó a tiempo") |
+  | Llegar hasta 15 min tarde | +12 ("Llegó tarde · N min") |
+  | Hasta 30 min tarde | +8 |
+  | Más de 30 min tarde | +5 |
+  | Organizar: **terminar tu plan** | +30, y **+5 por cada persona que de verdad llegó** (tope +25) |
+  | Evento: asistencia aceptada / organizar un evento | +40 / +60 |
+
+  La lista de quiénes van dice "No verificado · va tarde (N min)" a quien no ha llegado una vez empezado el plan, y
+  "Llegó temprano / a tiempo / tarde · N min" a quien sí. Antes de llegar, el botón avisa cuánto ganarías en ese momento.
+  Las penalizaciones pesan más que el premio máximo (no-show −80, cancelar empezado −100 vs +30), así que ir paga y fallar duele.
+  [PROPUESTA, sin implementar] +3 XP a quien confirma la llegada de otra persona (con tope diario) y bono de racha semanal.
+- **Nivel 0 y negativos** [DECIDIDO, Alan]: el XP no baja de 0 en los niveles 2+ (no pierdes nivel), pero en el **nivel 1** una penalización sin XP que perder te baja al **nivel 0 "Bajo tierra"** (easter egg) y cada falla siguiente a niveles negativos ("Bajo cero", hasta −9). **Con ganar 10 XP vuelves al nivel 1.**
+- **Cancelar un plan que ya empezó sin haber llegado: −100 XP** (más que cancelar con < 15 min, −60).
+- **Terminar tu plan** ("Terminar ahora", quien organiza) da **+30 XP** una sola vez por plan.
 
 ### 4.9 Guardados
 - **Objetivo:** recordar planes/eventos que te interesan.
@@ -273,13 +299,11 @@ Valores **propuestos** (ajustables en una tabla de configuración del servidor):
 - **Crear** [CAMBIA]: tipo de evento · nombre · alias del organizador [HECHO] · **fecha** · **hora de inicio** ·
   **hora de fin** ([QUITAR] duración; si fin < inicio se entiende al día siguiente y se dice "termina mañana 02:00") ·
   **lugar** (mismo buscador + pin que planes) · foto · cupo · switch "¿Se pueden unir ya empezado?" · invitar amigos ·
-  **Verificación de asistentes:** *Con QR* o *Sin verificación*.
+  **Verificación de asistentes:** la misma que en planes: check-in "Ya llegué" por ubicación (≤ 250 m) y, si el GPS falla, la
+  confirma quien organiza o alguien que ya llegó. [QUITADO el boleto QR, decisión de Alan: ya hay verificación de llegada]
 - **Ver evento:** hora y lugar **arriba y grandes** ("Sáb 22 nov · 18:00–21:00", nombre del lugar, dirección,
   mini-mapa, Cómo llegar), organizador (alias + nombre real), cupo, quiénes van.
-- **QR** [NUEVO]: al registrarte recibes un **boleto** con QR (token firmado; se regenera cada 30 s mientras la pantalla
-  está abierta para que una captura no sirva). Quien organiza abre **"Escanear asistentes"** (cámara) y ve ✓ nombre +
-  foto o ✗ "Boleto no válido / ya usado". El escaneo cuenta como check-in del evento. *Sin verificación*: el check-in es
-  por geocerca como en planes.
+- ~~**QR**~~ [QUITADO, Alan 2026-11-19]: no habrá boleto ni escáner; el check-in de llegada cubre eventos y planes.
 - **Datos:** `POST /events`, `POST /events/{id}/register` → ticket, `GET /tickets/{id}/qr` (token rotativo),
   `POST /events/{id}/scan {token}` [PROPUESTA].
 
@@ -433,9 +457,7 @@ Medios        POST /uploads (URL firmada a S3; el servidor re-codifica y quita E
 | `message.new` | servidor → integrantes | mensaje rápido |
 
 ### 7.4 QR
-Token = `base64url(ticketId.exp)` + firma HMAC-SHA256 con el `secret` del ticket; `exp` = ahora + 45 s.
-`/scan` verifica firma, caducidad, que el ticket sea de ese evento y que no esté usado; marca `usedAt` y check-in.
-Escáner en el navegador con `BarcodeDetector` (si existe) o una librería (p. ej. `jsQR`) como respaldo.
+[QUITADO] Se cancelaron el boleto y el escáner (G8). La asistencia a eventos se verifica con el check-in por ubicación.
 
 ---
 
@@ -462,11 +484,11 @@ Escáner en el navegador con `BarcodeDetector` (si existe) o una librería (p. e
 | **G5** | Crear plan y evento | Lugar obligatorio con buscador (mock con la misma forma que la API real) + pin; invitaciones con distancia y frescura; "Quién se puede unir"; evento con hora de fin y verificación | E2E de publicar con y sin lugar encontrado |
 | **G6** | Ver plan + ciclo de vida (+ antiguo E) | Vista nueva; lobby T-10; check-in con geocerca y "que me confirme alguien"; mensajes rápidos; invitados de invitados; penalizaciones y confiabilidad | Unit de reglas de penalización/no-show; E2E del ciclo completo con reloj simulado |
 | **G7** | Notificaciones y Guardados | Todos los tipos, agrupación, preferencias; "Ya pasaron" con quitar | E2E |
-| **G8** | Eventos con QR | Boleto rotativo, escáner del organizador, sin verificación | Unit de firma/caducidad; E2E con token simulado |
+| ~~**G8**~~ | ~~Eventos con QR~~ | **CANCELADO** (Alan, 2026-11-19): la verificación de llegada (check-in) ya cubre eventos | — |
 | **G9** | Historial (opt-in) | Lugares de tus planes, con quién coincidiste, retención y borrar | E2E de activar/borrar |
 | **F** | Insignias de admin | Pendiente desde Fase 2 | — |
 
-Orden recomendado: G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G9 → F. G1 primero porque los demás dependen del cliente
+Orden recomendado: G1 → G2 → G3 → G4 → G5 → G6 → G7 → G9 → F (G8 cancelado). G1 primero porque los demás dependen del cliente
 de API y del modelo sin zonas.
 
 ---
@@ -475,10 +497,12 @@ de API y del modelo sin zonas.
 1. **Radio de visibilidad de amigos cercanos: 3 km por defecto, modificable** en Configuración (500 m · 1 · 3 · 5 · 10 km). El slider de Explorar (1–25 km) sigue para planes/eventos.
 2. **Lugares:** Amazon Location **solo como preparación**: se define la interfaz `PlacesProvider` en `api/client.ts` pero hoy no se usa; el usuario escribe el nombre y **decide la ubicación en el mapa**.
 3. **Penalizaciones** (§4.8) aprobadas tal cual.
-4. **Check-in:** 150 m aprobado.
+4. **Check-in:** 250 m (decidido por Alan; antes 150 m).
 5. **Invitados de invitados:** sin límite; **además todo plan (también el normal) tiene límite de personas opcional** (`capacity`).
 6. **`CLAUDE.md` actualizado** con la regla de privacidad y la de pruebas nuevas.
 7. **Ubicación exacta temporal se queda** y quien comparte **elige cuánto tiempo** (30 min · 1 h · 2 h · 4 h).
+
+8. **Quitados (2026-11-19):** el **modo fantasma** (sin funciones propias), la **disponibilidad** disponible/ocupado (estar conectado ya implica querer hacer algo) y el interruptor "Eventos grandes"/"Planes chicos" del **modo abierto**, que ahora solo pide confirmar que tienes 18 años o más. Cualquier mención a fantasma o disponibilidad en este documento es histórica.
 
 ## 11. Estado previo (para no perderlo)
 Hecho en Fase 2: perfil editable (A), amigos y eliminar (B), amigos cercanos mutuos + exacta temporal (C), planes con
@@ -519,7 +543,7 @@ fecha (D); niveles 1–100, racha semanal, historial de planes, ranking (global 
   dice la penalización.
 
 **Ciclo de vida**
-- Lobby como "carrera" visual: barra horizontal con avatares acercándose al pin del lugar; cada uno con "150 m".
+- Lobby como "carrera" visual: barra horizontal con avatares acercándose al pin del lugar; cada uno con su distancia al lugar.
 - Check-in que se ofrece solo cuando ya estás cerca ("Parece que ya llegaste · Ya llegué"), con vibración ligera.
 - Mensajes rápidos como chips encima de la acción principal; se ven como burbujas pequeñas en la línea de tiempo.
 - Celebración discreta al terminar (+XP, racha) y pedir nada más.
@@ -547,3 +571,32 @@ fecha (D); niveles 1–100, racha semanal, historial de planes, ranking (global 
 - Microcopy en tú, corto y concreto; números siempre con unidad y redondeo humano ("~1 km", "hace 3 min").
 - Esqueletos en vez de spinners; optimistic UI en Jalo/Guardar con deshacer de 5 s.
 - Mismos componentes en mobile y desktop: la hoja inferior de mobile = panel derecho en desktop.
+
+
+---
+
+## Decisiones de Alan — 2026-11-19 (tarde)
+- **Cercanos te ven siempre:** se **quita el radio de visibilidad**. Un amigo cercano mutuo te ve aproximado en el mapa sin límite de
+  distancia (solo cuenta el rango de búsqueda de quien mira). Desaparece el control del menú del perfil.
+- **Racha:** se **oculta en todas las pantallas** por ahora (el cálculo sigue en `lib/streak.ts`, sin usarse).
+- **Notificaciones:** se pueden **eliminar** (borrado suave: se ocultan y se puede **deshacer**; las que piden respuesta no se borran) y
+  hay "Eliminar todas" con confirmación. La campana y el menú de desktop muestran **cuántas** hay (esperan respuesta + novedades sin leer).
+- **Eliminar cuenta** (Editar perfil → "Eliminar cuenta", irreversible): hoja con lo que pasa, casilla de entendimiento, escribir
+  ELIMINAR y la contraseña. `POST /me/delete {password}` cancela tus planes/eventos, te saca de los demás sin penalización, borra
+  perfil, amistades, conexiones y la identidad (correo y usuario quedan libres).
+- **Editar perfil en desktop:** dos columnas (fotos y descripción | nombre, usuario y contraseña) y la zona de peligro a todo el ancho.
+- **Desktop, tarjeta de perfil** (barra lateral): sin marco; foto, nombre y "Nivel N · XP/meta" con barra.
+
+## Eventos y navegación en móvil — decisiones de Alan, 2026-11-19 (noche)
+- **Todos los eventos piden el modo abierto** (adulto), también si te invitaron. Sin él, al unirte (o aceptar la invitación desde
+  Notificaciones, o al crear uno) se te explica y se te lleva a **activarlo primero** (`/modo-abierto`).
+- **Evento sin "ritmo"** ni notas de audiencia, ni "Ir con un amigo". Tiene **descripción** (hasta 1000 caracteres).
+- **Quien organiza** puede **editar** (nombre, descripción, fecha y horas, cupo, entrada en curso, aprobación) y **cancelar** (con
+  confirmación), publicar **avisos** (hasta 20, 500 caracteres, se pueden borrar) y **activar o apagar el chat** (apagado por defecto);
+  puede borrar mensajes. Solo escriben quienes van. El mismo panel de chat que en planes.
+- **Hero del evento:** la foto del evento es el hero (con degradado para leer el texto), con el nombre, la fecha y **cuánto falta**
+  ("Empieza en 3 h", "En curso · termina en…"). Sin foto, el color del tipo. **Quien organiza es tocable** y abre su perfil.
+- **Móvil, esquinas como Instagram:** en **Explorar**, esquina izquierda **Mis planes** (punto verde si hay uno en curso) y derecha
+  **Notificaciones** (con número). **Guardados** vive en **Mis planes** (esquina derecha, junto a Notificaciones). La barra inferior no cambia.
+- **Otra fecha:** además de Hoy…+7 días, un chip "Otra fecha" abre el selector de fecha (hasta 1 año) y Explorar y el mapa muestran
+  planes y eventos de ese día; el título cambia con la fecha ("¿Qué plan el 25 dic?").

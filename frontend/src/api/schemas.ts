@@ -21,10 +21,6 @@ export type JoinPolicy = z.infer<typeof JoinPolicy>
 
 /** Los EVENTOS son siempre públicos (con el modo abierto); lo local y entre amigos son los planes. Se puede invitar a amigos. */
 
-/** Disponibilidad (opcional): independiente de la cercanía y de los permisos de ubicación. */
-/** Disponible (por defecto) u ocupado. */
-export const Availability = z.enum(['available', 'busy'])
-export type Availability = z.infer<typeof Availability>
 
 export const LatLng = z.object({ lat: z.number(), lng: z.number() })
 
@@ -33,12 +29,11 @@ export const User = z.object({
   name: z.string(),
   handle: z.string(),
   city: z.string().optional(),
-  /** 1–100. El nombre, color y diseño salen de `lib/levels.ts`. */
-  level: z.number().int().min(1).max(100),
+  /** 1–100 (0 y negativos: easter egg de `lib/levels.ts`). El nombre, color y diseño salen de `lib/levels.ts`. */
+  level: z.number().int().min(-9).max(100),
   /** Descripción del perfil (hasta 160 caracteres). */
   bio: z.string().max(160).optional(),
   /** Cómo está (opcional). No cambia quién ve tu ubicación. */
-  availability: Availability.optional(),
   streakWeeks: z.number().int(),
   /** Cuántos amigos tiene (público en su perfil). Tuyo: sale de tus amistades. */
   friendsCount: z.number().int().optional(),
@@ -130,6 +125,12 @@ export const Plan = z.object({
   photoUrl: z.string().optional(),
   /** ¿Se puede unir gente cuando el plan ya empezó (en curso)? Lo decide quien lo organiza. */
   lateJoin: z.boolean().default(true),
+  /** G6: último cambio de hora o lugar (libera de penalización 2 h), mensajes rápidos y quiénes van (solo integrantes). */
+  changedAt: z.string().optional(),
+  timeline: z.array(z.object({ id: z.string().optional(), userId: z.string(), text: z.string(), at: z.string() })).optional(),
+  /** Tema del chat que elige quien organiza (`lib/chatThemes.ts`). */
+  chatTheme: z.string().optional(),
+  roster: z.array(z.object({ userId: z.string(), organizer: z.boolean(), arrivedAt: z.string().optional(), confirmedBy: z.string().optional(), distanceM: z.number().optional(), locAt: z.string().optional(), joinedAt: z.string().optional() })).optional(),
 })
 export type Plan = z.infer<typeof Plan>
 
@@ -154,9 +155,16 @@ export const Event = z.object({
   /** ¿Se puede unir gente cuando el evento ya empezó? Lo decide quien lo organiza. */
   lateJoin: z.boolean().default(true),
   requiresApproval: z.boolean(),
+  /** Cómo se verifica a los asistentes: con boleto QR (G8) o sin verificación (check-in por geocerca). Sin dato = sin verificación. */
+  verification: z.enum(['none', 'qr']).optional(),
   paces: z.array(z.string()).optional(),
   friendsGoingIds: z.array(z.string()),
   xp: z.number().int(),
+  /** Lo que controla quien organiza: descripción, avisos y chat (con sus mensajes, solo para quienes van). */
+  description: z.string().optional(),
+  announcements: z.array(z.object({ id: z.string(), text: z.string(), at: z.string() })).optional(),
+  chatEnabled: z.boolean().optional(),
+  timeline: z.array(z.object({ id: z.string().optional(), userId: z.string(), text: z.string(), at: z.string() })).optional(),
   audienceNote: z.string().optional(),
 })
 export type Event = z.infer<typeof Event>
@@ -261,3 +269,17 @@ export type Invite = z.infer<typeof Invite>
 
 export const Block = z.object({ userId: z.string(), at: z.string() })
 export const Report = z.object({ userId: z.string(), reason: z.string(), at: z.string() })
+
+/** Historial de cancelados (30 días): planes que se cancelaron (los organizabas o ibas) y planes de los que saliste. */
+export const CanceledPlan = z.object({
+  id: z.string(),
+  kind: z.enum(['canceled', 'left']),
+  line: z.string(),
+  category: z.string(),
+  placeName: z.string(),
+  startsAt: z.string(),
+  at: z.string(),
+  organizerId: z.string(),
+  byMe: z.boolean(),
+})
+export type CanceledPlan = z.infer<typeof CanceledPlan>

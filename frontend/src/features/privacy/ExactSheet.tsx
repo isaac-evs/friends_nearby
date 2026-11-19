@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Hourglass, MapPinCheck } from 'lucide-react'
-import { Button, ModalSheet, Notice, useToast } from '@/design'
+import { Button, ModalSheet, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { useNow } from '@/app/hooks'
 import { durationLabel, EXACT_DURATIONS, minutesLeft, shareWith } from '@/lib/privacy'
@@ -39,8 +39,6 @@ export function ExactSheet({ userId, onClose }: { userId: string | null; onClose
               </p>
               <Button variant="secondary" onClick={async () => { if (!await stopExact(userId)) return; toast(`Dejaste de compartir con ${first}`) }}>Dejar de compartir</Button>
             </>
-          ) : state.ghost ? (
-            <Notice tone="warning" icon="eye">Estás en modo fantasma. Desactívalo para compartir tu ubicación exacta.</Notice>
           ) : (
             <div role="group" aria-label={`Compartir mi ubicación exacta con ${first} por`} className="grid grid-cols-3 gap-2">
               {EXACT_DURATIONS.map((m) => (

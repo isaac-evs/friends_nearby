@@ -79,3 +79,15 @@ describe('eventTimes: hora de inicio y de fin', () => {
     expect(spanMin(ev)).toBe(2)
   })
 })
+
+describe('dayTimeIso y dayStr (otro día)', async () => {
+  const { dayTimeIso, dayStr } = await import('./planTime')
+  const now = new Date(2026, 10, 19, 12, 0).getTime()
+  it('acepta un día futuro y rechaza el pasado o fechas inválidas', () => {
+    expect(dayTimeIso('2026-11-20', '09:30', now)).toBe(new Date(2026, 10, 20, 9, 30).toISOString())
+    expect(dayTimeIso('2026-11-19', '09:30', now)).toBeNull()
+    expect(dayTimeIso('2026-02-31', '09:30', now)).toBeNull()
+    expect(dayTimeIso('2026-11-20', '25:00', now)).toBeNull()
+  })
+  it('dayStr suma días en fecha local', () => expect(dayStr(2, now)).toBe('2026-11-21'))
+})

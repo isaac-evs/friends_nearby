@@ -75,6 +75,25 @@ export function timeTodayIso(hhmm: string, now = Date.now()): string | null {
 }
 
 /**
+ * Fecha "YYYY-MM-DD" y hora "HH:MM" locales → ISO, o `null` si es inválida o ya pasó. Sirve para "Otro día" al publicar
+ * o mover un plan.
+ */
+export function dayTimeIso(date: string, hhmm: string, now = Date.now()): string | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
+  if (!d || !m || Number(m[1]) > 23 || Number(m[2]) > 59) return null
+  const t = new Date(Number(d[1]), Number(d[2]) - 1, Number(d[3]), Number(m[1]), Number(m[2]), 0, 0)
+  if (Number.isNaN(t.getTime()) || t.getMonth() !== Number(d[2]) - 1) return null
+  return t.getTime() >= now - MIN ? t.toISOString() : null
+}
+
+/** Fecha local YYYY-MM-DD de hoy + `n` días. */
+export function dayStr(n: number, now = Date.now()): string {
+  const d = new Date(now); d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
  * ¿Se puede verificar que "estamos juntos"? Desde 30 min antes del inicio hasta que termina el plan.
  */
 export const VERIFY_LEAD_MIN = 30

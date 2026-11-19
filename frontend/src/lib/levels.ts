@@ -68,7 +68,9 @@ export interface LevelInfo {
   isMax: boolean
 }
 
-export const clampLevel = (n: number) => Math.min(MAX_LEVEL, Math.max(1, Math.round(Number.isFinite(n) ? n : 1)))
+/** Easter egg: sin XP el nivel 1 baja al 0 y las fallas siguientes a niveles negativos (hasta −9). Con ganar 10 XP vuelves al 1. */
+export const MIN_LEVEL = -9
+export const clampLevel = (n: number) => Math.min(MAX_LEVEL, Math.max(MIN_LEVEL, Math.round(Number.isFinite(n) ? n : 1)))
 
 // ---- color ----
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
@@ -96,6 +98,13 @@ const WHITE = tokens.color.surface
 
 export function levelInfo(levelIn: number): LevelInfo {
   const level = clampLevel(levelIn)
+  if (level <= 0) {
+    return {
+      level, name: level === 0 ? 'Bajo tierra' : 'Bajo cero', tier: 0, tierName: 'Subsuelo',
+      blurb: 'Debes XP. Gana 10 XP y vuelves al nivel 1.', rank: 1, shape: 'circle',
+      fill: INK, ink: WHITE, soft: tokens.color['surface-sunken'], isMax: false,
+    }
+  }
   const tier = Math.floor((level - 1) / TIER_SIZE)
   const rank = ((level - 1) % TIER_SIZE) + 1
   const T = tokens.level
