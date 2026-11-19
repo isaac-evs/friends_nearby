@@ -68,8 +68,14 @@ type S3 struct {
 	history string
 }
 
-func NewS3(cfg aws.Config, mediaBucket, historyBucket string) *S3 {
-	c := s3.NewFromConfig(cfg)
+// NewS3 builds the S3 adapter. A non-empty endpoint (S3Mock in docker compose) switches to path-style addressing.
+func NewS3(cfg aws.Config, mediaBucket, historyBucket string, endpoint ...string) *S3 {
+	c := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if len(endpoint) > 0 && endpoint[0] != "" {
+			o.BaseEndpoint = aws.String(endpoint[0])
+			o.UsePathStyle = true
+		}
+	})
 	return &S3{client: c, presign: s3.NewPresignClient(c), media: mediaBucket, history: historyBucket}
 }
 

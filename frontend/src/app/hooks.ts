@@ -35,6 +35,15 @@ export function useNow(ms = 30_000): number {
   return now
 }
 
+/**
+ * Como `useNow`, pero devuelve SIEMPRE la hora actual al pintar (se vuelve a pintar cada `ms`).
+ * Para cuentas regresivas: una hora guardada hace rato haría que "30 min" saliera como "31 min".
+ */
+export function useClock(ms = 30_000): number {
+  useNow(ms)
+  return Date.now()
+}
+
 export function useElementSize<T extends HTMLElement>() {
   const [el, setEl] = useState<T | null>(null)
   const [size, setSize] = useState({ width: 390, height: 640 })

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, EyeOff, Flag, MapPin, ShieldCheck } from 'lucide-react'
-import { Button, ToggleRow, useToast } from '@/design'
+import { Button, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { cn } from '@/lib/cn'
 
@@ -12,12 +12,10 @@ export function OpenModeScreen() {
   const toast = useToast()
   const nav = useNavigate()
   const om = state.openMode
-  const [big, setBig] = useState(om.bigEvents)
-  const [small, setSmall] = useState(om.smallPlans)
   const [adult, setAdult] = useState(om.adult)
 
-  const activate = () => {
-    setOpenMode({ enabled: true, adult: true, bigEvents: big, smallPlans: small })
+  const activate = async () => {
+    if (!await setOpenMode({ enabled: true, adult: true, bigEvents: true, smallPlans: false })) return
     toast('Modo abierto activado')
     nav('/')
   }
@@ -51,11 +49,6 @@ export function OpenModeScreen() {
 
       </div>
       <div className="flex flex-1 flex-col gap-3.5 lg:flex-none lg:rounded-xl lg:border lg:border-line lg:bg-surface lg:p-6 lg:shadow-sm">
-      <section aria-label="Qué quieres ver" className="flex flex-col rounded-[18px] border border-line bg-surface py-0.5 pr-2.5 pl-3.5">
-        <ToggleRow title="Eventos grandes" subtitle="Social runs, retas, clases · 10+ personas" checked={big} onChange={setBig} />
-        <ToggleRow title="Planes chicos con gente nueva" subtitle="Grupos de 2 a 6 · tú apruebas" checked={small} onChange={setSmall} last />
-      </section>
-
       <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-meta font-bold">
         <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} className="m-0 size-[22px] accent-primary" />
         Confirmo que tengo 18 años o más
@@ -64,7 +57,7 @@ export function OpenModeScreen() {
       <div className="mt-auto flex flex-col gap-1.5">
         <Button size="lg" full disabled={!adult} onClick={activate} className={cn(!adult && 'pointer-events-none')}>{om.enabled ? 'Guardar preferencias' : 'Activar modo abierto'}</Button>
         {om.enabled ? (
-          <Button variant="ghost" full onClick={() => { setOpenMode({ enabled: false }); toast('Modo abierto apagado'); nav('/perfil') }}>Apagar modo abierto</Button>
+          <Button variant="ghost" full onClick={async () => { if (!await setOpenMode({ enabled: false })) return; toast('Modo abierto apagado'); nav('/perfil') }}>Apagar modo abierto</Button>
         ) : (
           <Button variant="ghost" full onClick={() => nav(-1)}>Ahora no, solo amigos</Button>
         )}

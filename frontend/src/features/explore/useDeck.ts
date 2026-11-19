@@ -1,43 +1,48 @@
 import { useMemo } from 'react'
 import type { Event, Plan } from '@/api/schemas'
-import { ME_ID } from '@/api/mock'
+import { ME_ID } from '@/api/me'
 import { useApp } from '@/app/store'
+import { useNow } from '@/app/hooks'
+import { eventDistanceM, inRange, planDistanceM, planVisibility } from '@/lib/reach'
+import { planPhase } from '@/lib/planTime'
+import { inDay } from '@/lib/day'
 import { EVENT_TYPES, type EventGroup } from '@/lib/category'
 
 export type Mode = 'amigos' | 'abierto'
 export type TypeFilter = 'Todos' | EventGroup
 
 export interface Deck {
-  /** Total de candidatos (sin contar lo ya deslizado) y cuántos quedan. */
+  /** Total de candidatos DENTRO de tu rango (sin contar lo ya deslizado) y cuántos quedan. */
   total: number
   remaining: Array<{ kind: 'plan'; plan: Plan } | { kind: 'event'; event: Event }>
   gated: boolean
+  /** Cuántos más habría si ampliaras el rango (para sugerirlo). */
+  hidden: number
 }
 
 /**
- * Candidatos de Explorar. Privacidad: solo planes de amigos aceptados y no bloqueados; los eventos
- * (gente nueva) solo con el modo abierto activo. "Paso" no notifica a nadie.
+ * Candidatos de Explorar. Privacidad: solo planes de tus amigos; los eventos (gente nueva) solo con el modo abierto activo. Solo lo que esté dentro de tu rango y
+ * no haya terminado. "Paso" no notifica a nadie.
  */
 export function useDeck(mode: Mode, type: TypeFilter): Deck {
   const { state } = useApp()
+  const now = useNow()
   return useMemo(() => {
-    const now = Date.now()
     if (mode === 'amigos') {
-      const all = state.plans.filter((p) => {
-        const fs = state.friendships[p.authorId]
-        return p.authorId !== ME_ID && fs?.status === 'friends' && !state.blocks.includes(p.authorId) && new Date(p.expiresAt).getTime() > now
-      })
+      const visible = state.plans.filter((p) => p.authorId !== ME_ID && planVisibility(state, p).visible && new Date(p.expiresAt).getTime() > now && inDay(p, state.dayOffset, now))
+      const all = visible.filter((p) => inRange(planDistanceM(p, state.location.center), state.radiusM))
       const remaining = all.filter((p) => !state.swipes[`plan:${p.id}`]).map((plan) => ({ kind: 'plan' as const, plan }))
-      return { total: all.length, remaining, gated: false }
+      return { total: all.length, remaining, gated: false, hidden: visible.length - all.length }
     }
-    if (!state.openMode.enabled) return { total: 0, remaining: [], gated: true }
-    const all = state.events.filter((e) => {
+    if (!state.openMode.enabled) return { total: 0, remaining: [], gated: true, hidden: 0 }
+    const visible = state.events.filter((e) => {
       if (type !== 'Todos' && EVENT_TYPES[e.type].group !== type) return false
-      return e.organizer.name !== 'Tú'
+      return e.organizerId !== ME_ID && planPhase(e, now) !== 'ended' && inDay(e, state.dayOffset, now)
     })
+    const all = visible.filter((e) => inRange(eventDistanceM(e, state.location.center), state.radiusM))
     const remaining = all
       .filter((e) => !state.swipes[`event:${e.id}`] && !state.attendances.some((a) => a.eventId === e.id))
       .map((event) => ({ kind: 'event' as const, event }))
-    return { total: all.length, remaining, gated: false }
-  }, [mode, type, state.plans, state.friendships, state.blocks, state.swipes, state.openMode.enabled, state.events, state.attendances])
+    return { total: all.length, remaining, gated: false, hidden: visible.length - all.length }
+  }, [mode, type, state, now])
 }

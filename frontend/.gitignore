@@ -4,3 +4,8 @@ dist
 .DS_Store
 test-results
 playwright-report
+.npm-cache/
+.local/
+.env
+*.tsbuildinfo
+debug.log

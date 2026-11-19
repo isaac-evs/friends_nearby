@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -176,6 +177,17 @@ func main() {
 	code, out = call("GET", "/friends", ana.token, nil)
 	check("friends list has bob", code == 200 && len(out["friends"].([]any)) == 1, out)
 
+	// Normal friendship does not authorize live presence.
+	ana.loc(19.4326, -99.1332)
+	bob.loc(19.4326, -99.1332)
+	ana.expectNothing("normal friendship hides presence", "friend_enter")
+	for _, step := range []struct {
+		actor        *user
+		kind, target string
+	}{{ana, "requestClose", bob.id}, {bob, "acceptClose", ana.id}} {
+		code, out = call("POST", "/app/actions", step.actor.token, map[string]any{"type": step.kind, "userId": step.target, "requestId": uuid.NewString()})
+		check(step.kind, code == 200, code, out)
+	}
 	// Enter / leave
 	const lat, lng = 19.4326, -99.1332
 	ana.loc(lat, lng)
@@ -200,14 +212,14 @@ func main() {
 
 	code, _ = call("PATCH", "/me", bob.token, map[string]any{"radius_m": 10})
 	check("radius below minimum -> 400", code == 400, code)
-	code, _ = call("PATCH", "/me", bob.token, map[string]any{"radius_m": 100})
-	check("set radius 100 (min)", code == 200, code)
-	bob.loc(lat+0.0015, lng) // ~165 m: outside bob's 100 m radius, inside ana's 500 m
+	code, _ = call("POST", "/app/actions", bob.token, map[string]any{"type": "setRadius", "radiusM": 1000, "requestId": uuid.NewString()})
+	check("set search radius 1000", code == 200, code)
+	bob.loc(lat+0.014, lng) // ~165 m: outside bob's 100 m radius, inside ana's 500 m
 	bob.expect("bob sees ana leave (own radius)", "friend_leave", ana.name)
-	ana.expectNothing("ana (500 m radius) still sees bob", "friend_leave")
+	ana.expectNothing("ana (5000 m search) still sees bob", "friend_leave")
 
 	// Ghost mode
-	bob.loc(lat+0.0006, lng) // ~67 m
+	bob.loc(lat, lng) // ~67 m
 	bob.expect("bob sees ana enter (back in range)", "friend_enter", ana.name)
 	code, out = call("PATCH", "/me", ana.token, map[string]any{"ghost_mode": true})
 	check("ghost on", code == 200 && out["ghost_mode"] == true, code, out)

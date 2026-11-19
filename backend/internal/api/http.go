@@ -69,20 +69,45 @@ func (h *Handler) handleHTTP(ctx context.Context, ev events.APIGatewayV2HTTPRequ
 		return h.register(r)
 	case method == "POST" && path == "/auth/login":
 		return h.login(r)
+	case method == "POST" && path == "/auth/forgot":
+		return h.forgotPassword(r)
+	case method == "POST" && path == "/auth/reset":
+		return h.resetPassword(r)
 	}
 
 	// Everything else needs a valid bearer token.
 	token := strings.TrimPrefix(ev.Headers["authorization"], "Bearer ")
-	userID, err := h.App.Auth.Verify(token)
+	userID, version, err := h.App.Auth.VerifySession(token)
 	if err != nil {
+		return respond(401, errBody("unauthorized"))
+	}
+	u, err := h.App.Store.GetUser(ctx, userID)
+	if err != nil {
+		return internalError("authenticate", err)
+	}
+	if u == nil || u.SessionVersion != version {
 		return respond(401, errBody("unauthorized"))
 	}
 	r.userID = userID
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	switch {
+	case method == "POST" && path == "/me/password":
+		return h.changePassword(r)
+	case method == "POST" && path == "/me/media/presign":
+		return h.mediaPresign(r)
+	case method == "GET" && len(parts) == 2 && parts[0] == "usernames":
+		return h.usernameAvailable(r, parts[1])
+	case method == "GET" && path == "/app/state":
+		return h.appState(r)
+	case method == "POST" && path == "/app/actions":
+		return h.socialAction(r)
+	case method == "GET" && path == "/app/user":
+		return h.socialUser(r)
 	case method == "GET" && path == "/me":
 		return h.getMe(r)
+	case method == "POST" && path == "/me/delete":
+		return h.deleteAccount(r)
 	case method == "PATCH" && path == "/me":
 		return h.patchMe(r)
 	case method == "POST" && path == "/me/photo-upload-url":
@@ -127,7 +152,7 @@ func (h *Handler) register(r *request) httpResp {
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email || len(email) > 254 {
 		return respond(400, errBody("invalid email"))
 	}
-	if !usernameRe.MatchString(username) {
+	if !validUsername(username) {
 		return respond(400, errBody("username must be 3-20 characters: a-z, 0-9 or _"))
 	}
 	if n := len(in.Password); n < 8 || n > 72 {
@@ -162,7 +187,7 @@ func (h *Handler) register(r *request) httpResp {
 	case err != nil:
 		return internalError("create user", err)
 	}
-	token, err := h.App.Auth.Issue(u.UserID)
+	token, err := h.App.Auth.IssueSession(u.UserID, u.SessionVersion)
 	if err != nil {
 		return internalError("issue token", err)
 	}
@@ -195,7 +220,7 @@ func (h *Handler) login(r *request) httpResp {
 	if u == nil || !auth.CheckPassword(u.PasswordHash, in.Password) {
 		return bad
 	}
-	token, err := h.App.Auth.Issue(u.UserID)
+	token, err := h.App.Auth.IssueSession(u.UserID, u.SessionVersion)
 	if err != nil {
 		return internalError("issue token", err)
 	}
@@ -259,6 +284,20 @@ func (h *Handler) patchMe(r *request) httpResp {
 		if err := h.App.EnterGhost(r.ctx, after); err != nil {
 			return internalError("enter ghost mode", err)
 		}
+		t := newSocialTx(h, r)
+		p, e := t.person(r.userID)
+		if e != nil {
+			return responseError(e)
+		}
+		p.ExactEpoch++
+		p.Exact = map[string]string{}
+		p.ExactRequests = map[string]string{}
+		if e = t.putPerson(r.userID, p); e != nil {
+			return responseError(e)
+		}
+		if e = t.commit(); e != nil {
+			return responseError(e)
+		}
 	}
 	return respond(200, after)
 }
@@ -311,6 +350,13 @@ func (h *Handler) searchUser(r *request) httpResp {
 	if id == "" {
 		return respond(404, errBody("user not found"))
 	}
+	blocked, err := h.App.Store.IsBlocked(r.ctx, r.userID, id)
+	if err != nil {
+		return internalError("check block", err)
+	}
+	if blocked {
+		return respond(404, errBody("user not found"))
+	}
 	u, err := h.App.Store.GetUser(r.ctx, id)
 	if err != nil || u == nil {
 		if err != nil {
@@ -336,6 +382,13 @@ func (h *Handler) listFriends(r *request) httpResp {
 	}
 	out := map[string][]models.PublicUser{"friends": {}, "incoming": {}, "outgoing": {}}
 	for _, f := range rows {
+		blocked, err := h.App.Store.IsBlocked(r.ctx, r.userID, f.FriendID)
+		if err != nil {
+			return internalError("check block", err)
+		}
+		if blocked {
+			continue
+		}
 		u := users[f.FriendID]
 		if u == nil {
 			continue
@@ -368,6 +421,13 @@ func (h *Handler) sendRequest(r *request) httpResp {
 	}
 	if targetID == r.userID {
 		return respond(400, errBody("you cannot add yourself"))
+	}
+	blocked, err := h.App.Store.IsBlocked(r.ctx, r.userID, targetID)
+	if err != nil {
+		return internalError("check block", err)
+	}
+	if blocked {
+		return respond(404, errBody("user not found"))
 	}
 	me, err := h.App.Store.GetUser(r.ctx, r.userID)
 	if err != nil || me == nil {
@@ -410,6 +470,13 @@ func (h *Handler) acceptRequest(r *request, otherID string) httpResp {
 }
 
 func (h *Handler) finishAccept(r *request, me *models.User, otherID string) httpResp {
+	blocked, err := h.App.Store.IsBlocked(r.ctx, r.userID, otherID)
+	if err != nil {
+		return internalError("check block", err)
+	}
+	if blocked {
+		return respond(404, errBody("user not found"))
+	}
 	switch err := h.App.Store.Accept(r.ctx, me.UserID, otherID); {
 	case errors.Is(err, store.ErrNotPending):
 		return respond(404, errBody("no pending request from that user"))
@@ -431,6 +498,20 @@ func (h *Handler) removeFriend(r *request, otherID string) httpResp {
 	}
 	if err := h.App.Store.DeleteFriendship(r.ctx, r.userID, otherID); err != nil {
 		return internalError("delete friendship", err)
+	}
+	t := newSocialTx(h, r)
+	p, e := t.person(r.userID)
+	if e != nil {
+		return responseError(e)
+	}
+	if e = t.clearPair(&p, otherID); e != nil {
+		return responseError(e)
+	}
+	if e = t.putPerson(r.userID, p); e != nil {
+		return responseError(e)
+	}
+	if e = t.commit(); e != nil {
+		return responseError(e)
 	}
 	if f.Status == models.StatusAccepted {
 		users, err := h.App.Store.GetUsers(r.ctx, []string{r.userID, otherID})

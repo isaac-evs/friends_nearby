@@ -20,7 +20,7 @@ export const PLAN_CATEGORIES: Record<PlanCategory, CatDef> = {
   estudiar: { label: 'Estudiar', tile: 'bg-cat-estudiar', icon: ic(BookOpen) },
   gym: { label: 'Gym', tile: 'bg-cat-deporte', icon: ic(Dumbbell) },
   chill: { label: 'Chill', tile: 'bg-cat-clase', icon: ic(Sofa) },
-  antro: { label: 'Antro', tile: 'bg-cat-estudiar', icon: ic(Moon) },
+  fiesta: { label: 'Fiesta', tile: 'bg-cat-estudiar', icon: ic(Moon) },
   juegos: { label: 'Juegos', tile: 'bg-cat-musica', icon: ic(Dices) },
 }
 

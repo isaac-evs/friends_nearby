@@ -16,7 +16,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={show}>
       {children}
       <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-5 lg:bottom-8">
-        {msg && <span className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-white shadow-lg">{msg}</span>}
+        {msg && <span className="alert-motion flex max-w-[460px] items-center gap-2.5 rounded-xl bg-ink py-2.5 pr-4 pl-3 text-sm leading-snug font-bold text-white shadow-none"><span aria-hidden="true" className="size-2 flex-none rounded-full bg-accent" />{msg}</span>}
       </div>
     </ToastCtx.Provider>
   )

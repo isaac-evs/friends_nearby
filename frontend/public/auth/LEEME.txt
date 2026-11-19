@@ -1,0 +1,9 @@
+Fotos de la vista previa de la pantalla de entrada (solo desktop).
+Pon aquí tus imágenes con estos nombres (JPG o WebP; si cambias la extensión, edita src/features/auth/showcaseContent.ts):
+
+  cafe.jpg    Foto del plan (la que se ve grande arriba de la tarjeta). Horizontal, mínimo 700x400 px.
+  sofi.jpg    Foto de perfil de quien publica el plan. Cuadrada, mínimo 200x200 px.
+  amigo1.jpg  Foto de un amigo que ya jaló. Cuadrada.
+  amigo2.jpg  Foto de otro amigo que ya jaló. Cuadrada.
+
+Si falta un archivo, la pantalla usa un color e iniciales en su lugar.

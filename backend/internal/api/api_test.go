@@ -359,12 +359,14 @@ func TestWebSocketRoutes(t *testing.T) {
 func TestGhostModeThroughTheAPI(t *testing.T) {
 	c := newClient(t)
 	ta, _ := c.register("ana")
-	tb, _ := c.register("bob")
+	tb, bid := c.register("bob")
 	c.do("POST", "/friends/requests", ta, map[string]string{"username": "bob"})
 	_, lists := c.do("GET", "/friends", tb, nil)
 	incoming := lists["incoming"].([]any)[0].(map[string]any)["user_id"].(string)
 	c.do("POST", "/friends/"+incoming+"/accept", tb, nil)
 
+	action(c, ta, map[string]any{"type": "requestClose", "userId": bid})
+	action(c, tb, map[string]any{"type": "acceptClose", "userId": incoming})
 	c.ws("$connect", "ca", "", map[string]string{"token": ta})
 	c.ws("$connect", "cb", "", map[string]string{"token": tb})
 	c.ws("location", "ca", `{"action":"location","lat":19.4326,"lng":-99.1332}`, nil)

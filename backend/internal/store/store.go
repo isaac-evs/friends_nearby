@@ -96,8 +96,9 @@ func (s *Store) CreateUser(ctx context.Context, u *models.User) error {
 
 func (s *Store) GetUser(ctx context.Context, id string) (*models.User, error) {
 	out, err := s.db.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(s.cfg.UsersTable),
-		Key:       map[string]types.AttributeValue{"user_id": &types.AttributeValueMemberS{Value: id}},
+		TableName:      aws.String(s.cfg.UsersTable),
+		ConsistentRead: aws.Bool(true),
+		Key:            map[string]types.AttributeValue{"user_id": &types.AttributeValueMemberS{Value: id}},
 	})
 	if err != nil || out.Item == nil {
 		return nil, err
@@ -355,11 +356,16 @@ func (s *Store) DeleteFriendship(ctx context.Context, a, b string) error {
 // API Gateway WebSocket connections last at most 2 hours.
 const connectionTTL = 3 * time.Hour
 
-func (s *Store) PutConnection(ctx context.Context, connectionID, userID string) error {
+func (s *Store) PutConnection(ctx context.Context, connectionID, userID string, version ...int) error {
+	v := 0
+	if len(version) > 0 {
+		v = version[0]
+	}
 	item, err := attributevalue.MarshalMap(models.Connection{
-		ConnectionID: connectionID,
-		UserID:       userID,
-		ExpiresAt:    time.Now().Add(connectionTTL).Unix(),
+		SessionVersion: v,
+		ConnectionID:   connectionID,
+		UserID:         userID,
+		ExpiresAt:      time.Now().Add(connectionTTL).Unix(),
 	})
 	if err != nil {
 		return err

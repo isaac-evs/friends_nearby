@@ -9,3 +9,14 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  # S3 local (Adobe S3Mock): sirve para probar la subida de fotos (perfil y portadas) y el historial de ubicaciones.
+  # API en http://localhost:9000 (estilo path: /bucket/llave). Crea los buckets al arrancar; lectura pública y CORS abierto,
+  # como el CDN. No valida firmas ni credenciales, y los datos viven en memoria (se pierden al reiniciar el contenedor).
+  # (MinIO ya no publica imágenes en Docker Hub; por eso este.)
+  s3:
+    image: adobe/s3mock:latest
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: friends-nearby-local-media,friends-nearby-local-history
+    ports:
+      - "9000:9090"

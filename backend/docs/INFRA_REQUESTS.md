@@ -1,91 +1,80 @@
-# Changes needed in `infra/` for the Go backend
+# Infraestructura pendiente para integrar ¿Jalas?
 
-> **Status:** items 1 and 2 under "Required" are implemented in `infra/`
-> (Go runtime, `infra/scripts/build-lambdas.sh`, generated `JWT_SECRET`). The
-> "Please verify" table has been checked against the Terraform code; still
-> untested against a real AWS account.
+No se modificó `infra/`. `origin/main` ya incluye runtime Go, bootstrap y
+JWT_SECRET. Esta lista corresponde a la ampliación del backend para el frontend.
 
-For the person who owns the Terraform. Everything below is based on the current
-`infra/modules/*` code. Nothing here has been applied or tested against AWS.
+## Tabla DynamoDB social
 
-## Required
+Crear una tabla con partition key `pk` (String), sort key `sk` (String),
+PAY_PER_REQUEST, sin GSI. Pasar el nombre a Lambda API como `SOCIAL_TABLE`.
+Si se omite, el código usa `${USERS_TABLE}-social`; en AWS **no crea la tabla**.
+El runner local sí la crea.
 
-### 1. Switch both Lambdas to the Go runtime (`modules/compute/main.tf`)
+Dar al rol API GetItem, PutItem, UpdateItem, DeleteItem, Query y ConditionCheckItem sobre su ARN.
+Hay transacciones entre la tabla social y users; se autorizan por las operaciones
+de los items. No se necesita Scan ni acceso del worker a la tabla social.
 
-Today both functions use `runtime = "nodejs20.x"` and zip `src/*.mjs`.
+Guarda perfiles/preferencias/progreso, planes programados, eventos/asistencias,
+matches/referencias, reportes y tokens de recuperación. El atributo numérico
+`version` permite escrituras condicionales. Las expiraciones se verifican en
+código; no requieren TTL para proteger la vigencia. Configurar TTL sobre el atributo raíz numérico `expires_at` para limpiar recibos
+de acciones (`requests#UUID`, 24 h). Las fechas de planes/eventos y permisos se
+validan en código; no configurar TTL sobre campos anidados. Otros documentos
+requieren una política futura de retención/limpieza. No se necesita TTL para
+autorizar una operación correctamente.
 
-For `aws_lambda_function.api` and `aws_lambda_function.worker`:
+## Recuperación de contraseña por SES
 
-- `runtime = "provided.al2023"`
-- `handler = "bootstrap"`
-- `architectures = ["x86_64"]` (this is already the default; the Go build below targets amd64)
-- `filename` / `source_code_hash` should point to a zip that contains a single executable named `bootstrap`
+Variables nuevas en Lambda API:
 
-The `archive_file` data sources must change from `source_file = src/api.mjs`
-to the built binary. Example build (run from `backend/`, output goes where
-Terraform expects it):
-
-```sh
-# api
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags lambda.norpc -o bootstrap ./cmd/api
-# zip so the file inside is named exactly "bootstrap", e.g. .build/api.zip
-
-# worker
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags lambda.norpc -o bootstrap ./cmd/worker
-# zip as .build/worker.zip
+```text
+MAIL_FROM=cuentas@<dominio-verificado>
+FRONTEND_URL=https://<dominio-del-frontend>
 ```
 
-The two zips must be built one after the other (both outputs are called
-`bootstrap`). A small build script or Makefile target is the simplest way.
-`infra/src/*.mjs` can be removed once this is in place.
+- Verificar identidad SES en la región de Lambda.
+- Otorgar `ses:SendEmail`, limitado al ARN de esa identidad.
+- Habilitar envío a destinatarios no verificados cuando corresponda; considerar
+  las restricciones del sandbox de SES al probar.
+- El adaptador usa SES **HTTPS Query API**, SigV4, contra
+  `https://email.<region>.amazonaws.com/`. La VPC actual sin NAT necesita salida
+  HTTPS hacia ese endpoint, por ejemplo NAT y su ruta. Un endpoint SMTP no sirve
+  para este adaptador HTTP. El worker actual sigue dedicado al historial.
+- Aplicar throttling a auth y recuperación. Hay espera de 3 minutos por correo
+  en el código, pero no sustituye límites de tráfico por origen.
 
-### 2. New environment variable `JWT_SECRET` on the API Lambda
+Los enlaces caducan en 30 minutos y se consumen una vez. El reset incrementa
+`session_version` en users y revoca JWT/conexiones anteriores. Este nuevo atributo
+no requiere migración de schema; las cuentas existentes usan versión 0.
 
-The backend signs and verifies its own JWTs (HS256) and needs a secret of at
-least 32 random bytes.
+## Hosting y configuración web
 
-- The Lambda has no internet access and the VPC only has endpoints for S3,
-  DynamoDB, SQS and execute-api. Reading from Secrets Manager or SSM would need
-  a new interface endpoint.
-- Simplest option: generate the value with `random_password` in Terraform and
-  pass it as `JWT_SECRET`. Note that it then lives in the Terraform state.
+- Publicar `frontend/dist/` con HTTPS y fallback SPA a index.html para las rutas
+  de eventos, matches, perfiles y recuperación.
+- Build con VITE_API_URL/VITE_WS_URL a partir de http_api_url/websocket_url.
+  Ningún secreto debe ir en VITE_*.
+- CORS HTTP y S3 media deben admitir los orígenes publicados; S3, PUT con
+  Content-Type. CloudFront debe servir photos/<user_id>/<archivo> desde la raíz.
+- Reconstruir las Lambdas con los scripts existentes antes del despliegue.
 
-Optional: `JWT_TTL_HOURS` (default `168`, i.e. 7 days).
+Conservar provided.al2023, bootstrap, x86_64, JWT_SECRET estable, REDIS_HOST sin
+puerto y TLS compatible, WS_MANAGEMENT_URL con HTTPS/stage y $connect sin
+authorizer externo. Las rutas WS actuales bastan: nearby y ping van por $default.
+No hacen falta Cognito ni índices de email/username.
 
-## Please verify (I could only read part of these modules)
+No se ejecutó Terraform ni se validó AWS. SES, S3/CloudFront, API Gateway y sus
+permisos requieren comprobación en ese entorno después de aplicar estos cambios.
 
-| Item | Why it matters |
-|---|---|
-| `REDIS_HOST` is the **hostname only** (the primary endpoint address), with no `:6379` | The code joins host and `REDIS_PORT` itself. |
-| ElastiCache has `transit_encryption_enabled = true` | `REDIS_TLS` is set to `"true"`, so the client connects with TLS. If in-transit encryption is off, connections fail. |
-| `WS_MANAGEMENT_URL` has the form `https://<api-id>.execute-api.<region>.amazonaws.com/<stage>` | It is used as the base endpoint for `postToConnection`. |
-| The WebSocket `$connect` route has **no authorizer** | The token is validated inside the Lambda from the `?token=` query parameter. |
-| The media bucket CORS allows `PUT` and the `Content-Type` header from the client origins | Clients upload profile photos directly with presigned URLs. |
-| CloudFront serves the bucket root | Photo URLs are built as `https://<CDN_DOMAIN>/photos/<user_id>/<file>`. |
-| Lambda security group can reach Redis on 6379 | Already looks intended; confirm after changes. |
+## Contrato G1–G4 y migración
 
-## Already sufficient (no change needed)
+Las nuevas colecciones sociales `.v2` usan la misma tabla, sin índices nuevos.
+Conservar datos de users/friendships. No migrar automáticamente planes/eventos
+experimentales `.v1`: el frontend nuevo exige lugar público confirmado y horarios.
+Ver el procedimiento y las restricciones en FRONTEND_INTEGRATION.md.
 
-- **IAM on the API role.** The backend uses `GetItem`, `PutItem`, `UpdateItem`,
-  `DeleteItem`, `Query`, `BatchGetItem` and transactions. DynamoDB transactions
-  are authorized through the underlying Put/Update/Delete permissions, which are
-  already granted. `sqs:SendMessage`, `s3:PutObject` (presigned uploads are
-  signed with the Lambda role) and `execute-api:ManageConnections` are present.
-  No `Scan` is used.
-- **Tables and indexes.** No new indexes are required. Email and username lookups
-  use small marker items stored in the existing `users` table (key
-  `email#<email>` and `username#<name>`), written in the same transaction as the
-  user. This also guarantees uniqueness, which a secondary index cannot.
-- **`connections` TTL attribute** `expires_at` (epoch seconds) is what the code writes.
-- **Worker.** Batch size, batching window, `ReportBatchItemFailures` and the DLQ
-  already match what the worker does. It needs no VPC.
-- **WebSocket routes.** `$connect`, `$disconnect`, `$default` and `location` are
-  enough. The client actions `nearby` and `ping` arrive on `$default` and are
-  dispatched by the code.
-
-## Optional, later
-
-- A GSI on username would only be needed for prefix or fuzzy search. The
-  current search is an exact match on username.
-- Throttling on the HTTP stage. The WebSocket stage already has one; location
-  updates are not rate limited in code.
+Redis debe admitir claves `exact:<UUID>` de TTL corto para concesiones explícitas;
+no requiere recursos nuevos ni persistencia adicional. Historial SQS/S3 recibe
+únicamente celdas aproximadas; no configurar un flujo de coordenadas exactas.
+Los radios actuales de la aplicación se guardan en el perfil social; no requieren
+cambiar esquemas de users ni nuevos GSI. El registro `ranking.v2` es una proyección
+pública actualizada por transacción.

@@ -30,7 +30,7 @@ Referencia visual: `screens/*.dc.html` (abrirlas como HTML de referencia; depend
 | Acento | `accent` #FF7A45 | Indicadores (punto "Abierto"), pin de evento |
 | Acento suave/texto | `accent-soft` / `accent-text` | Chips de racha y XP (texto `accent-text` sobre `accent-soft` o blanco) |
 | Peligro | `danger` #C43D1B | "Paso", reportar |
-| Éxito | `success` #2BB673 | Barra de cupo, "en línea" |
+| Éxito | `success` #2BB673 · `success-text` #0B5E37 | Barra de cupo, "en línea"; "En curso" = pill `cat-musica` + texto `success-text` (AA) |
 
 **Reglas:** el texto blanco solo va sobre `primary` o `ink`. Los pasteles de categoría siempre llevan ícono y texto `ink`. `accent` nunca se usa como color de texto pequeño (no pasa AA); para texto usa `accent-text`.
 
@@ -105,7 +105,7 @@ Círculo de 34, 40, 44 o 48 px con iniciales 700 sobre el color de avatar. El in
 `surface`, radio `xl`, `shadow-lg`. En el mapa flota sobre la tab bar y muestra la persona o el evento seleccionado con dos acciones.
 
 ### MapMarker
-- **Amigo con zona aproximada:** avatar de 48 px con anillo blanco de 3 px y un círculo de zona (`zone-fill` + borde punteado `primary`).
+- **Amigo con ubicación aproximada:** avatar de 48 px con anillo blanco de 3 px y un círculo difuso (`approx-fill` + borde punteado `primary`).
 - **Amigo con match:** sin círculo de zona y con la pill `primary` "Categoría · match".
 - **Evento:** cuadrado de 52 px en `accent` con ícono y la pill "Nombre · N".
 - **Tú:** punto `primary` de 20 px con borde blanco y halo.
@@ -142,3 +142,7 @@ Tarjeta `surface` con borde punteado, ícono en un cuadro `primary-soft`, h2, te
 | 11 | Perfil de otra persona | `screens/PerfilOtro.dc.html` |
 | 12 | Crear evento | `screens/CrearEvento.dc.html` |
 | D | Desktop: explorar + mapa | `screens/Desktop.dc.html` |
+
+## Anexo — Niveles y "Chilling" (Fase 2)
+- **Niveles 1–100:** 10 tramos de 10. El tono sale de `tokens.json → level.tierHues`; la luminosidad baja dentro del tramo (`lightnessFirst` → `lightnessLast`) y, si ni el texto `ink` ni el blanco llegan a AA (4.5:1), el color se oscurece de a un punto. Cada tramo tiene su forma de insignia y una corona de 10 puntos (los encendidos = posición en el tramo). Verificado en `lib/levels.test.ts` (100 nombres, 100 colores y contraste AA).
+- **Chilling:** amigo cercano sin plan. Aro `success` sobre fondo `cat-musica`, parpadeo `animate-chill` (1.8 s; `motion-reduce:animate-none`) y siempre el texto "Chilling".

@@ -13,7 +13,7 @@ interface TileProps { tileClass: string; icon: ReactNode; category: string; xp: 
 export interface FriendCardProps extends TileProps {
   variant: 'friend'
   time: string
-  person: { id: string; name: string }
+  person: { id: string; name: string; avatarUrl?: string }
   where: string
   title: string
   chip: string
@@ -36,7 +36,7 @@ export function CardBody(p: CardProps) {
   const isFriend = p.variant === 'friend'
   return (
     <>
-      <div className={cn('relative flex flex-none items-center justify-center', isFriend ? 'h-[170px]' : 'h-[150px]', p.tileClass)}>
+      <div className={cn('relative flex flex-none items-center justify-center', isFriend ? 'h-[42%] max-h-[230px] min-h-[96px]' : 'h-[38%] max-h-[200px] min-h-[90px]', p.tileClass)}>
         <span className="absolute top-3.5 left-3.5 rounded-full bg-white/90 px-[11px] py-[5px] text-caption font-bold">{p.category}</span>
         {isFriend && <span className="absolute top-3.5 right-3.5 rounded-full bg-white/90 px-[11px] py-[5px] text-caption font-semibold">{p.time}</span>}
         {!isFriend && <DateBadge day={p.day} month={p.month} className="absolute bottom-3.5 left-3.5" />}
@@ -46,7 +46,7 @@ export function CardBody(p: CardProps) {
       <div className="flex flex-1 flex-col gap-2.5 px-[18px] pt-4 pb-[18px]">
         {isFriend ? (
           <div className="flex items-center gap-3">
-            <Avatar userId={p.person.id} name={p.person.name} size={44} />
+            <Avatar userId={p.person.id} name={p.person.name} size={44} src={p.person.avatarUrl} />
             <div className="flex flex-col gap-px">
               <span className="text-[15px] font-bold">{p.person.name}</span>
               <span className="text-meta text-muted">{p.where}</span>
@@ -140,9 +140,9 @@ export function SwipeStack({
   const intent: SwipeDir | null = x > 40 ? 'right' : x < -40 ? 'left' : y < -40 ? 'up' : null
 
   return (
-    <div className={cn('relative h-[424px]', className)}>
-      <div aria-hidden="true" className="absolute inset-x-5 top-3.5 h-[410px] rounded-card bg-stack-2" />
-      <div aria-hidden="true" className="absolute inset-x-2.5 top-[7px] h-[410px] rounded-card bg-stack-1" />
+    <div className={cn('relative h-[clamp(320px,calc(100dvh-440px),620px)] lg:h-[424px]', className)}>
+      <div aria-hidden="true" className="absolute inset-x-5 top-3.5 h-[calc(100%-14px)] rounded-card bg-stack-2" />
+      <div aria-hidden="true" className="absolute inset-x-2.5 top-[7px] h-[calc(100%-14px)] rounded-card bg-stack-1" />
       <div
         role="group"
         aria-roledescription="card"
@@ -158,7 +158,7 @@ export function SwipeStack({
           transition: drag.active && !exit ? 'none' : 'transform 260ms var(--ease-out-soft)',
           touchAction: 'none',
         }}
-        className="absolute inset-x-0 top-0 flex h-[410px] cursor-grab flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card active:cursor-grabbing"
+        className="absolute inset-x-0 top-0 flex h-[calc(100%-14px)] cursor-grab flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card active:cursor-grabbing"
       >
         {children}
         {intent && (
@@ -171,7 +171,7 @@ export function SwipeStack({
               intent === 'up' && 'left-1/2 -translate-x-1/2 border-ink bg-white text-ink',
             )}
           >
-            {intent === 'right' ? 'Jalo' : intent === 'left' ? 'Paso' : 'Luego'}
+            {intent === 'right' ? '¡Jalo!' : intent === 'left' ? 'Paso' : 'Luego'}
           </span>
         )}
       </div>

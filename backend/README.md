@@ -31,7 +31,7 @@ Requirements: Go 1.23+ and Docker.
 
 ```powershell
 cd backend
-docker compose up -d          # DynamoDB Local (8000) + Redis (6379)
+docker compose up -d          # DynamoDB Local (8000) + Redis (6379) + S3Mock (9000)
 go run ./cmd/local            # creates the tables if missing, serves :8080
 ```
 
@@ -39,8 +39,14 @@ Local defaults live in `cmd/local/main.go` (`setDefaults`); any variable you set
 yourself wins. History batches are written to `backend/.local/history/` every 5 s.
 DynamoDB Local runs `-inMemory`, so data resets when its container restarts.
 
-Presigned photo URLs are generated locally but point at the real S3 host, so the
-upload itself will not work offline.
+Photos (profile and plan/event covers) and location-history batches go to **S3Mock**,
+the local S3 (`docker compose` creates the buckets `friends-nearby-local-media`, public
+read and open CORS like the CDN, and `friends-nearby-local-history`; data lives in memory). Override with `S3_ENDPOINT`, `MEDIA_BASE_URL`,
+`HISTORY_BUCKET`; with `S3_ENDPOINT` empty the history falls back to `.local/history/`.
+
+Where "last location" comes from: **Redis**, not S3. `loc:<user>` is the live cell (TTL
+`LOCATION_TTL_SECONDS`, 120 s) and `last:<user>` the last known one (7 days). S3 only keeps
+the history `.jsonl` batches.
 
 ### Quick try (PowerShell)
 
@@ -124,18 +130,18 @@ should send `{"action":"nearby"}` to get the current state.
 
 ## How it works
 
-- **Locations.** `loc:{user_id}` in Redis holds the last position with a TTL of
+- **Locations.** `loc:{user_id}` in Redis holds the last rounded cell with a TTL of
   `LOCATION_TTL_SECONDS` (default 120). Inactive users disappear on their own.
-- **Nearby.** On each update the code loads the user's accepted friends, reads
+- **Nearby.** On each update the code loads the user's accepted, mutually close friends, reads
   their locations with one `MGET`, and computes haversine distances. Each user is
-  judged against their own radius, so A can see B while B does not see A.
+  judged against the smaller of viewer search radius and subject visibility radius.
 - **Enter/leave.** `near:{viewer}` in Redis is the set of friends currently
   inside the viewer's radius. A message is sent only when a friend is added to or
   removed from that set.
 - **Ghost mode.** While on, location updates are rejected, nothing is written to
   Redis, and no history events are sent. Turning it on deletes your location and
   sends `friend_leave` to friends who could see you.
-- **History.** Every accepted update is sent to SQS; the worker writes
+- **History.** Every accepted rounded cell update is sent to SQS; the worker writes
   `history/YYYY/MM/DD/HH/<id>.jsonl` to the history bucket. It is write-only.
 - **Friendships.** Two rows per pair (`pending_out`/`pending_in`, then `accepted`
   on both), written in a transaction.
@@ -150,8 +156,25 @@ should send `{"action":"nearby"}` to get the current state.
 - Location updates are not rate limited in code; throttle at API Gateway or in the client.
 - Presigned PUT URLs cannot enforce a maximum file size.
 - Fan-out is sequential per update. That is fine for small friend lists; revisit if lists grow large.
-- No automated tests yet.
+- The social feed currently loads its projection with DynamoDB Query; large deployments need zone/date partitioning and a paginated client feed.
 
 ## Build for AWS
 
 See `docs/INFRA_REQUESTS.md` for the exact commands and the Terraform changes needed.
+
+## Integrated frontend
+
+The React app in `../frontend/` now uses real authentication and persistent social
+actions. Run this local backend and `npm run dev` from `frontend/`. The local runner
+creates an additional social table with `pk`/`sk` keys and writes password reset
+emails to `.local/mail/`. It does not emulate S3 photo uploads.
+
+New endpoints: `GET /app/state`, `GET /app/user`, `POST /app/actions`,
+`POST /auth/forgot`, and `POST /auth/reset`. See
+[FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md) for actions and authorization
+rules, and [INFRA_REQUESTS.md](docs/INFRA_REQUESTS.md) for the social table and SES
+requirements. No Terraform files were changed.
+
+Nearby responses now round coordinates to 0.002 degrees. Exact positions are
+available only through explicit temporary grants between mutual close friends. Password reset
+revokes earlier JWTs and WebSocket actions via `session_version`.

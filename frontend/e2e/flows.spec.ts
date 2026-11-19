@@ -7,7 +7,7 @@ test.describe('flujos principales (mock)', () => {
     await expect(page.getByText('Por un café en Providencia, ¿alguien?').first()).toBeVisible()
     await page.getByRole('button', { name: 'Jalo', exact: true }).click()
     await expect(page.getByRole('heading', { name: '¡Se armó!' })).toBeVisible()
-    await expect(page.getByText(/Tu ubicación exacta la ve solo Sofi/)).toBeVisible()
+    await expect(page.getByText(/Tu ubicación solo la usa el sistema, una vez, para comprobar que llegaste/)).toBeVisible()
     await page.getByRole('button', { name: 'Voy en 10' }).click()
     await expect(page.getByText('Enviado a Sofi: “Voy en 10”')).toBeVisible()
     await page.getByRole('button', { name: 'Ya nos vimos' }).click()
@@ -16,16 +16,30 @@ test.describe('flujos principales (mock)', () => {
     await expect(page.getByText(/racha de 5 semanas/)).toBeVisible()
   })
 
-  test('privacidad: la zona exacta solo aparece con match', async ({ page }) => {
+  test('privacidad: un match NO da ubicación exacta; solo la comparte un amigo cercano por un rato', async ({ page }) => {
     await signIn(page)
     await page.goto('/mapa')
-    // Sin match: nadie tiene ubicación exacta.
-    await expect(page.getByRole('button', { name: /Café\s*,\s*Sofi: zona aproximada/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Café\s*,\s*Sofi: plan en Café Ámbar, lugar exacto/ })).toBeVisible()
     await expect(page.getByText('Exacta', { exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Jalo', exact: true }).first().click()
     await expect(page.getByRole('heading', { name: '¡Se armó!' })).toBeVisible()
-    await page.getByRole('link', { name: 'Cómo llegar' }).click()
-    await expect(page.getByRole('button', { name: /Café · match\s*,\s*Sofi: ubicación exacta por match/ })).toBeVisible()
+    await page.getByRole('link', { name: 'Ver dónde es en el mapa' }).click()
+    // Con match, el plan sigue en su lugar exacto y Sofi no comparte su ubicación.
+    await expect(page.getByRole('button', { name: /Café\s*,\s*Sofi: plan en Café Ámbar, lugar exacto/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Sofi: ubicación exacta/ })).toHaveCount(0)
+  })
+
+  test('verificar que estamos juntos: solo el sistema usa la ubicación y nadie ve coordenadas', async ({ page }) => {
+    await signIn(page)
+    await page.getByRole('button', { name: 'Jalo', exact: true }).click()
+    await expect(page.getByRole('heading', { name: '¡Se armó!' })).toBeVisible()
+    await expect(page.getByText(/Ni Sofi ni nadie la ve/)).toBeVisible()
+    await page.getByRole('button', { name: 'Verificar que estoy aquí' }).click()
+    await expect(page.getByText('Verificado: llegaste al punto de encuentro.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Verificar que estoy aquí' })).toHaveCount(0)
+    // Ninguna coordenada (decimales largos tipo 20.6736) llega a la pantalla.
+    expect(await page.locator('body').innerText()).not.toMatch(/-?\d{1,3}\.\d{4,}/)
+    await expectNoAxeViolations(page)
   })
 
   test('modo abierto: apagado por defecto, 18+ obligatorio, luego eventos y Me uno', async ({ page }) => {
@@ -53,8 +67,14 @@ test.describe('flujos principales (mock)', () => {
     await signIn(page)
     await page.goto('/publicar')
     await page.getByRole('button', { name: /^Publicar plan/ }).click()
-    await expect(page.getByRole('alert')).toContainText('Cuéntales qué andas haciendo')
+    await expect(page.getByText('Cuéntales qué andas haciendo')).toBeVisible()
+    await expect(page.getByText('Escribe cómo se llama el lugar')).toBeVisible() // el lugar es obligatorio
     await page.getByLabel('Cuéntales en una línea').fill('Tacos en el centro')
+    await page.getByLabel('¿Dónde es?').fill('Taquería El Güero')
+    await page.getByRole('button', { name: /^Publicar plan/ }).click()
+    await expect(page.getByText('Márcalo en el mapa')).toBeVisible() // con nombre pero sin punto exacto
+    await page.getByRole('button', { name: 'Elegir en el mapa' }).click()
+    await page.getByRole('button', { name: 'Usar este lugar' }).click()
     await page.getByRole('button', { name: /^Publicar plan/ }).click()
     await expect(page.getByText('Plan publicado')).toBeVisible()
 
@@ -63,6 +83,8 @@ test.describe('flujos principales (mock)', () => {
     await expect(page.getByText('Ponle un nombre al evento')).toBeVisible()
     await page.getByLabel('Nombre del evento').fill('Reta de fut en la cancha')
     await page.getByLabel('¿Dónde?').fill('Cancha Revolución')
+    await page.getByRole('button', { name: 'Elegir en el mapa' }).click()
+    await page.getByRole('button', { name: 'Usar este lugar' }).click()
     await page.getByRole('button', { name: 'Más cupo' }).click()
     await page.getByRole('button', { name: 'Publicar evento' }).click()
     await expect(page.getByRole('heading', { name: 'Reta de fut en la cancha' })).toBeVisible()
@@ -130,23 +152,22 @@ test.describe('guardados', () => {
 })
 
 test.describe('mapa', () => {
-  test('lista en móvil: buscador fijo mientras la lista hace scroll; nota de zona solo en amigos', async ({ page }, info) => {
+  test('lista en móvil: buscador fijo mientras la lista hace scroll; la nota del círculo solo en amigos cercanos sin plan', async ({ page }, info) => {
     await signIn(page)
     await page.evaluate(() => localStorage.setItem('x', '1'))
     await page.goto('/modo-abierto')
     await page.getByLabel('Confirmo que tengo 18 años o más').check()
     await page.getByRole('button', { name: 'Activar modo abierto' }).click()
-    await page.goto('/mapa')
+    await page.goto('/mapa?sel=chill-nico')
     if (info.project.name === 'desktop') {
-      await page.getByRole('button', { name: /Café/ }).first().click()
-      await expect(page.getByText('Círculo = zona aproximada')).toBeVisible()
+      await expect(page.getByText('Círculo = ubicación aproximada')).toBeVisible()
       await page.getByRole('button', { name: /Social Run/ }).click()
-      await expect(page.getByText('Círculo = zona aproximada')).toHaveCount(0)
+      await expect(page.getByText('Círculo = ubicación aproximada')).toHaveCount(0)
       return
     }
-    await expect(page.getByText('Círculo = zona aproximada')).toBeVisible()
+    await expect(page.getByText('Círculo = ubicación aproximada')).toBeVisible()
     await page.getByRole('button', { name: 'Eventos', exact: true }).click()
-    await expect(page.getByText('Círculo = zona aproximada')).toHaveCount(0)
+    await expect(page.getByText('Círculo = ubicación aproximada')).toHaveCount(0)
     await page.getByRole('button', { name: 'Todos', exact: true }).click()
     await page.getByRole('button', { name: 'Lista', exact: true }).click()
     const search = page.getByPlaceholder('Buscar amigo o evento')
@@ -166,8 +187,9 @@ test.describe('accesibilidad (axe)', () => {
     await page.goto('/dev/ui'); await expectNoAxeViolations(page)
   })
   test('pantallas con sesión', async ({ page }) => {
+    test.setTimeout(120_000) // recorre ~20 pantallas, cada una con carga de red y axe
     await signIn(page)
-    for (const url of ['/', '/mapa', '/publicar', '/publicar/evento', '/amigos', '/guardados', '/perfil', '/modo-abierto', '/evento/evt-run', '/u/pau']) {
+    for (const url of ['/', '/mapa', '/publicar', '/publicar/evento', '/amigos', '/guardados', '/perfil', '/perfil/editar', '/perfil/nivel', '/perfil/nivel?tab=niveles', '/perfil/nivel?tab=historial', '/privacidad', '/amigos?tab=ranking', '/modo-abierto', '/evento/evt-run', '/u/pau']) {
       await page.goto(url)
       await page.waitForLoadState('networkidle')
       await expectNoAxeViolations(page)

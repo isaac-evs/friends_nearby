@@ -13,9 +13,9 @@ import (
 )
 
 type wsBody struct {
-	Action string  `json:"action"`
-	Lat    float64 `json:"lat"`
-	Lng    float64 `json:"lng"`
+	Action string   `json:"action"`
+	Lat    *float64 `json:"lat"`
+	Lng    *float64 `json:"lng"`
 }
 
 func (h *Handler) handleWS(ctx context.Context, ev events.APIGatewayWebsocketProxyRequest) events.APIGatewayV2HTTPResponse {
@@ -26,7 +26,7 @@ func (h *Handler) handleWS(ctx context.Context, ev events.APIGatewayWebsocketPro
 	case "$connect":
 		// The token travels in the query string because browsers cannot set
 		// headers on a WebSocket handshake.
-		userID, err := a.Auth.Verify(ev.QueryStringParameters["token"])
+		userID, version, err := a.Auth.VerifySession(ev.QueryStringParameters["token"])
 		if err != nil {
 			return respond(401, errBody("unauthorized"))
 		}
@@ -35,10 +35,10 @@ func (h *Handler) handleWS(ctx context.Context, ev events.APIGatewayWebsocketPro
 			slog.Error("connect: get user", "err", err)
 			return respond(500, errBody("internal error"))
 		}
-		if u == nil {
+		if u == nil || u.SessionVersion != version {
 			return respond(401, errBody("unauthorized"))
 		}
-		if err := a.Store.PutConnection(ctx, connID, userID); err != nil {
+		if err := a.Store.PutConnection(ctx, connID, userID, version); err != nil {
 			slog.Error("connect: put connection", "err", err)
 			return respond(500, errBody("internal error"))
 		}
@@ -60,6 +60,14 @@ func (h *Handler) handleWS(ctx context.Context, ev events.APIGatewayWebsocketPro
 	if conn == nil {
 		return respond(403, errBody("unknown connection"))
 	}
+	u, err := a.Store.GetUser(ctx, conn.UserID)
+	if err != nil {
+		return internalError("authenticate websocket", err)
+	}
+	if u == nil || u.SessionVersion != conn.SessionVersion {
+		_ = a.Store.DeleteConnection(ctx, connID)
+		return respond(403, errBody("session expired"))
+	}
 
 	var body wsBody
 	if err := json.Unmarshal([]byte(ev.Body), &body); err != nil {
@@ -69,7 +77,11 @@ func (h *Handler) handleWS(ctx context.Context, ev events.APIGatewayWebsocketPro
 
 	switch body.Action {
 	case "location":
-		err := a.HandleLocation(ctx, conn.UserID, models.Location{Lat: body.Lat, Lng: body.Lng})
+		if body.Lat == nil || body.Lng == nil {
+			a.PushToConnection(ctx, connID, app.Message{Type: app.MsgError, Error: "lat and lng are required"})
+			break
+		}
+		err := a.HandleLocation(ctx, conn.UserID, models.Location{Lat: *body.Lat, Lng: *body.Lng})
 		switch {
 		case err == nil:
 		case errors.Is(err, app.ErrGhostMode), errors.Is(err, app.ErrBadLocation):

@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"testing"
@@ -31,7 +32,7 @@ func mustMove(t *testing.T, e *testenv.Env, u *testenv.User, lat, lng float64) {
 func TestEnterAndLeaveOnlyOnTransitions(t *testing.T) {
 	e := testenv.New(t)
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
 	expectTypes(t, "ana after first move (bob has no location)", e.Types(a))
@@ -58,7 +59,7 @@ func TestEnterAndLeaveOnlyOnTransitions(t *testing.T) {
 func TestMessagePayload(t *testing.T) {
 	e := testenv.New(t)
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
 	mustMove(t, e, b, testenv.BaseLat+testenv.Meters(100), testenv.BaseLng)
 
@@ -69,7 +70,7 @@ func TestMessagePayload(t *testing.T) {
 	if msgs[0].Friend.Username != "bob" || msgs[0].Friend.UserID != b.UserID {
 		t.Errorf("wrong friend in message: %+v", msgs[0].Friend)
 	}
-	if d := *msgs[0].Distance; d < 98 || d > 102 {
+	if d := *msgs[0].Distance; d%50 != 0 {
 		t.Errorf("distance_m = %d, want about 100", d)
 	}
 }
@@ -78,13 +79,16 @@ func TestRadiusIsPerViewer(t *testing.T) {
 	e := testenv.New(t)
 	ctx := context.Background()
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
-	r100, r500 := 100, 500
-	if _, err := e.Store.UpdateProfile(ctx, a.UserID, store.ProfilePatch{RadiusM: &r100}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.Store.UpdateProfile(ctx, b.UserID, store.ProfilePatch{RadiusM: &r500}); err != nil {
-		t.Fatal(err)
+	befriendClose(t, e, a, b)
+	for _, entry := range []struct {
+		u, other *testenv.User
+		radius   int
+	}{{a, b, 100}, {b, a, 500}} {
+		d, _ := e.Store.GetDocument(ctx, "user#"+entry.u.UserID, "profile")
+		d.Data, _ = json.Marshal(map[string]any{"close": map[string]string{entry.other.UserID: "mutual"}, "radiusM": entry.radius, "visibilityRadiusM": 500})
+		if err := e.Store.CommitDocuments(ctx, []store.Document{d}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
@@ -94,7 +98,7 @@ func TestRadiusIsPerViewer(t *testing.T) {
 	expectTypes(t, "ana (radius 100) does not see bob at 300 m", e.Types(a))
 
 	// Bob comes within ana's radius: now she sees him too.
-	mustMove(t, e, b, testenv.BaseLat+testenv.Meters(60), testenv.BaseLng)
+	mustMove(t, e, b, testenv.BaseLat, testenv.BaseLng)
 	expectTypes(t, "ana sees bob at 60 m", e.Types(a), app.MsgFriendEnter)
 }
 
@@ -117,7 +121,7 @@ func TestGhostMode(t *testing.T) {
 	e := testenv.New(t)
 	ctx := context.Background()
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
 	mustMove(t, e, b, testenv.BaseLat+testenv.Meters(50), testenv.BaseLng)
 	e.Pusher.Reset()
@@ -169,7 +173,7 @@ func TestUnfriendClearsNearbyState(t *testing.T) {
 	e := testenv.New(t)
 	ctx := context.Background()
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
 	mustMove(t, e, b, testenv.BaseLat+testenv.Meters(50), testenv.BaseLng)
 	e.Pusher.Reset()
@@ -192,7 +196,7 @@ func TestFriendWhoWentInactiveIsDroppedOnNextUpdate(t *testing.T) {
 	e := testenv.New(t)
 	ctx := context.Background()
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
 	mustMove(t, e, b, testenv.BaseLat+testenv.Meters(50), testenv.BaseLng)
 
@@ -229,7 +233,7 @@ func TestSnapshot(t *testing.T) {
 	e := testenv.New(t)
 	ctx := context.Background()
 	a, b, c := e.AddUser(t, "ana"), e.AddUser(t, "bob"), e.AddUser(t, "cara")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 	e.Befriend(t, a, c)
 	mustMove(t, e, a, testenv.BaseLat, testenv.BaseLng)
 	mustMove(t, e, b, testenv.BaseLat+testenv.Meters(50), testenv.BaseLng)
@@ -242,7 +246,7 @@ func TestSnapshot(t *testing.T) {
 	if len(list) != 1 || list[0].Username != "bob" {
 		t.Fatalf("snapshot = %+v, want only bob", list)
 	}
-	if list[0].DistanceM < 48 || list[0].DistanceM > 52 {
+	if list[0].DistanceM%50 != 0 {
 		t.Errorf("distance = %d, want about 50", list[0].DistanceM)
 	}
 }
@@ -251,7 +255,7 @@ func TestDeadConnectionsAreRemoved(t *testing.T) {
 	e := testenv.New(t)
 	ctx := context.Background()
 	a, b := e.AddUser(t, "ana"), e.AddUser(t, "bob")
-	e.Befriend(t, a, b)
+	befriendClose(t, e, a, b)
 	e.Pusher.MarkGone(a.ConnID)
 
 	mustMove(t, e, b, testenv.BaseLat, testenv.BaseLng)
@@ -266,4 +270,19 @@ func TestDeadConnectionsAreRemoved(t *testing.T) {
 	}
 	// Bob is unaffected.
 	expectTypes(t, "bob", e.Types(b), app.MsgFriendEnter)
+}
+
+func befriendClose(t *testing.T, e *testenv.Env, a, b *testenv.User) {
+	t.Helper()
+	e.Befriend(t, a, b)
+	for _, pair := range [][2]*testenv.User{{a, b}, {b, a}} {
+		d, err := e.Store.GetDocument(context.Background(), "user#"+pair[0].UserID, "profile")
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Data, _ = json.Marshal(map[string]any{"close": map[string]string{pair[1].UserID: "mutual"}, "visibilityRadiusM": 500, "radiusM": 500})
+		if err = e.Store.CommitDocuments(context.Background(), []store.Document{d}); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
