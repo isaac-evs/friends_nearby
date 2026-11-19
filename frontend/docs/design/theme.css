@@ -45,7 +45,7 @@
   --color-map-land: #EEEEF0;
   --color-map-park: #DDEFE3;
   --color-map-water: #D6EBFF;
-  --color-zone-fill: rgb(61 59 212 / 0.10);
+  --color-approx-fill: rgb(61 59 212 / 0.10);
 
   /* Tipografía */
   --text-display: 36px;

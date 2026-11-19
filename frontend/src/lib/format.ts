@@ -35,6 +35,15 @@ export function formatAgo(iso: string, now = Date.now()): string {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
+/** "hoy", "ayer" o "hace N días" (por día calendario, no por horas). */
+export function formatLastVisit(iso: string, now = Date.now()): string {
+  const day = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime() }
+  const days = Math.round((day(now) - day(new Date(iso).getTime())) / 86_400_000)
+  if (days <= 0) return 'hoy'
+  if (days === 1) return 'ayer'
+  return `hace ${days} días`
+}
+
 export function weekdayLong(iso: string): string {
   return cap(new Date(iso).toLocaleDateString('es-MX', { weekday: 'long' }))
 }
@@ -61,4 +70,25 @@ export function eventWhenShort(iso: string): string {
   const d = new Date(iso)
   const mon = d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '')
   return `${weekdayShort(iso)} ${d.getDate()} ${mon} · ${timeLabel(iso)}`
+}
+
+/** "Sáb 21 nov · 7:00 am – 9:00 pm" (si termina otro día: "… – Dom 22 nov · 2:00 am"). Para eventos: inicio y FIN, no duración. */
+export function eventRange(ev: { startsAt: string; endsAt: string }): string {
+  const sameDay = new Date(ev.startsAt).toDateString() === new Date(ev.endsAt).toDateString()
+  return `${eventWhenShort(ev.startsAt)} – ${sameDay ? timeLabel(ev.endsAt) : eventWhenShort(ev.endsAt)}`
+}
+
+/** Cercanía de una PERSONA en rangos, nunca un número exacto: "a menos de 500 m". */
+export function formatNearby(m: number): string {
+  if (m < 250) return 'a menos de 250 m'
+  if (m < 500) return 'a menos de 500 m'
+  if (m < 1000) return 'a menos de 1 km'
+  if (m < 3000) return 'a menos de 3 km'
+  if (m < 5000) return 'a menos de 5 km'
+  return `a unos ${Math.round(m / 1000)} km`
+}
+
+/** "actualizado hace 12 min" solo si la ubicación lleva más de 5 min sin actualizarse; si no, cadena vacía. */
+export function staleLabel(iso: string, now = Date.now()): string {
+  return (now - new Date(iso).getTime()) / MIN > 5 ? `actualizado ${formatAgo(iso, now)}` : ''
 }

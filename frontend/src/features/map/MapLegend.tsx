@@ -1,11 +1,18 @@
-/** Leyenda del mapa (desktop). */
-export function MapLegend() {
+import { cn } from '@/lib/cn'
+
+/** Qué significa cada marcador y los créditos del mapa (para la configuración del mapa). */
+export function MapLegendList({ className }: { className?: string }) {
+  const row = 'flex items-center gap-2.5 text-sm font-semibold'
   return (
-    <div className="pointer-events-auto grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-line bg-surface px-3.5 py-2.5 text-caption font-bold shadow-md">
-      <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-3 rounded-full border-2 border-white bg-primary shadow-xs" />Tú</span>
-      <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-3.5 rounded-full border-2 border-dashed border-primary bg-zone-fill" />Zona aproximada</span>
-      <span className="flex items-center gap-1.5"><span aria-hidden="true" className="rounded-full bg-primary px-1.5 text-[10px] text-white">match</span>Exacta temporal</span>
-      <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-3.5 rounded-sm border border-line bg-accent" />Evento público</span>
-    </div>
+    <ul className={cn('flex flex-col gap-2.5', className)}>
+      <li className={row}><span aria-hidden="true" className="size-3.5 shrink-0 rounded-full border-2 border-white bg-primary shadow-xs" />Tú</li>
+      <li className={row}><span aria-hidden="true" className="size-3.5 shrink-0 rounded-full border-2 border-dashed border-primary bg-approx-fill" />Ubicación aproximada de un amigo cercano</li>
+      <li className={row}><span aria-hidden="true" className="size-3.5 shrink-0 rounded-full border-2 border-white bg-ink shadow-xs" />Amigo cercano (solo su foto)</li>
+      <li className={row}><span aria-hidden="true" className="size-3.5 shrink-0 rounded-[5px] border border-line bg-cat-cafe" />Plan, en su lugar exacto</li>
+      <li className={row}><span aria-hidden="true" className="size-3.5 shrink-0 rounded-sm border border-line bg-accent" />Evento (si hay amigos ahí, sus fotos van en su esquina)</li>
+      <li className={row}><span aria-hidden="true" className="animate-chill motion-reduce:animate-none size-3.5 shrink-0 rounded-full border-2 border-success bg-cat-musica" />Sin plan, o plan en curso</li>
+      <li className={row}><span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-success" /><span aria-hidden="true" className="-ml-1.5 size-2.5 shrink-0 rounded-full bg-danger" />Disponible · ocupado</li>
+      <li className="text-caption text-muted">Mapa © colaboradores de OpenStreetMap · © CARTO</li>
+    </ul>
   )
 }

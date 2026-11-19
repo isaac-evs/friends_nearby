@@ -43,7 +43,7 @@ export function AuthScreen() {
   }
 
   const title = mode === 'login' ? ['Tus amigos cerca.', 'Tus planes, ya.'] : mode === 'registro' ? ['Crea tu cuenta.', 'Y a jalar.'] : ['¿Olvidaste', 'tu contraseña?']
-  const sub = mode === 'login' ? 'Mira qué andan haciendo y únete con un swipe.' : mode === 'registro' ? 'Solo tu nombre y tu correo. Tu ubicación nunca sale de tu zona.' : 'Escribe tu correo y te mandamos un link para crear una nueva.'
+  const sub = mode === 'login' ? 'Mira qué andan haciendo y únete con un swipe.' : mode === 'registro' ? 'Solo tu nombre y tu correo. Tu ubicación siempre se redondea antes de guardarse.' : 'Escribe tu correo y te mandamos un link para crear una nueva.'
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-6 pt-10 pb-7 lg:grid lg:max-w-[1120px] lg:grid-cols-2 lg:items-center lg:gap-x-20 lg:px-10">

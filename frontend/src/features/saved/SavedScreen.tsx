@@ -4,7 +4,8 @@ import { Avatar, Button, ButtonLink, EmptyState, Pill } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { useNow } from '@/app/hooks'
 import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
-import { eventWhen, formatApproxDistance, formatPlanTime } from '@/lib/format'
+import { eventRange, formatApproxDistance, formatPlanTime } from '@/lib/format'
+import { eventDistanceM, planDistanceM } from '@/lib/reach'
 import { cn } from '@/lib/cn'
 import { useSaved } from './useSaved'
 
@@ -52,7 +53,7 @@ export function SavedScreen() {
                         <Avatar userId={u.id} name={u.name} size={44} />
                         <div className="flex min-w-0 flex-1 flex-col">
                           <span className="text-[15px] font-bold">{u.name} · {cat.label}</span>
-                          <span className="text-caption text-muted">a {formatApproxDistance(p.zone.approxDistanceM)} · {p.zone.name}</span>
+                          <span className="text-caption text-muted">{p.place.name} · a {formatApproxDistance(planDistanceM(p, state.location.center))}</span>
                         </div>
                         <Pill tone={over ? 'muted' : 'accent'} className="gap-1"><Clock aria-hidden="true" size={12} />{over ? 'terminó' : formatPlanTime(p, now)}</Pill>
                       </div>
@@ -80,10 +81,10 @@ export function SavedScreen() {
                         <span aria-hidden="true" className={cn('flex size-11 shrink-0 items-center justify-center rounded-md', t.tile)}>{t.icon({ size: 22, strokeWidth: 2 })}</span>
                         <div className="flex min-w-0 flex-1 flex-col">
                           <span className="text-[15px] font-bold">{e.title}</span>
-                          <span className="text-caption text-muted">{eventWhen(e.startsAt)}</span>
+                          <span className="text-caption text-muted">{eventRange(e)}</span>
                         </div>
                       </div>
-                      <p className="flex items-center gap-1.5 text-meta text-text"><MapPin aria-hidden="true" size={14} className="text-muted" />{e.placeName} · {formatApproxDistance(e.approxDistanceM)} · {e.going} van · cupo {e.capacity}</p>
+                      <p className="flex items-center gap-1.5 text-meta text-text"><MapPin aria-hidden="true" size={14} className="text-muted" />{e.placeName} · {formatApproxDistance(eventDistanceM(e, state.location.center))} · {e.going} van · cupo {e.capacity}</p>
                       <div className="flex gap-2">
                         <Button variant="secondary" className="h-11 flex-1 rounded-md text-sm" aria-label={`Quitar ${e.title}`} onClick={() => swipe('event', e.id, 'pass')}>Quitar</Button>
                         <ButtonLink to={`/evento/${e.id}`} className="h-11 flex-1 rounded-md text-sm">Ver evento</ButtonLink>

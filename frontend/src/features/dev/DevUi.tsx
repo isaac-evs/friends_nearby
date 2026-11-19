@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Coffee, MapPin } from 'lucide-react'
 import {
-  Avatar, AvatarStack, BottomSheet, Button, CardBody, Chip, ChipLink, DateBadge, EmptyState, EventMarker, Field, FriendMarker, IconButton,
+  Avatar, AvatarStack, BottomSheet, Button, CardBody, Chip, ChipLink, DateBadge, EmptyState, ClusterMarker, EventMarker, Field, PersonMarker, PlanMarker, IconButton, ImageUpload,
   Logo, MeMarker, Notice, Pill, ProgressBar, SegmentedControl, SwipeActions, SwipeStack, Toggle, useToast,
 } from '@/design'
 import { Plus } from 'lucide-react'
@@ -40,6 +40,9 @@ export function DevUi() {
         <ProgressBar value={68} label="Progreso demo" />
         <Field label="Correo" placeholder="tu@correo.com" /><Field label="Con error" defaultValue="mal" error="Revisa tu correo." />
       </Sec>
+      <Sec title="ImageUpload (foto de perfil y portada)">
+        <DemoUploads />
+      </Sec>
       <Sec title="Notice · EmptyState">
         <Notice tone="safety" icon="shield">Seguridad: lugar público y tú apruebas.</Notice>
         <Notice tone="privacy" icon="eye">Privacidad: gente nueva solo ve tu nombre.</Notice>
@@ -62,15 +65,29 @@ export function DevUi() {
       </Sec>
       <Sec title="MapMarker · BottomSheet">
         <div className="relative flex h-60 items-center justify-around overflow-hidden rounded-lg bg-map-land px-4">
-          <span aria-hidden="true" className="absolute top-8 left-6 size-[120px] rounded-full border-2 border-dashed border-primary bg-zone-fill" />
-          <FriendMarker person={{ id: 'dani', name: 'Dani' }} label="Comer" description="Dani: zona aproximada" onSelect={() => {}} />
-          <FriendMarker person={{ id: 'sofi', name: 'Sofi' }} label="Café" exact selected description="Sofi: ubicación exacta por match" onSelect={() => {}} />
+          <span aria-hidden="true" className="absolute top-8 left-6 size-[120px] rounded-full border-2 border-dashed border-primary bg-approx-fill" />
+          <PersonMarker person={{ id: 'dani', name: 'Dani' }} noPlan availability="available" description="Dani: sin plan, ubicación aproximada, disponible" onSelect={() => {}} />
+          <PersonMarker person={{ id: 'sofi', name: 'Sofi' }} exact selected availability="busy" description="Sofi: ubicación exacta compartida, ocupada" onSelect={() => {}} />
+          <PlanMarker icon={<Coffee aria-hidden="true" size={22} />} tileClass="bg-cat-cafe" label="Café · En curso" live description="Sofi: plan en Café Ámbar, lugar exacto" onSelect={() => {}} />
+          <ClusterMarker count={3} people={[{ id: 'mau', name: 'Mau' }, { id: 'nico', name: 'Nico' }, { id: 'dani', name: 'Dani' }]} label="3 amigos cercanos aquí. Abre la lista" onSelect={() => {}} />
           <EventMarker icon={<Coffee aria-hidden="true" size={26} />} label="Social Run · 34" description="evento público" onSelect={() => {}} />
           <MeMarker />
         </div>
         <BottomSheet label="Demo sheet"><p className="text-sm font-bold">Sofi · Café</p><p className="text-meta text-muted">Av. Providencia · en vivo</p></BottomSheet>
       </Sec>
     </main>
+  )
+}
+
+function DemoUploads() {
+  const [avatar, setAvatar] = useState<string>()
+  const [cover, setCover] = useState<string>()
+  const up = async (b: Blob) => URL.createObjectURL(b)
+  return (
+    <div className="flex flex-col gap-4">
+      <ImageUpload kind="avatar" label="Foto de perfil" noun="foto" userId="demo" name="Demo" value={avatar} upload={up} onChange={setAvatar} onRemove={() => setAvatar(undefined)} />
+      <ImageUpload kind="cover" label="Portada" noun="portada" userId="demo" name="Demo" value={cover} upload={up} onChange={setCover} onRemove={() => setCover(undefined)} />
+    </div>
   )
 }
 

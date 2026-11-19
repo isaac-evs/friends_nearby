@@ -1,7 +1,7 @@
 import { avatarColor, initials } from '@/lib/avatar'
 import { cn } from '@/lib/cn'
 
-const SIZES = { 34: 'size-[34px] text-caption', 40: 'size-10 text-meta', 44: 'size-11 text-sm', 48: 'size-12 text-base', 58: 'size-[58px] text-xl font-extrabold', 90: 'size-[90px] text-[26px] font-extrabold', 96: 'size-24 text-[32px] font-extrabold' } as const
+const SIZES = { 28: 'size-7 text-[10px]', 34: 'size-[34px] text-caption', 40: 'size-10 text-meta', 44: 'size-11 text-sm', 48: 'size-12 text-base', 58: 'size-[58px] text-xl font-extrabold', 90: 'size-[90px] text-[26px] font-extrabold', 96: 'size-24 text-[32px] font-extrabold', 144: 'size-36 text-[46px] font-extrabold' } as const
 export type AvatarSize = keyof typeof SIZES
 
 interface AvatarProps {
@@ -14,11 +14,13 @@ interface AvatarProps {
   self?: boolean
   /** Texto en lugar de las iniciales (p. ej. "TÚ"). */
   text?: string
+  /** Foto de perfil. Decorativa: el nombre ya va como texto al lado. */
+  src?: string
   className?: string
 }
 
 /** Círculo con iniciales sobre un color de avatar estable por usuario. */
-export function Avatar({ userId, name, size = 44, online, paused, self, text, className }: AvatarProps) {
+export function Avatar({ userId, name, size = 44, online, paused, self, text, src, className }: AvatarProps) {
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
       <span
@@ -31,7 +33,7 @@ export function Avatar({ userId, name, size = 44, online, paused, self, text, cl
         )}
         style={self || paused ? undefined : { background: avatarColor(userId) }}
       >
-        {text ?? initials(name)}
+        {src ? <img src={src} alt="" className="size-full rounded-full object-cover" /> : (text ?? initials(name))}
       </span>
       {online && (
         <span aria-hidden="true" className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-surface bg-success" />
@@ -40,12 +42,22 @@ export function Avatar({ userId, name, size = 44, online, paused, self, text, cl
   )
 }
 
-export function AvatarStack({ people, size = 34 }: { people: { id: string; name: string }[]; size?: AvatarSize }) {
+/**
+ * Pila de avatares. Con `max` muestra solo los primeros y un círculo "+N" con cuánta gente más hay
+ * (decorativa: los nombres van siempre como texto al lado).
+ */
+export function AvatarStack({ people, size = 34, max }: { people: { id: string; name: string; avatarUrl?: string }[]; size?: AvatarSize; max?: number }) {
+  const shown = max ? people.slice(0, max) : people
+  const more = people.length - shown.length
+  const dim = { 34: 'size-[34px] text-caption', 40: 'size-10 text-meta', 44: 'size-11 text-sm' } as Record<number, string>
   return (
     <span aria-hidden="true" className="flex">
-      {people.map((p, i) => (
-        <Avatar key={p.id} userId={p.id} name={p.name} size={size} className={i > 0 ? '-ml-2' : undefined} />
+      {shown.map((p, i) => (
+        <Avatar key={p.id} userId={p.id} name={p.name} size={size} src={p.avatarUrl} className={i > 0 ? '-ml-2' : undefined} />
       ))}
+      {more > 0 && (
+        <span data-testid="avatar-more" className={cn('-ml-2 flex shrink-0 items-center justify-center rounded-full border bg-surface-sunken font-bold text-ink', dim[size] ?? 'size-[34px] text-caption')}>+{more}</span>
+      )}
     </span>
   )
 }
