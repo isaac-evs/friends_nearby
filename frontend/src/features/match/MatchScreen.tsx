@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { Check, Lock, MapPin, Navigation } from 'lucide-react'
 import { Avatar, ButtonLink, Notice } from '@/design'
@@ -18,13 +17,7 @@ export function MatchScreen() {
   const plan = match && state.plans.find((p) => p.id === match.planId)
   const friend = match && state.users[match.friendId]
 
-  // Mock: la otra persona confirma unos segundos después. XP y racha solo cuando AMBOS confirman.
   const waiting = !!match && match.myConfirmed && !match.theirConfirmed
-  useEffect(() => {
-    if (!waiting || !match) return
-    const t = window.setTimeout(() => confirmMeet(match.id, 'them'), 3000)
-    return () => window.clearTimeout(t)
-  }, [waiting, match, confirmMeet])
 
   if (!match || !plan || !friend) return <Navigate to="/" replace />
   const cat = PLAN_CATEGORIES[plan.category]
@@ -68,6 +61,7 @@ export function MatchScreen() {
             </button>
           ))}
         </div>
+        {match.receivedMessage && <p role="status" className="text-meta">{friend.name}: {match.receivedMessage}</p>}
         {match.quickMessage && <span role="status" className="text-meta font-bold text-text">Enviado a {friend.name}: “{match.quickMessage}”</span>}
       </section>
 

@@ -33,12 +33,13 @@ export function PublishScreen() {
   const me = useMe()
   const catDef = PLAN_CATEGORIES[cat]
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (line.trim().length < 3) { setError('Cuéntales qué andas haciendo (mínimo 3 letras).'); return }
     if (blocked) return
     const d = DURATIONS.find((x) => x.l === dur)!
-    publishPlan({ category: cat, line: line.trim(), durationMin: d.min || minutesUntilMidnight(), audience: aud })
+    const plan = await publishPlan({ category: cat, line: line.trim(), durationMin: d.min || minutesUntilMidnight(), audience: aud })
+    if (!plan) return
     toast('Plan publicado')
     nav('/')
   }

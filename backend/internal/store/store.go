@@ -355,11 +355,16 @@ func (s *Store) DeleteFriendship(ctx context.Context, a, b string) error {
 // API Gateway WebSocket connections last at most 2 hours.
 const connectionTTL = 3 * time.Hour
 
-func (s *Store) PutConnection(ctx context.Context, connectionID, userID string) error {
+func (s *Store) PutConnection(ctx context.Context, connectionID, userID string, version ...int) error {
+	v := 0
+	if len(version) > 0 {
+		v = version[0]
+	}
 	item, err := attributevalue.MarshalMap(models.Connection{
-		ConnectionID: connectionID,
-		UserID:       userID,
-		ExpiresAt:    time.Now().Add(connectionTTL).Unix(),
+		SessionVersion: v,
+		ConnectionID:   connectionID,
+		UserID:         userID,
+		ExpiresAt:      time.Now().Add(connectionTTL).Unix(),
 	})
 	if err != nil {
 		return err

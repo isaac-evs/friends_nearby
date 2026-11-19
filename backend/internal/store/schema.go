@@ -29,6 +29,11 @@ func EnsureTables(ctx context.Context, db *dynamodb.Client, cfg *config.Config) 
 
 	tables := []dynamodb.CreateTableInput{
 		{
+			TableName:            aws.String(New(db, cfg).SocialTable()),
+			AttributeDefinitions: []types.AttributeDefinition{s("pk"), s("sk")},
+			KeySchema:            []types.KeySchemaElement{hash("pk"), rng("sk")},
+		},
+		{
 			TableName:            aws.String(cfg.UsersTable),
 			AttributeDefinitions: []types.AttributeDefinition{s("user_id")},
 			KeySchema:            []types.KeySchemaElement{hash("user_id")},

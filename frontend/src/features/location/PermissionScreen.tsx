@@ -1,22 +1,23 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { EyeOff, MapPin, Eye } from 'lucide-react'
 import { Button, Chip, Notice } from '@/design'
 import { useActions, useApp } from '@/app/store'
-import { ZONES } from '@/api/mock'
-import { roundToZone } from '@/lib/geo'
+import { ZONES, zoneCenter } from '@/api/constants'
+import { roundToZone, type LatLng } from '@/lib/geo'
 
 /** Pantalla 2: pre-permiso, zona manual y manejo de `denied`. */
 export function PermissionScreen() {
   const { state } = useApp()
   const { setLocation } = useActions()
   const nav = useNavigate()
+  const loc = useLocation()
+  const from = (loc.state as { from?: string } | null)?.from ?? '/'
   const [phase, setPhase] = useState<'ask' | 'asking' | 'denied' | 'manual'>('ask')
   const [zone, setZone] = useState<string>(state.location.zoneName)
 
-  const finish = (status: 'granted' | 'manual', zoneName: string) => {
-    setLocation(status, zoneName)
-    nav('/', { replace: true })
+  const finish = async (status: 'granted' | 'manual', zoneName: string, center?: LatLng) => {
+    if (await setLocation(status, zoneName, center ?? zoneCenter(zoneName))) nav(from, { replace: true })
   }
 
   const ask = () => {
@@ -25,8 +26,8 @@ export function PermissionScreen() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         // Privacidad: redondeamos de inmediato a zona y descartamos el punto exacto. Nunca se registra.
-        roundToZone({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        finish('granted', 'Chapultepec') // mock: sin geocodificación inversa todavía
+        const center = roundToZone({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        void finish('granted', 'Mi zona', center)
       },
       () => setPhase('denied'),
       { maximumAge: 60_000, timeout: 10_000 },

@@ -1,5 +1,6 @@
 import { avatarColor, initials } from '@/lib/avatar'
 import { cn } from '@/lib/cn'
+import { useApp } from '@/app/store'
 
 const SIZES = { 34: 'size-[34px] text-caption', 40: 'size-10 text-meta', 44: 'size-11 text-sm', 48: 'size-12 text-base', 58: 'size-[58px] text-xl font-extrabold', 90: 'size-[90px] text-[26px] font-extrabold', 96: 'size-24 text-[32px] font-extrabold' } as const
 export type AvatarSize = keyof typeof SIZES
@@ -19,6 +20,8 @@ interface AvatarProps {
 
 /** Círculo con iniciales sobre un color de avatar estable por usuario. */
 export function Avatar({ userId, name, size = 44, online, paused, self, text, className }: AvatarProps) {
+  const { state } = useApp()
+  const photo = state.users[userId]?.photoUrl
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
       <span
@@ -31,7 +34,7 @@ export function Avatar({ userId, name, size = 44, online, paused, self, text, cl
         )}
         style={self || paused ? undefined : { background: avatarColor(userId) }}
       >
-        {text ?? initials(name)}
+        {photo && !text ? <img src={photo} alt="" className="size-full rounded-full object-cover" /> : text ?? initials(name)}
       </span>
       {online && (
         <span aria-hidden="true" className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-surface bg-success" />

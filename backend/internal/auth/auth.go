@@ -33,23 +33,37 @@ func CheckPassword(hash, password string) bool {
 }
 
 func (s *Service) Issue(userID string) (string, error) {
+	return s.IssueSession(userID, 0)
+}
+
+type sessionClaims struct {
+	jwt.RegisteredClaims
+	Version int `json:"version"`
+}
+
+func (s *Service) IssueSession(userID string, version int) (string, error) {
 	now := time.Now()
-	claims := jwt.RegisteredClaims{
+	claims := sessionClaims{Version: version, RegisteredClaims: jwt.RegisteredClaims{
 		Subject:   userID,
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(s.ttl)),
-	}
+	}}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(s.secret)
 }
 
 // Verify returns the user id (subject) of a valid token.
 func (s *Service) Verify(token string) (string, error) {
-	var claims jwt.RegisteredClaims
+	id, _, err := s.VerifySession(token)
+	return id, err
+}
+
+func (s *Service) VerifySession(token string) (string, int, error) {
+	var claims sessionClaims
 	_, err := jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (any, error) {
 		return s.secret, nil
 	}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
 	if err != nil || claims.Subject == "" {
-		return "", fmt.Errorf("%w", ErrInvalidToken)
+		return "", 0, fmt.Errorf("%w", ErrInvalidToken)
 	}
-	return claims.Subject, nil
+	return claims.Subject, claims.Version, nil
 }

@@ -150,8 +150,25 @@ should send `{"action":"nearby"}` to get the current state.
 - Location updates are not rate limited in code; throttle at API Gateway or in the client.
 - Presigned PUT URLs cannot enforce a maximum file size.
 - Fan-out is sequential per update. That is fine for small friend lists; revisit if lists grow large.
-- No automated tests yet.
+- The social feed currently loads its projection with DynamoDB Query; large deployments need zone/date partitioning and a paginated client feed.
 
 ## Build for AWS
 
 See `docs/INFRA_REQUESTS.md` for the exact commands and the Terraform changes needed.
+
+## Integrated frontend
+
+The React app in `../frontend/` now uses real authentication and persistent social
+actions. Run this local backend and `npm run dev` from `frontend/`. The local runner
+creates an additional social table with `pk`/`sk` keys and writes password reset
+emails to `.local/mail/`. It does not emulate S3 photo uploads.
+
+New endpoints: `GET /app/state`, `GET /app/user`, `POST /app/actions`,
+`POST /auth/forgot`, and `POST /auth/reset`. See
+[FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md) for actions and authorization
+rules, and [INFRA_REQUESTS.md](docs/INFRA_REQUESTS.md) for the social table and SES
+requirements. No Terraform files were changed.
+
+Nearby responses now round coordinates to 0.002 degrees. Exact positions are
+available only in the social state of active match participants. Password reset
+revokes earlier JWTs and WebSocket actions via `session_version`.

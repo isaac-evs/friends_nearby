@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Avatar, BottomSheet, Button, ButtonLink, Pill, useToast } from '@/design'
+import { Avatar, BottomSheet, Button, ButtonLink, Pill } from '@/design'
 import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
 import { formatAgo, formatApproxDistance, eventWhenShort } from '@/lib/format'
 import { useActions } from '@/app/store'
@@ -9,7 +9,6 @@ import type { MapItem } from './useMapData'
 export function SelectedSheet({ item, className }: { item: MapItem; className?: string }) {
   const { jalo } = useActions()
   const nav = useNavigate()
-  const toast = useToast()
 
   if (item.kind === 'event') {
     const e = item.event
@@ -51,9 +50,9 @@ export function SelectedSheet({ item, className }: { item: MapItem; className?: 
       <div className="grid grid-cols-2 gap-2">
         <ButtonLink to="/" variant="secondary" className="h-[46px] rounded-md text-sm">Ver plan</ButtonLink>
         {exact ? (
-          <Button className="h-[46px] rounded-md text-sm" onClick={() => toast(`Indicaciones a ${plan.meetPoint} (mock)`)}>Cómo llegar</Button>
+          <a className="flex h-[46px] items-center justify-center rounded-md bg-primary text-sm font-bold text-white" href={`https://www.google.com/maps/dir/?api=1&destination=${exact.lat},${exact.lng}`} target="_blank" rel="noreferrer">Cómo llegar</a>
         ) : (
-          <Button className="h-[46px] rounded-md text-sm" onClick={() => { const id = jalo(plan.id); if (id) nav(`/match/${id}`) }}>Jalo</Button>
+          <Button className="h-[46px] rounded-md text-sm" onClick={async () => { const id = await jalo(plan.id); if (id) nav(`/match/${id}`) }}>Jalo</Button>
         )}
       </div>
       {/* El círculo solo existe para amigos con zona aproximada: no aplica a eventos ni a un match exacto. */}

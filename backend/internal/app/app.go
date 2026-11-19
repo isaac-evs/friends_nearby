@@ -31,6 +31,7 @@ type App struct {
 	Pusher    ports.Pusher
 	Queue     ports.Queue
 	Presigner ports.Presigner
+	Mailer    ports.Mailer
 }
 
 // Out-of-band messages pushed to clients over WebSocket.
@@ -148,8 +149,12 @@ func (a *App) HandleLocation(ctx context.Context, userID string, loc models.Loca
 		if f == nil {
 			continue
 		}
+		blocked, err := a.Store.IsBlocked(ctx, userID, fid)
+		if err != nil {
+			return err
+		}
 		floc, ok := locs[fid]
-		present := ok && !f.GhostMode
+		present := ok && !f.GhostMode && !blocked
 		var dist float64
 		if present {
 			dist = location.DistanceM(loc, floc)
@@ -288,6 +293,17 @@ func (a *App) Snapshot(ctx context.Context, userID string) ([]NearbyFriend, erro
 		if u == nil || u.GhostMode {
 			continue
 		}
+		blocked, err := a.Store.IsBlocked(ctx, userID, id)
+		if err != nil {
+			return nil, err
+		}
+		f, err := a.Store.GetFriendship(ctx, userID, id)
+		if err != nil {
+			return nil, err
+		}
+		if blocked || f == nil || f.Status != models.StatusAccepted {
+			continue
+		}
 		fl, ok := locs[id]
 		if !ok {
 			continue
@@ -295,10 +311,20 @@ func (a *App) Snapshot(ctx context.Context, userID string) ([]NearbyFriend, erro
 		result = append(result, NearbyFriend{
 			PublicUser: a.Public(u),
 			DistanceM:  int(math.Round(location.DistanceM(*mine, fl))),
-			Location:   fl,
+			Location:   models.Location{Lat: math.Round(fl.Lat/0.002) * 0.002, Lng: math.Round(fl.Lng/0.002) * 0.002, TS: fl.TS},
 		})
 	}
 	return result, nil
+}
+
+// NotifyChange invalidates the projection on all of a user's active clients.
+func (a *App) NotifyChange(ctx context.Context, userID string) {
+	a.pushUser(ctx, userID, Message{Type: "state_changed"})
+}
+
+func (a *App) NotifyWave(ctx context.Context, userID string, from *models.User) {
+	p := a.Public(from)
+	a.pushUser(ctx, userID, Message{Type: "wave", Friend: &p})
 }
 
 // NotifyFriendRequest and NotifyFriendAccepted push in-app notifications.

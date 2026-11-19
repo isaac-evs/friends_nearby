@@ -1,13 +1,9 @@
-/**
- * Estado global del mock (sin backend). Reducer puro + acciones. Solo persistimos preferencias
- * no sensibles (sesión, zona elegida, modo fantasma, modo abierto, bloqueos): jamás coordenadas.
- */
-import { createContext, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react'
-import type {
-  Attendance, Audience, Event, EventAudience, EventType, Friendship, Match, Plan, PlanCategory, SwipeAction, User, XpEvent,
-} from '@/api/schemas'
-import { events as seedEvents, friendships as seedFriendships, plans as seedPlans, users as seedUsers, ME_ID } from '@/api/mock'
-import { MOCK_ORIGIN, offsetMeters, roundToZone, ZONE_RADIUS_M } from '@/lib/geo'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type { Attendance, Audience, Badge, Event, EventAudience, EventType, Friendship, Match, Plan, PlanCategory, SwipeAction, User, XpEvent } from '@/api/schemas'
+import { User as UserSchema } from '@/api/schemas'
+import type { LatLng } from '@/lib/geo'
+import { roundToZone } from '@/lib/geo'
+import { ApiError, getToken, normalizeState, request, setToken, WS_URL } from '@/api/client'
 
 export type LocationStatus = 'unknown' | 'granted' | 'denied' | 'manual'
 export interface OpenMode { enabled: boolean; adult: boolean; bigEvents: boolean; smallPlans: boolean }
@@ -18,8 +14,8 @@ export interface EventDraft {
 }
 
 export interface AppState {
-  session: { email: string } | null
-  location: { status: LocationStatus; zoneName: string }
+  session: { email: string; userId: string } | null
+  location: { status: LocationStatus; zoneName: string; center?: LatLng }
   ghost: boolean
   openMode: OpenMode
   xp: number
@@ -35,299 +31,232 @@ export interface AppState {
   blocks: string[]
   reports: { userId: string; reason: string }[]
   waved: string[]
+  exactLocations: Record<string, LatLng>
+  eventAttendees: Record<string, string[]>
+  pendingAttendees: Record<string, string[]>
+  badges: Badge[]
+  zonesCount: number
+  roomies: string[]
   eventDraft: EventDraft | null
 }
 
-const PERSIST_KEY = 'jalas.mock.v1'
-interface Persisted { session: AppState['session']; location: AppState['location']; ghost: boolean; openMode: OpenMode; blocks: string[] }
-
-function loadPersisted(): Partial<Persisted> {
-  try {
-    const raw = localStorage.getItem(PERSIST_KEY)
-    return raw ? (JSON.parse(raw) as Partial<Persisted>) : {}
-  } catch {
-    return {}
-  }
+export interface Actions {
+  toggleRoomie: (userId: string) => Promise<boolean>
+  signIn: (email: string, password: string, name?: string, username?: string) => Promise<boolean>
+  signOut: () => void
+  setLocation: (status: LocationStatus, zoneName: string, center?: LatLng) => Promise<boolean>
+  toggleGhost: () => Promise<boolean>
+  setOpenMode: (patch: Partial<OpenMode>) => Promise<boolean>
+  swipe: (kind: 'plan' | 'event', id: string, action: SwipeAction) => Promise<boolean>
+  resetSwipes: (kind: 'plan' | 'event') => Promise<boolean>
+  jalo: (planId: string) => Promise<string | null>
+  setQuickMessage: (matchId: string, message: string) => Promise<boolean>
+  confirmMeet: (matchId: string, who?: 'me') => Promise<boolean>
+  publishPlan: (input: { category: PlanCategory; line: string; durationMin: number; audience: Audience }) => Promise<Plan | null>
+  removePlan: (id: string) => Promise<boolean>
+  publishEvent: (draft: EventDraft) => Promise<Event | null>
+  saveDraft: (draft: EventDraft | null) => Promise<boolean>
+  joinEvent: (eventId: string, pace?: string) => Promise<boolean>
+  leaveEvent: (eventId: string) => Promise<boolean>
+  setPace: (eventId: string, pace: string) => Promise<boolean>
+  setFriendStatus: (userId: string, status: Friendship['status']) => Promise<boolean>
+  block: (userId: string) => Promise<boolean>
+  report: (userId: string, reason: string) => Promise<boolean>
+  wave: (userId: string) => Promise<boolean>
+  toggleRanking: () => Promise<boolean>
+  approveAttendance: (eventId: string, userId: string, approve: boolean) => Promise<boolean>
+  searchUser: (username: string) => Promise<void>
+  loadUser: (id: string) => Promise<boolean>
+  forgotPassword: (email: string) => Promise<boolean>
+  resetPassword: (token: string, password: string) => Promise<boolean>
+  uploadPhoto: (file: File) => Promise<boolean>
 }
-
-const keyOf = (kind: 'plan' | 'event', id: string) => `${kind}:${id}`
-const byId = <T extends { id: string }>(l: T[]) => Object.fromEntries(l.map((x) => [x.id, x]))
 
 export function initialState(): AppState {
-  const p = loadPersisted()
-  return {
-    session: p.session ?? null,
-    location: p.location ?? { status: 'unknown', zoneName: 'Chapultepec' },
-    ghost: p.ghost ?? false,
-    openMode: p.openMode ?? { enabled: false, adult: false, bigEvents: true, smallPlans: false },
-    xp: 340,
-    xpGoal: 500,
-    users: byId(seedUsers),
-    friendships: Object.fromEntries(seedFriendships.map((f) => [f.userId, f])),
-    plans: seedPlans,
-    events: seedEvents,
-    swipes: {},
-    matches: [],
-    attendances: [],
-    xpEvents: [],
-    blocks: p.blocks ?? [],
-    reports: [],
-    waved: [],
-    eventDraft: null,
-  }
+  return { session: null, location: { status: 'unknown', zoneName: 'Chapultepec' }, ghost: false,
+    openMode: { enabled: false, adult: false, bigEvents: true, smallPlans: false }, xp: 0, xpGoal: 500,
+    users: {}, friendships: {}, plans: [], events: [], swipes: {}, matches: [], attendances: [], xpEvents: [],
+    blocks: [], reports: [], waved: [], eventDraft: null, exactLocations: {}, eventAttendees: {}, pendingAttendees: {}, badges: [], zonesCount: 0, roomies: [] }
 }
-
-type Action =
-  | { type: 'signIn'; email: string; name?: string }
-  | { type: 'signOut' }
-  | { type: 'setLocation'; status: LocationStatus; zoneName: string }
-  | { type: 'toggleGhost' }
-  | { type: 'setOpenMode'; patch: Partial<OpenMode> }
-  | { type: 'swipe'; kind: 'plan' | 'event'; id: string; action: SwipeAction }
-  | { type: 'resetSwipes'; kind: 'plan' | 'event' }
-  | { type: 'jalo'; plan: Plan; match: Match }
-  | { type: 'quickMessage'; matchId: string; message: string }
-  | { type: 'confirmMeet'; matchId: string; who: 'me' | 'them' }
-  | { type: 'addPlan'; plan: Plan }
-  | { type: 'removePlan'; id: string }
-  | { type: 'addEvent'; event: Event }
-  | { type: 'saveDraft'; draft: EventDraft | null }
-  | { type: 'joinEvent'; eventId: string; pace?: string }
-  | { type: 'leaveEvent'; eventId: string }
-  | { type: 'setPace'; eventId: string; pace: string }
-  | { type: 'friendStatus'; userId: string; status: Friendship['status'] }
-  | { type: 'block'; userId: string }
-  | { type: 'report'; userId: string; reason: string }
-  | { type: 'wave'; userId: string }
-  | { type: 'toggleRanking' }
-
-function addXp(s: AppState, amount: number, reason: string): AppState {
-  let xp = s.xp + amount
-  let me = s.users[ME_ID]!
-  while (xp >= s.xpGoal) {
-    xp -= s.xpGoal
-    me = { ...me, level: me.level + 1 }
-  }
-  const ev: XpEvent = { id: `xp-${s.xpEvents.length + 1}`, amount, reason, at: new Date().toISOString() }
-  return { ...s, xp, users: { ...s.users, [ME_ID]: me }, xpEvents: [...s.xpEvents, ev] }
-}
-
-function reducer(s: AppState, a: Action): AppState {
-  switch (a.type) {
-    case 'signIn': {
-      const users = a.name ? { ...s.users, [ME_ID]: { ...s.users[ME_ID]!, name: a.name } } : s.users
-      return { ...s, users, session: { email: a.email } }
-    }
-    case 'signOut':
-      return { ...s, session: null }
-    case 'setLocation':
-      return { ...s, location: { status: a.status, zoneName: a.zoneName } }
-    case 'toggleGhost':
-      return { ...s, ghost: !s.ghost }
-    case 'setOpenMode':
-      return { ...s, openMode: { ...s.openMode, ...a.patch } }
-    case 'swipe':
-      return { ...s, swipes: { ...s.swipes, [keyOf(a.kind, a.id)]: a.action } }
-    case 'resetSwipes': {
-      // Solo se recupera lo descartado con "Paso"; lo guardado ("Luego") y lo ya jalado se conserva.
-      const swipes = Object.fromEntries(Object.entries(s.swipes).filter(([k, v]) => !(k.startsWith(`${a.kind}:`) && v === 'pass')))
-      return { ...s, swipes }
-    }
-    case 'jalo': {
-      if (s.matches.some((m) => m.planId === a.plan.id)) return s
-      return {
-        ...s,
-        swipes: { ...s.swipes, [keyOf('plan', a.plan.id)]: 'join' },
-        matches: [...s.matches, a.match],
-        plans: s.plans.map((p) => (p.id === a.plan.id ? { ...p, joinedCount: p.joinedCount + 1 } : p)),
-      }
-    }
-    case 'quickMessage':
-      return { ...s, matches: s.matches.map((m) => (m.id === a.matchId ? { ...m, quickMessage: a.message } : m)) }
-    case 'confirmMeet': {
-      let next: AppState = {
-        ...s,
-        matches: s.matches.map((m) =>
-          m.id === a.matchId ? { ...m, myConfirmed: a.who === 'me' ? true : m.myConfirmed, theirConfirmed: a.who === 'them' ? true : m.theirConfirmed } : m,
-        ),
-      }
-      const m = next.matches.find((x) => x.id === a.matchId)
-      // XP y racha solo cuando AMBOS confirman (brief).
-      if (m && m.myConfirmed && m.theirConfirmed && !m.rewarded) {
-        next = addXp({ ...next, matches: next.matches.map((x) => (x.id === m.id ? { ...x, rewarded: true } : x)) }, 20, 'Ya nos vimos')
-        const me = next.users[ME_ID]!
-        next = { ...next, users: { ...next.users, [ME_ID]: { ...me, streakWeeks: me.streakWeeks + 1, hangouts: me.hangouts + 1 } } }
-      }
-      return next
-    }
-    case 'addPlan':
-      return { ...s, plans: [a.plan, ...s.plans.filter((p) => p.authorId !== ME_ID)] }
-    case 'removePlan':
-      return { ...s, plans: s.plans.filter((p) => p.id !== a.id) }
-    case 'addEvent':
-      return { ...s, events: [a.event, ...s.events], eventDraft: null }
-    case 'saveDraft':
-      return { ...s, eventDraft: a.draft }
-    case 'joinEvent': {
-      const ev = s.events.find((e) => e.id === a.eventId)
-      if (!ev || s.attendances.some((x) => x.eventId === a.eventId)) return s
-      const pending = ev.requiresApproval
-      const att: Attendance = { eventId: a.eventId, pace: a.pace, joinedAt: new Date().toISOString(), status: pending ? 'pending' : 'going' }
-      const next = { ...s, attendances: [...s.attendances, att] }
-      return pending ? next : { ...next, events: s.events.map((e) => (e.id === ev.id ? { ...e, going: e.going + 1 } : e)) }
-    }
-    case 'leaveEvent': {
-      const att = s.attendances.find((x) => x.eventId === a.eventId)
-      if (!att) return s
-      return {
-        ...s,
-        attendances: s.attendances.filter((x) => x.eventId !== a.eventId),
-        events: att.status === 'going' ? s.events.map((e) => (e.id === a.eventId ? { ...e, going: Math.max(0, e.going - 1) } : e)) : s.events,
-      }
-    }
-    case 'setPace':
-      return { ...s, attendances: s.attendances.map((x) => (x.eventId === a.eventId ? { ...x, pace: a.pace } : x)) }
-    case 'friendStatus': {
-      const cur = s.friendships[a.userId]
-      const f: Friendship = cur ? { ...cur, status: a.status } : { userId: a.userId, status: a.status, mutualFriendIds: [], locationPaused: false }
-      return { ...s, friendships: { ...s.friendships, [a.userId]: f } }
-    }
-    case 'block':
-      return s.blocks.includes(a.userId) ? s : { ...s, blocks: [...s.blocks, a.userId] }
-    case 'report':
-      return { ...s, reports: [...s.reports, { userId: a.userId, reason: a.reason }] }
-    case 'wave':
-      return s.waved.includes(a.userId) ? s : { ...s, waved: [...s.waved, a.userId] }
-    case 'toggleRanking': {
-      const me = s.users[ME_ID]!
-      return { ...s, users: { ...s.users, [ME_ID]: { ...me, rankingOptIn: !me.rankingOptIn } } }
-    }
-  }
-}
-
-export interface Actions {
-  signIn: (email: string, name?: string) => void
-  signOut: () => void
-  setLocation: (status: LocationStatus, zoneName: string) => void
-  toggleGhost: () => void
-  setOpenMode: (patch: Partial<OpenMode>) => void
-  swipe: (kind: 'plan' | 'event', id: string, action: SwipeAction) => void
-  resetSwipes: (kind: 'plan' | 'event') => void
-  jalo: (planId: string) => string | null
-  setQuickMessage: (matchId: string, message: string) => void
-  confirmMeet: (matchId: string, who: 'me' | 'them') => void
-  publishPlan: (input: { category: PlanCategory; line: string; durationMin: number; audience: Audience }) => Plan
-  removePlan: (id: string) => void
-  publishEvent: (draft: EventDraft) => Event
-  saveDraft: (draft: EventDraft | null) => void
-  joinEvent: (eventId: string, pace?: string) => void
-  leaveEvent: (eventId: string) => void
-  setPace: (eventId: string, pace: string) => void
-  setFriendStatus: (userId: string, status: Friendship['status']) => void
-  block: (userId: string) => void
-  report: (userId: string, reason: string) => void
-  wave: (userId: string) => void
-  toggleRanking: () => void
-}
-
-interface Ctx { state: AppState; actions: Actions }
+interface Ctx { state: AppState; actions: Actions; loading: boolean; connected: boolean; error: string | null }
 const AppCtx = createContext<Ctx | null>(null)
 
 export function AppProvider({ children, initial }: { children: ReactNode; initial?: AppState }) {
-  const [state, dispatch] = useReducer(reducer, undefined, () => initial ?? initialState())
-  // Estado más reciente para acciones que lo leen sin volver a crear `actions`.
-  const stateRef = useRef(state)
-  stateRef.current = state
+  const [state, setState] = useState(initial ?? initialState)
+  const [loading, setLoading] = useState(!!getToken())
+  const [error, setError] = useState<string | null>(null)
+  const [connected, setConnected] = useState(false)
+  const [notification, setNotification] = useState<string | null>(null)
+  const stateRef = useRef(state); stateRef.current = state
+  const socket = useRef<WebSocket | null>(null)
+  const refreshNumber = useRef(0)
+  const extras = useRef<Record<string, User>>({})
+
+  const signOut = () => {
+    setToken(null); refreshNumber.current++; extras.current = {}; socket.current?.close(); setConnected(false)
+    setState(initialState()); setError(null); setLoading(false)
+  }
+  const handleError = (e: unknown) => {
+    if (e instanceof ApiError && e.status === 401) signOut()
+    setError(e instanceof Error ? e.message : 'No pudimos conectar con el servidor.')
+  }
+  const refresh = async () => {
+    const token = getToken(); if (!token) return
+    const seq = ++refreshNumber.current
+    const next = normalizeState(await request('/app/state'))
+    if (token !== getToken() || seq !== refreshNumber.current) return
+    const draft = next.eventDraft as EventDraft | null
+    setState({ ...next, eventDraft: draft, reports: [], users: { ...extras.current, ...next.users } })
+  }
+
+  const actions = useMemo<Actions>(() => {
+    const run = async (path: string, body?: unknown, method?: string) => {
+      try { setError(null); const data = await request<{ result?: unknown }>(path, body, method); await refresh(); return { ok: true, result: data.result } }
+      catch (e) { handleError(e); return { ok: false, result: undefined } }
+    }
+    const mutate = async (body: Record<string, unknown>) => (await run('/app/actions', body)).ok
+    return {
+      signOut,
+      signIn: async (email, password, name, username) => {
+        try {
+          setError(null)
+          const data = await request<{ token: string }>(name ? '/auth/register' : '/auth/login', { email, password, display_name: name, username })
+          extras.current = {}; setToken(data.token); await refresh(); return true
+        } catch (e) { handleError(e); return false }
+      },
+      forgotPassword: async email => {
+        try { await request('/auth/forgot', { email }); return true } catch (e) { handleError(e); return false }
+      },
+      resetPassword: async (token, password) => {
+        try { await request('/auth/reset', { token, password }); signOut(); return true } catch (e) { handleError(e); return false }
+      },
+      uploadPhoto: async file => {
+        try {
+          const data = await request<{ upload_url: string; key: string }>('/me/photo-upload-url', { content_type: file.type })
+          const res = await fetch(data.upload_url, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
+          if (!res.ok) throw new Error('No pudimos subir tu foto.')
+          return (await run('/me', { photo_key: data.key }, 'PATCH')).ok
+        } catch (e) { handleError(e); return false }
+      },
+      setLocation: (status, zoneName, center) => mutate({ type: 'setLocation', location: { status, zoneName, center: center ? roundToZone(center) : undefined } }),
+      toggleGhost: async () => (await run('/me', { ghost_mode: !stateRef.current.ghost }, 'PATCH')).ok,
+      setOpenMode: patch => mutate({ type: 'setOpenMode', openMode: { ...stateRef.current.openMode, ...patch } }),
+      toggleRanking: () => mutate({ type: 'toggleRanking' }),
+      toggleRoomie: userId => mutate({ type: 'toggleRoomie', userId }),
+      swipe: (kind, id, action) => mutate({ type: 'swipe', kind, id, action }),
+      resetSwipes: kind => mutate({ type: 'resetSwipes', kind }),
+      jalo: async id => { const r = await run('/app/actions', { type: 'jalo', id }); return r.ok && typeof r.result === 'string' ? r.result : null },
+      setQuickMessage: (id, message) => mutate({ type: 'quickMessage', id, message }),
+      confirmMeet: id => mutate({ type: 'confirmMeet', id }),
+      publishPlan: async input => { const r = await run('/app/actions', { type: 'publishPlan', ...input }); return r.ok ? r.result as Plan : null },
+      removePlan: id => mutate({ type: 'removePlan', id }),
+      publishEvent: async d => {
+        const dt = new Date(); dt.setDate(dt.getDate() + d.dayOffset)
+        const m = /^(\d+):(\d+)\s*(am|pm)$/i.exec(d.time)
+        if (!m) { setError('Selecciona una hora válida.'); return null }
+        dt.setHours(Number(m[1]) % 12 + (m[3]!.toLowerCase() === 'pm' ? 12 : 0), Number(m[2]), 0, 0)
+        const r = await run('/app/actions', { type: 'publishEvent', eventType: d.type, title: d.title, startsAt: dt.toISOString(), placeName: d.place, capacity: d.capacity, audience: d.audience, requiresApproval: d.requiresApproval })
+        return r.ok ? r.result as Event : null
+      },
+      saveDraft: draft => mutate({ type: 'saveDraft', draft }),
+      joinEvent: (id, pace) => mutate({ type: 'joinEvent', id, pace }),
+      leaveEvent: id => mutate({ type: 'leaveEvent', id }),
+      setPace: (id, pace) => mutate({ type: 'setPace', id, pace }),
+      approveAttendance: (id, userId, approve) => mutate({ type: approve ? 'approveAttendance' : 'rejectAttendance', id, userId }),
+      setFriendStatus: async (id, status) => {
+        if (status === 'requested_out') {
+          const username = stateRef.current.users[id]?.handle.replace(/^@/, '')
+          return (await run('/friends/requests', { username })).ok
+        }
+        return (await run(`/friends/${encodeURIComponent(id)}${status === 'friends' ? '/accept' : ''}`, status === 'friends' ? {} : undefined, status === 'friends' ? 'POST' : 'DELETE')).ok
+      },
+      block: async userId => { const ok = await mutate({ type: 'block', userId }); if (ok) { delete extras.current[userId]; await refresh() }; return ok },
+      report: (userId, reason) => mutate({ type: 'report', userId, reason }),
+      wave: userId => mutate({ type: 'wave', userId }),
+      searchUser: async username => {
+        try {
+          const result = await request(`/app/user?username=${encodeURIComponent(username.replace(/^@/, ''))}`)
+          const user = UserSchema.parse(result); extras.current[user.id] = user
+          setState(s => ({ ...s, users: { ...s.users, [user.id]: user } }))
+        } catch (e) { if (!(e instanceof ApiError && e.status === 404)) handleError(e) }
+      },
+      loadUser: async id => {
+        try {
+          const result = await request(`/app/user?id=${encodeURIComponent(id)}`)
+          const user = UserSchema.parse(result); extras.current[user.id] = user
+          setState(s => ({ ...s, users: { ...s.users, [user.id]: user } })); return true
+        } catch (e) { if (!(e instanceof ApiError && e.status === 404)) handleError(e); return false }
+      },
+    }
+  // Functions use refs so socket/polling callbacks keep the current session.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
-    const p: Persisted = { session: state.session, location: state.location, ghost: state.ghost, openMode: state.openMode, blocks: state.blocks }
-    try { localStorage.setItem(PERSIST_KEY, JSON.stringify(p)) } catch { /* sin storage: seguimos en memoria */ }
-  }, [state.session, state.location, state.ghost, state.openMode, state.blocks])
-
-  const actions = useMemo<Actions>(() => ({
-    signIn: (email, name) => dispatch({ type: 'signIn', email, name }),
-    signOut: () => dispatch({ type: 'signOut' }),
-    setLocation: (status, zoneName) => dispatch({ type: 'setLocation', status, zoneName }),
-    toggleGhost: () => dispatch({ type: 'toggleGhost' }),
-    setOpenMode: (patch) => dispatch({ type: 'setOpenMode', patch }),
-    swipe: (kind, id, action) => dispatch({ type: 'swipe', kind, id, action }),
-    resetSwipes: (kind) => dispatch({ type: 'resetSwipes', kind }),
-    jalo: (planId) => {
-      const plan = stateRef.current.plans.find((p) => p.id === planId)
-      if (!plan) return null
-      const id = `match-${planId}`
-      const created = new Date()
-      // Ubicación exacta compartida como máximo 1 h o hasta que expire el plan.
-      const until = Math.min(created.getTime() + 60 * 60_000, new Date(plan.expiresAt).getTime())
-      const match: Match = {
-        id, planId, friendId: plan.authorId, createdAt: created.toISOString(), exactShareUntil: new Date(until).toISOString(),
-        meetPoint: plan.meetPoint, quickMessage: null, myConfirmed: false, theirConfirmed: false, rewarded: false,
-      }
-      dispatch({ type: 'jalo', plan, match })
-      return id
-    },
-    setQuickMessage: (matchId, message) => dispatch({ type: 'quickMessage', matchId, message }),
-    confirmMeet: (matchId, who) => dispatch({ type: 'confirmMeet', matchId, who }),
-    publishPlan: ({ category, line, durationMin, audience }) => {
-      const now = Date.now()
-      const origin = zoneForName(stateRef.current.location.zoneName)
-      const plan: Plan = {
-        id: `plan-me-${now}`, authorId: ME_ID, category, line, expiresAt: new Date(now + durationMin * 60_000).toISOString(),
-        audience, joinedCount: 0, zoneUpdatedAt: new Date(now).toISOString(), meetPoint: stateRef.current.location.zoneName,
-        // Zona aproximada: centro redondeado, nunca el punto exacto.
-        zone: { name: stateRef.current.location.zoneName, center: roundToZone(origin), radiusM: ZONE_RADIUS_M, approxDistanceM: 0 },
-      }
-      dispatch({ type: 'addPlan', plan })
-      return plan
-    },
-    removePlan: (id) => dispatch({ type: 'removePlan', id }),
-    publishEvent: (d) => {
-      const day = new Date()
-      day.setDate(day.getDate() + d.dayOffset)
-      const m = /(\d+):(\d+)\s*(am|pm)/i.exec(d.time)
-      let h = m ? Number(m[1]) : 17
-      if (m && m[3]!.toLowerCase() === 'pm' && h < 12) h += 12
-      if (m && m[3]!.toLowerCase() === 'am' && h === 12) h = 0
-      day.setHours(h, m ? Number(m[2]) : 0, 0, 0)
-      const ev: Event = {
-        id: `evt-me-${Date.now()}`, type: d.type, subtype: '', title: d.title.trim() || 'Evento sin nombre', startsAt: day.toISOString(),
-        placeName: d.place.trim() || 'Lugar público', center: roundToZone(offsetMeters(MOCK_ORIGIN, 300, 300)), approxDistanceM: 500,
-        capacity: d.capacity, going: 1, organizer: { name: 'Tú', verified: false, eventsCount: 1 }, audience: d.audience,
-        requiresApproval: d.requiresApproval, friendsGoingIds: [], xp: 40,
-      }
-      dispatch({ type: 'addEvent', event: ev })
-      return ev
-    },
-    saveDraft: (draft) => dispatch({ type: 'saveDraft', draft }),
-    joinEvent: (eventId, pace) => dispatch({ type: 'joinEvent', eventId, pace }),
-    leaveEvent: (eventId) => dispatch({ type: 'leaveEvent', eventId }),
-    setPace: (eventId, pace) => dispatch({ type: 'setPace', eventId, pace }),
-    setFriendStatus: (userId, status) => dispatch({ type: 'friendStatus', userId, status }),
-    block: (userId) => dispatch({ type: 'block', userId }),
-    report: (userId, reason) => dispatch({ type: 'report', userId, reason }),
-    wave: (userId) => dispatch({ type: 'wave', userId }),
-    toggleRanking: () => dispatch({ type: 'toggleRanking' }),
+    let active = true
+    if (getToken()) refresh().catch(handleError).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [])
+  }, [])
 
-  const value = useMemo(() => ({ state, actions }), [state, actions])
-  return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
-}
+  useEffect(() => {
+    if (!state.session) return
+    let stopped = false; let retry: number | undefined; let attempts = 0
+    const connect = () => {
+      const token = getToken(); if (!token || stopped) return
+      const url = new URL(WS_URL); url.searchParams.set('token', token)
+      const ws = new WebSocket(url); socket.current = ws
+      ws.onopen = () => { attempts = 0; setConnected(true); ws.send(JSON.stringify({ action: 'nearby' })); void refresh().catch(handleError) }
+      ws.onmessage = e => {
+        try { const data = JSON.parse(e.data); if (data.type === 'error') setError(data.error); else { if (data.type === 'wave') setNotification(`${data.friend.display_name} te saludó`); if (data.type !== 'pong') void refresh().catch(handleError) } } catch { /* ignore malformed frames */ }
+      }
+      ws.onclose = () => { setConnected(false); if (!stopped) retry = window.setTimeout(connect, Math.min(30_000, 1000 * 2 ** attempts++)) }
+      ws.onerror = () => ws.close()
+    }
+    connect()
+    const poll = window.setInterval(() => { if (!document.hidden) void refresh().catch(handleError); if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify({ action: 'ping' })) }, 10_000)
+    const visible = () => { if (!document.hidden) void refresh().catch(handleError) }
+    document.addEventListener('visibilitychange', visible)
+    return () => { stopped = true; clearTimeout(retry); clearInterval(poll); socket.current?.close(); socket.current = null; document.removeEventListener('visibilitychange', visible) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.session?.userId])
 
-const ZONE_OFFSETS: Record<string, [number, number]> = {
-  Chapultepec: [0, 0], Providencia: [424, 680], Colomos: [-1008, 1256], ITESO: [800, -552], Centro: [-2500, 600], Andares: [-3000, 1800],
-}
-function zoneForName(name: string) {
-  const [e, n] = ZONE_OFFSETS[name] ?? [0, 0]
-  return offsetMeters(MOCK_ORIGIN, e, n)
-}
+  useEffect(() => {
+    if (!state.session || state.location.status !== 'granted' || state.ghost || !navigator.geolocation) return
+    let watch: number | undefined; let heartbeat: number | undefined; let lastSent = 0
+    const start = () => {
+      if (watch !== undefined) navigator.geolocation.clearWatch(watch)
+      clearInterval(heartbeat)
+      watch = undefined
+      if (document.hidden) return
+      const share = (pos: GeolocationPosition) => {
+        // Exact position is sent to the authenticated backend and never persisted
+        // in browser storage. Only the rounded zone enters React state.
+        const ws = socket.current
+        if (!document.hidden && ws?.readyState === WebSocket.OPEN && Date.now() - lastSent >= 5000) {
+          lastSent = Date.now(); ws.send(JSON.stringify({ action: 'location', lat: pos.coords.latitude, lng: pos.coords.longitude }))
+          const center = roundToZone({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+          setState(s => ({ ...s, location: { ...s.location, center } }))
+        }
+      }
+      const denied = () => setError('No pudimos obtener tu ubicación. Revisa el permiso del navegador.')
+      const options = { enableHighAccuracy: true, maximumAge: 15_000, timeout: 15_000 }
+      watch = navigator.geolocation.watchPosition(share, denied, options)
+      heartbeat = window.setInterval(() => { if (!document.hidden) navigator.geolocation.getCurrentPosition(share, denied, options) }, 30_000)
+    }
+    start(); document.addEventListener('visibilitychange', start)
+    return () => { if (watch !== undefined) navigator.geolocation.clearWatch(watch); clearInterval(heartbeat); document.removeEventListener('visibilitychange', start) }
+  }, [state.session?.userId, state.location.status, state.ghost, connected])
 
-export function useApp(): Ctx {
-  const c = useContext(AppCtx)
-  if (!c) throw new Error('useApp fuera de <AppProvider>')
-  return c
+  return <AppCtx.Provider value={{ state, actions, loading, connected, error }}>
+    {notification && <div role="status" className="sticky top-0 z-50 flex justify-between bg-surface p-3"><span>{notification}</span><button onClick={() => setNotification(null)} aria-label="Cerrar saludo">×</button></div>}
+    {error && <div role="alert" className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-surface px-5 py-3 text-sm text-danger">
+      <span>{error}</span><button type="button" onClick={() => { setError(null); if (getToken()) { setLoading(true); void refresh().catch(handleError).finally(() => setLoading(false)) } }}>Reintentar</button>
+      <button type="button" aria-label="Cerrar aviso" onClick={() => setError(null)}>×</button>
+    </div>}
+    {loading ? <p role="status" className="p-6">Cargando tu cuenta…</p> : children}
+  </AppCtx.Provider>
 }
-
-/** Alias cómodo. */
+export function useApp() { const c = useContext(AppCtx); if (!c) throw new Error('useApp fuera de AppProvider'); return c }
 export const useActions = () => useApp().actions
-export function useMe(): User { return useApp().state.users[ME_ID]! }
+export const useMe = () => useApp().state.users.me!

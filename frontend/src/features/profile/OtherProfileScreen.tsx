@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Activity, Hand, MoreHorizontal, Send, UserPlus } from 'lucide-react'
 import { Avatar, AvatarStack, Button, ModalSheet, Notice, Pill, useToast } from '@/design'
@@ -13,12 +13,15 @@ const REASONS = ['Spam o cuenta falsa', 'Acoso o mensajes ofensivos', 'Contenido
 export function OtherProfileScreen() {
   const { id } = useParams()
   const { state } = useApp()
-  const { setFriendStatus, wave, block, report } = useActions()
+  const { setFriendStatus, wave, block, report, toggleRoomie, loadUser } = useActions()
   const toast = useToast()
   const nav = useNavigate()
   const [menu, setMenu] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => { let active = true; setLoaded(false); if (id) void loadUser(id).finally(() => { if (active) setLoaded(true) }); return () => { active = false } }, [id, loadUser])
   const u = id ? state.users[id] : undefined
+  if (!u && !loaded) return <p role="status" className="p-6">Cargando perfil…</p>
   if (!u || u.id === 'me' || state.blocks.includes(u.id)) return <Navigate to="/amigos" replace />
 
   const fs = state.friendships[u.id]
@@ -40,7 +43,7 @@ export function OtherProfileScreen() {
 
       {menu && (
         <div role="menu" className="absolute top-[84px] right-[22px] z-20 flex w-[200px] flex-col rounded-lg border border-line bg-surface p-1 shadow-md">
-          <button type="button" role="menuitem" onClick={() => { block(u.id); toast(`Bloqueaste a ${first}`); nav('/amigos', { replace: true }) }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold">Bloquear a {first}</button>
+          <button type="button" role="menuitem" onClick={async () => { if (await block(u.id)) { toast(`Bloqueaste a ${first}`); nav('/amigos', { replace: true }) } }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold">Bloquear a {first}</button>
           <button type="button" role="menuitem" onClick={() => { setMenu(false); setReporting(true) }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold text-danger">Reportar perfil</button>
         </div>
       )}
@@ -88,7 +91,7 @@ export function OtherProfileScreen() {
       <div className="sticky bottom-0 border-t border-line bg-surface px-[22px] pt-3.5 pb-[22px] lg:rounded-xl lg:border lg:px-6 lg:pt-4 lg:pb-4 lg:shadow-lg">
         {status === 'none' && (
           <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-            <Button variant="secondary" size="lg" className={cn('text-[15px] font-bold', waved && 'bg-cat-comer')} onClick={() => { wave(u.id); toast(`Saludaste a ${first}`) }} icon={<Hand aria-hidden="true" size={18} />}>{waved ? '¡Saludado!' : 'Saludar'}</Button>
+            <Button variant="secondary" size="lg" className={cn('text-[15px] font-bold', waved && 'bg-cat-comer')} onClick={async () => { if (await wave(u.id)) toast(`Saludaste a ${first}`) }} icon={<Hand aria-hidden="true" size={18} />}>{waved ? '¡Saludado!' : 'Saludar'}</Button>
             <Button size="lg" className="text-[15px] font-bold" onClick={() => setFriendStatus(u.id, 'requested_out')} icon={<UserPlus aria-hidden="true" size={18} />}>Agregar amigo</Button>
           </div>
         )}
@@ -101,14 +104,14 @@ export function OtherProfileScreen() {
         )}
         {status === 'requested_in' && (
           <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-            <Button variant="secondary" size="lg" className="text-[15px] font-bold" onClick={() => { setFriendStatus(u.id, 'none'); nav('/amigos') }}>Rechazar</Button>
-            <Button size="lg" className="text-[15px] font-bold" onClick={() => { setFriendStatus(u.id, 'friends'); toast(`${first} ya es tu amigo`) }}>Aceptar solicitud</Button>
+            <Button variant="secondary" size="lg" className="text-[15px] font-bold" onClick={async () => { if (await setFriendStatus(u.id, 'none')) nav('/amigos') }}>Rechazar</Button>
+            <Button size="lg" className="text-[15px] font-bold" onClick={async () => { if (await setFriendStatus(u.id, 'friends')) toast(`${first} ya es tu amigo`) }}>Aceptar solicitud</Button>
           </div>
         )}
         {status === 'friends' && (
           <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
             <Pill tone="muted" className="h-[54px] justify-center rounded-lg text-sm">Ya son amigos</Pill>
-            <Button size="lg" className="text-[15px] font-bold" onClick={() => { wave(u.id); toast(`Saludaste a ${first}`) }} icon={<Hand aria-hidden="true" size={18} />}>{waved ? '¡Saludado!' : 'Saludar'}</Button>
+            <Button size="lg" className="text-[15px] font-bold" onClick={async () => { if (await wave(u.id)) toast(`Saludaste a ${first}`) }} icon={<Hand aria-hidden="true" size={18} />}>{waved ? '¡Saludado!' : 'Saludar'}</Button>
           </div>
         )}
       </div>
@@ -117,11 +120,12 @@ export function OtherProfileScreen() {
         <ul className="flex flex-col">
           {REASONS.map((r) => (
             <li key={r}>
-              <button type="button" className="flex min-h-12 w-full items-center border-b border-surface-sunken text-left text-[15px] font-bold" onClick={() => { report(u.id, r); setReporting(false); toast('Gracias, revisamos tu reporte') }}>{r}</button>
+              <button type="button" className="flex min-h-12 w-full items-center border-b border-surface-sunken text-left text-[15px] font-bold" onClick={async () => { if (await report(u.id, r)) { setReporting(false); toast('Gracias, recibimos tu reporte') } }}>{r}</button>
             </li>
           ))}
         </ul>
       </ModalSheet>
+      {status === 'friends' && <Button variant="secondary" className="mx-5 mb-5" onClick={() => toggleRoomie(u.id)}>{state.roomies.includes(u.id) ? 'Quitar de roomies' : 'Marcar como roomie'}</Button>}
     </div>
   )
 }

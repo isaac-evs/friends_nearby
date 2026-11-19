@@ -7,6 +7,7 @@ import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
 import { circlePolygon, MOCK_ORIGIN, ZONE_RADIUS_M } from '@/lib/geo'
 import { formatApproxDistance } from '@/lib/format'
 import tokens from '../../../docs/design/tokens.json'
+import { useApp } from '@/app/store'
 import { itemPoint, type MapItem } from './useMapData'
 
 /**
@@ -39,6 +40,8 @@ export default function MapView({
   attribution?: 'bottom-right' | 'bottom-left'
   attributionStyle?: CSSProperties
 }) {
+  const { state } = useApp()
+  const origin = state.location.center ?? MOCK_ORIGIN
   const ref = useRef<MapRef>(null)
   const first = useRef(true)
 
@@ -74,7 +77,7 @@ export default function MapView({
   }, [selectedId])
 
   const recenter = () =>
-    ref.current?.flyTo({ center: [MOCK_ORIGIN.lng, MOCK_ORIGIN.lat], zoom: START_ZOOM, padding, duration: reduced() ? 0 : 700 })
+    ref.current?.flyTo({ center: [origin.lng, origin.lat], zoom: START_ZOOM, padding, duration: reduced() ? 0 : 700 })
 
   const btn = 'flex size-11 items-center justify-center rounded-md border border-line bg-surface shadow-md'
 
@@ -82,7 +85,7 @@ export default function MapView({
     <div className="absolute inset-0">
       <Map
         ref={ref}
-        initialViewState={{ longitude: MOCK_ORIGIN.lng, latitude: MOCK_ORIGIN.lat, zoom: START_ZOOM, padding }}
+        initialViewState={{ longitude: origin.lng, latitude: origin.lat, zoom: START_ZOOM, padding }}
         mapStyle={MAP_STYLE}
         attributionControl={false}
         style={{ width: '100%', height: '100%' }}
@@ -98,7 +101,7 @@ export default function MapView({
           <Layer id="zones-line" type="line" paint={{ 'line-color': tokens.color.primary, 'line-width': 2, 'line-dasharray': [2, 2] }} />
         </Source>
 
-        <Marker longitude={MOCK_ORIGIN.lng} latitude={MOCK_ORIGIN.lat} anchor="center" style={{ zIndex: 1 }}>
+        <Marker longitude={origin.lng} latitude={origin.lat} anchor="center" style={{ zIndex: 1 }}>
           <MeMarker />
         </Marker>
 

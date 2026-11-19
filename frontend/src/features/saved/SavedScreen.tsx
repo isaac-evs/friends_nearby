@@ -59,7 +59,7 @@ export function SavedScreen() {
                       <p className="text-sm font-bold">{p.line}</p>
                       <div className="flex gap-2">
                         <Button variant="secondary" className="h-11 flex-1 rounded-md text-sm" aria-label={`Quitar plan de ${u.name}`} onClick={() => swipe('plan', p.id, 'pass')}>Quitar</Button>
-                        {!over && <Button className="h-11 flex-1 rounded-md text-sm" aria-label={`Jalo con ${u.name}`} onClick={() => { const id = jalo(p.id); if (id) nav(`/match/${id}`) }}>Jalo</Button>}
+                        {!over && <Button className="h-11 flex-1 rounded-md text-sm" aria-label={`Jalo con ${u.name}`} onClick={async () => { const id = await jalo(p.id); if (id) nav(`/match/${id}`) }}>Jalo</Button>}
                       </div>
                     </li>
                   )

@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
 import type { Event, Plan, User } from '@/api/schemas'
 import type { LatLng } from '@/lib/geo'
-import { getExactLocation } from '@/api/mock/server'
 import { useApp } from '@/app/store'
-import { ME_ID } from '@/api/mock'
+import { ME_ID } from '@/api/constants'
 
 export interface MapFriend { kind: 'friend'; id: string; plan: Plan; user: User; zoneCenter: LatLng; exact: LatLng | null }
 export interface MapEventItem { kind: 'event'; id: string; event: Event }
@@ -29,7 +28,7 @@ export function useMapItems(filter: MapFilter, query: string): MapItem[] {
         const user = state.users[plan.authorId]
         if (!user || fs?.status !== 'friends' || fs.locationPaused || state.blocks.includes(user.id)) continue
         if (q && !`${user.name} ${plan.line}`.toLowerCase().includes(q)) continue
-        out.push({ kind: 'friend', id: plan.id, plan, user, zoneCenter: plan.zone.center, exact: getExactLocation(user.id, state.matches, now) })
+        out.push({ kind: 'friend', id: plan.id, plan, user, zoneCenter: plan.zone.center, exact: (state.matches.some(m => m.friendId === user.id && new Date(m.exactShareUntil).getTime() > now) ? state.exactLocations[user.id] ?? null : null) })
       }
     }
     if (filter !== 'amigos' && state.openMode.enabled) {
@@ -39,7 +38,7 @@ export function useMapItems(filter: MapFilter, query: string): MapItem[] {
       }
     }
     return out
-  }, [state.plans, state.friendships, state.users, state.blocks, state.matches, state.events, state.openMode.enabled, filter, query])
+  }, [state.plans, state.friendships, state.users, state.blocks, state.matches, state.events, state.openMode.enabled, state.exactLocations, filter, query])
 }
 
 /** Punto que se dibuja para un elemento: exacto solo con match, si no el centro de la zona. */

@@ -85,7 +85,7 @@ func New(t *testing.T) *Env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		for _, name := range []string{cfg.UsersTable, cfg.FriendshipsTable, cfg.ConnectionsTable} {
+		for _, name := range []string{cfg.UsersTable, cfg.FriendshipsTable, cfg.ConnectionsTable, store.New(db, cfg).SocialTable()} {
 			_, _ = db.DeleteTable(context.Background(), &dynamodb.DeleteTableInput{TableName: aws.String(name)})
 		}
 	})

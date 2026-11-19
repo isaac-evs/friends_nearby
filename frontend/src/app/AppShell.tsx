@@ -10,14 +10,15 @@ const TAB_ROUTES = ['/', '/mapa', '/publicar', '/amigos', '/perfil']
 export function RequireAuth() {
   const { state } = useApp()
   const loc = useLocation()
-  if (!state.session) return <Navigate to="/entrar" replace state={{ from: loc.pathname }} />
+  if (!state.session) return <Navigate to="/entrar" replace state={{ from: loc.pathname + loc.search }} />
   return <Outlet />
 }
 
 /** Guard: sin decisión de ubicación → /permiso (la zona manual también cuenta como decisión). */
 export function RequireLocation() {
   const { state } = useApp()
-  if (state.location.status === 'unknown') return <Navigate to="/permiso" replace />
+  const loc = useLocation()
+  if (state.location.status === 'unknown') return <Navigate to="/permiso" replace state={{ from: loc.pathname + loc.search }} />
   return <Outlet />
 }
 

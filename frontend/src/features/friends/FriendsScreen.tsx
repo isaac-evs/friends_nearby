@@ -1,20 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import { Link } from 'react-router-dom'
 import { Check, Link2, QrCode, Search, X } from 'lucide-react'
 import { Avatar, Button, ModalSheet, Pill, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
-import { ME_ID } from '@/api/mock'
+import { ME_ID } from '@/api/constants'
 import { PLAN_CATEGORIES } from '@/lib/category'
 import { formatAgo, formatApproxDistance } from '@/lib/format'
-
-const MY_LINK = 'https://jalas.app/u/alan' // propuesta: dominio y ruta aún sin definir
 
 /** Pantalla 7: Amigos — buscar por @usuario, link/QR, solicitudes y cercanos. */
 export function FriendsScreen() {
   const { state } = useApp()
-  const { setFriendStatus } = useActions()
+  const { setFriendStatus, searchUser } = useActions()
+  const myLink = `${window.location.origin}/amigos?usuario=${encodeURIComponent(state.users.me!.handle.replace(/^@/, ''))}`
+  const [qrImage, setQrImage] = useState('')
   const toast = useToast()
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(new URLSearchParams(window.location.search).get('usuario') ?? '')
   const [qr, setQr] = useState(false)
 
   const visible = (id: string) => !state.blocks.includes(id)
@@ -23,10 +24,12 @@ export function FriendsScreen() {
   const paused = Object.values(state.friendships).filter((f) => f.status === 'friends' && f.locationPaused && visible(f.userId))
 
   const term = q.trim().toLowerCase().replace(/^@/, '')
+  useEffect(() => { if (term.length < 3) return; const timer = window.setTimeout(() => { void searchUser(term) }, 350); return () => clearTimeout(timer) }, [term, searchUser])
+  useEffect(() => { let active = true; void QRCode.toDataURL(myLink, { width: 256, margin: 2 }).then(url => { if (active) setQrImage(url) }); return () => { active = false } }, [myLink])
   const results = term.length < 2 ? [] : Object.values(state.users).filter((u) => u.id !== ME_ID && visible(u.id) && (u.handle.toLowerCase().includes(term) || u.name.toLowerCase().includes(term)))
 
   const copyLink = async () => {
-    try { await navigator.clipboard.writeText(MY_LINK); toast('Link copiado') } catch { toast('No pudimos copiar el link') }
+    try { await navigator.clipboard.writeText(myLink); toast('Link copiado') } catch { toast('No pudimos copiar el link') }
   }
 
   return (
@@ -53,7 +56,7 @@ export function FriendsScreen() {
                 {st === 'friends' && <Pill tone="muted">Amigos</Pill>}
                 {st === 'requested_out' && <Pill tone="muted">Solicitud enviada</Pill>}
                 {st === 'requested_in' && <Button className="h-11 rounded-[12px] px-3.5 text-sm" onClick={() => setFriendStatus(u.id, 'friends')}>Aceptar</Button>}
-                {st === 'none' && <Button className="h-11 rounded-[12px] px-3.5 text-sm" onClick={() => { setFriendStatus(u.id, 'requested_out'); toast(`Solicitud enviada a ${u.name}`) }}>Agregar</Button>}
+                {st === 'none' && <Button className="h-11 rounded-[12px] px-3.5 text-sm" onClick={async () => { if (await setFriendStatus(u.id, 'requested_out')) toast(`Solicitud enviada a ${u.name}`) }}>Agregar</Button>}
               </div>
             )
           })}
@@ -78,7 +81,7 @@ export function FriendsScreen() {
                   <span className="text-caption text-muted">{u.handle} · {r.mutualFriendIds.length} {r.mutualFriendIds.length === 1 ? 'amigo' : 'amigos'} en común</span>
                 </div>
                 <button type="button" aria-label={`Rechazar a ${u.name}`} onClick={() => setFriendStatus(u.id, 'none')} className="flex size-11 flex-none items-center justify-center rounded-[12px] border border-line bg-surface"><X aria-hidden="true" size={18} strokeWidth={2.4} /></button>
-                <button type="button" aria-label={`Aceptar a ${u.name}`} onClick={() => { setFriendStatus(u.id, 'friends'); toast(`${u.name} ya es tu amigo`) }} className="flex h-11 flex-none items-center gap-1 rounded-[12px] bg-primary px-3.5 text-sm font-bold text-white"><Check aria-hidden="true" size={16} strokeWidth={2.6} />Aceptar</button>
+                <button type="button" aria-label={`Aceptar a ${u.name}`} onClick={async () => { if (await setFriendStatus(u.id, 'friends')) toast(`${u.name} ya es tu amigo`) }} className="flex h-11 flex-none items-center gap-1 rounded-[12px] bg-primary px-3.5 text-sm font-bold text-white"><Check aria-hidden="true" size={16} strokeWidth={2.6} />Aceptar</button>
               </div>
             )
           })}
@@ -128,10 +131,8 @@ export function FriendsScreen() {
 
       <ModalSheet open={qr} title="Mi QR" onClose={() => setQr(false)}>
         <div className="flex flex-col items-center gap-3 py-2">
-          <div aria-hidden="true" className="grid size-48 grid-cols-9 gap-px rounded-md border border-line bg-white p-3">
-            {Array.from({ length: 81 }, (_, i) => <span key={i} className={((i * 7 + (i % 9) * 3) % 5 < 2) ? 'bg-ink' : 'bg-transparent'} />)}
-          </div>
-          <p className="text-center text-caption text-muted">Vista previa (mock): el QR real se genera con el link <strong className="text-ink">{MY_LINK}</strong> cuando haya backend.</p>
+          {qrImage && <img src={qrImage} alt="Código QR de mi enlace de amistad" width={256} height={256} />}
+          <p className="break-all text-center text-caption text-muted">{myLink}</p>
         </div>
       </ModalSheet>
     </div>

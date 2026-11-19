@@ -16,6 +16,9 @@ const (
 )
 
 type Config struct {
+	SocialTable      string
+	MailFrom         string
+	FrontendURL      string
 	UsersTable       string
 	FriendshipsTable string
 	ConnectionsTable string
@@ -43,6 +46,9 @@ type Config struct {
 // through the require list, so the worker does not demand API-only settings.
 func Load(require ...string) (*Config, error) {
 	c := &Config{
+		SocialTable:      os.Getenv("SOCIAL_TABLE"),
+		MailFrom:         os.Getenv("MAIL_FROM"),
+		FrontendURL:      envOr("FRONTEND_URL", "http://localhost:5173"),
 		UsersTable:       os.Getenv("USERS_TABLE"),
 		FriendshipsTable: os.Getenv("FRIENDSHIPS_TABLE"),
 		ConnectionsTable: os.Getenv("CONNECTIONS_TABLE"),

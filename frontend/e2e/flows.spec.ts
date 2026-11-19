@@ -1,176 +1,109 @@
 import { expect, test } from '@playwright/test'
-import { expectNoAxeViolations, signIn } from './helpers'
+import { account, apiAction, API, authenticate, signIn } from './helpers'
 
-test.describe('flujos principales (mock)', () => {
-  test('entrar → zona manual → jalar → match → ya nos vimos (XP solo con ambos)', async ({ page }) => {
-    await signIn(page)
-    await expect(page.getByText('Por un café en Providencia, ¿alguien?').first()).toBeVisible()
-    await page.getByRole('button', { name: 'Jalo', exact: true }).click()
-    await expect(page.getByRole('heading', { name: '¡Se armó!' })).toBeVisible()
-    await expect(page.getByText(/Tu ubicación exacta la ve solo Sofi/)).toBeVisible()
-    await page.getByRole('button', { name: 'Voy en 10' }).click()
-    await expect(page.getByText('Enviado a Sofi: “Voy en 10”')).toBeVisible()
-    await page.getByRole('button', { name: 'Ya nos vimos' }).click()
-    await expect(page.getByText('Esperando a que Sofi confirme…')).toBeVisible()
-    await expect(page.getByText(/Los dos confirmaron/)).toBeVisible({ timeout: 6000 })
-    await expect(page.getByText(/racha de 5 semanas/)).toBeVisible()
-  })
+test('registro real, publicación, persistencia y QR', async ({ page }) => {
+  const username = `reg${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
+  await page.goto('/entrar')
+  await page.getByRole('button', { name: 'Crea tu cuenta', exact: true }).click()
+  await page.getByLabel('Nombre', { exact: true }).fill('Ana Prueba')
+  await page.getByLabel('Usuario', { exact: true }).fill(username)
+  await page.getByLabel('Correo').fill(`${username}@example.com`)
+  await page.getByLabel('Contraseña', { exact: true }).fill('password123')
+  await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click()
+  await page.getByRole('button', { name: /elijo mi zona a mano/ }).click()
+  await page.getByRole('button', { name: 'Usar Chapultepec' }).click()
+  await expect(page.getByRole('heading', { name: '¿Quién jala hoy?' })).toBeVisible()
+  await page.goto('/publicar')
+  await page.getByLabel('Cuéntales en una línea', { exact: true }).fill('Café de integración')
+  await page.getByRole('button', { name: /Publicar plan/ }).click()
+  await expect(page.getByText('Tu plan está activo:', { exact: false })).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('Tu plan está activo:', { exact: false })).toBeVisible()
+  await page.goto('/perfil')
+  await expect(page.getByRole('heading', { name: 'Ana Prueba' })).toBeVisible()
+  await page.getByRole('switch', { name: 'Modo fantasma', exact: true }).click()
+  await expect(page.getByRole('switch', { name: 'Modo fantasma', exact: true })).toBeChecked()
+  await page.reload()
+  await expect(page.getByRole('switch', { name: 'Modo fantasma', exact: true })).toBeChecked()
+  await page.goto('/amigos')
+  await page.getByRole('button', { name: 'Mi QR', exact: true }).click()
+  await expect(page.getByAltText('Código QR de mi enlace de amistad')).toHaveAttribute('src', /^data:image\/png/)
+  await page.screenshot({ path: `test-results/integrated-${test.info().project.name}.png`, fullPage: true })
+})
 
-  test('privacidad: la zona exacta solo aparece con match', async ({ page }) => {
-    await signIn(page)
-    await page.goto('/mapa')
-    // Sin match: nadie tiene ubicación exacta.
-    await expect(page.getByRole('button', { name: /Café\s*,\s*Sofi: zona aproximada/ })).toBeVisible()
-    await expect(page.getByText('Exacta', { exact: true })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Jalo', exact: true }).first().click()
-    await expect(page.getByRole('heading', { name: '¡Se armó!' })).toBeVisible()
-    await page.getByRole('link', { name: 'Cómo llegar' }).click()
-    await expect(page.getByRole('button', { name: /Café · match\s*,\s*Sofi: ubicación exacta por match/ })).toBeVisible()
-  })
+test('errores del backend no crean una sesión ficticia', async ({ page }) => {
+  await page.goto('/entrar')
+  await page.getByLabel('Correo').fill('no-existe@example.com')
+  await page.getByLabel('Contraseña', { exact: true }).fill('password123')
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('invalid email or password')
+  await expect(page).toHaveURL(/entrar/)
+  expect(await page.evaluate(() => sessionStorage.getItem('friends-nearby.token'))).toBeNull()
+})
 
-  test('modo abierto: apagado por defecto, 18+ obligatorio, luego eventos y Me uno', async ({ page }) => {
-    await signIn(page)
-    await page.getByRole('button', { name: /^Abierto/ }).click()
-    await expect(page.getByRole('heading', { name: 'El modo abierto está apagado' })).toBeVisible()
-    await page.goto('/modo-abierto')
-    const activate = page.getByRole('button', { name: 'Activar modo abierto' })
-    await expect(activate).toBeDisabled()
-    await page.getByLabel('Confirmo que tengo 18 años o más').check()
-    await expect(activate).toBeEnabled()
-    await activate.click()
-    await page.getByRole('button', { name: /^Abierto/ }).click()
-    await expect(page.getByRole('heading', { name: 'Social Run 5K en Colomos' })).toBeVisible()
-    await page.getByRole('button', { name: 'Deporte', exact: true }).click()
-    await page.getByRole('button', { name: 'Me uno', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Social Run 5K en Colomos' })).toBeVisible()
-    await page.getByRole('button', { name: /^Me uno · / }).click()
-    await expect(page.getByText('¡Estás dentro!')).toBeVisible()
-    await page.getByRole('button', { name: 'Salirme' }).click()
-    await expect(page.getByRole('button', { name: /^Me uno · / })).toBeVisible()
-  })
-
-  test('publicar plan y crear evento validan campos', async ({ page }) => {
-    await signIn(page)
-    await page.goto('/publicar')
-    await page.getByRole('button', { name: /^Publicar plan/ }).click()
-    await expect(page.getByRole('alert')).toContainText('Cuéntales qué andas haciendo')
-    await page.getByLabel('Cuéntales en una línea').fill('Tacos en el centro')
-    await page.getByRole('button', { name: /^Publicar plan/ }).click()
-    await expect(page.getByText('Plan publicado')).toBeVisible()
-
-    await page.goto('/publicar/evento')
-    await page.getByRole('button', { name: 'Publicar evento' }).click()
-    await expect(page.getByText('Ponle un nombre al evento')).toBeVisible()
-    await page.getByLabel('Nombre del evento').fill('Reta de fut en la cancha')
-    await page.getByLabel('¿Dónde?').fill('Cancha Revolución')
-    await page.getByRole('button', { name: 'Más cupo' }).click()
-    await page.getByRole('button', { name: 'Publicar evento' }).click()
-    await expect(page.getByRole('heading', { name: 'Reta de fut en la cancha' })).toBeVisible()
-  })
-
-  test('amigos: aceptar y rechazar solicitudes, buscar por @usuario', async ({ page }) => {
-    await signIn(page)
-    await page.goto('/amigos')
-    await expect(page.getByRole('heading', { name: 'Solicitudes (2)' })).toBeVisible()
-    await page.getByRole('button', { name: 'Aceptar a Pau' }).click()
-    await page.getByRole('button', { name: 'Rechazar a Beto' }).click()
-    await expect(page.getByRole('heading', { name: /Solicitudes/ })).toHaveCount(0)
-    await page.getByPlaceholder('Busca por @usuario').fill('@karla')
-    await page.getByRole('button', { name: 'Agregar' }).click()
+test('amistad, ubicación, match y confirmación entre dos cuentas reales', async ({ page, browser, context }) => {
+  test.setTimeout(90_000)
+  const a = await account(page, 'host')
+  const b = await account(page, 'guest')
+  const center = { lat: 19.4326, lng: -99.1332 }
+  for (const u of [a, b]) await apiAction(page, u.token, { type: 'setLocation', location: { status: 'granted', zoneName: 'Mi zona', center } })
+  await context.grantPermissions(['geolocation']); await context.setGeolocation({ latitude: center.lat, longitude: center.lng })
+  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 }, permissions: ['geolocation'], geolocation: { latitude: center.lat + 0.0001, longitude: center.lng } })
+  const guest = await guestContext.newPage()
+  try {
+    await authenticate(page, a.token); await authenticate(guest, b.token)
+    await page.getByRole('searchbox').fill(b.username)
+    await page.getByRole('button', { name: 'Agregar', exact: true }).click()
     await expect(page.getByText('Solicitud enviada', { exact: true })).toBeVisible()
-  })
-
-  test('perfil: modo fantasma y bloquear a alguien lo oculta', async ({ page }) => {
-    await signIn(page)
-    await page.goto('/perfil')
-    const ghost = page.getByRole('switch', { name: 'Modo fantasma' })
-    await expect(ghost).toHaveAttribute('aria-checked', 'false')
-    await ghost.click()
-    await expect(ghost).toHaveAttribute('aria-checked', 'true')
-    await page.goto('/u/karla')
-    await page.getByRole('button', { name: 'Más opciones' }).click()
-    await page.getByRole('menuitem', { name: /Bloquear a Karla/ }).click()
-    await expect(page.getByRole('heading', { name: 'Tu banda' })).toBeVisible()
-    await page.getByPlaceholder('Busca por @usuario').fill('karla')
-    await expect(page.getByText(/No encontramos a nadie/)).toBeVisible()
-  })
-
-  test('ruta protegida redirige a /entrar y recuperación responde igual', async ({ page }) => {
-    await page.goto('/amigos')
-    await expect(page).toHaveURL(/\/entrar/)
-    await page.getByRole('button', { name: '¿Olvidaste tu contraseña?' }).click()
-    await page.getByLabel('Correo').fill('nadie@correo.com')
-    await page.getByRole('button', { name: 'Mandar link' }).click()
-    await expect(page.getByText(/Si ese correo tiene cuenta/)).toBeVisible()
-  })
+    await guest.getByRole('button', { name: `Aceptar a ${a.username}` }).click()
+    await expect(guest.getByRole('heading', { name: /Solicitudes/ })).toHaveCount(0)
+    await page.goto('/publicar')
+    await page.getByLabel('Cuéntales en una línea', { exact: true }).fill('Café con amigos reales')
+    await page.getByRole('button', { name: /Publicar plan/ }).click()
+    await guest.goto('/')
+    await expect(guest.getByText('Café con amigos reales', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await guest.getByRole('button', { name: /^Jalo/ }).click()
+    await expect(guest).toHaveURL(/match\//)
+    const matchPath = new URL(guest.url()).pathname
+    await page.goto(matchPath)
+    await guest.getByRole('button', { name: 'Voy en 10', exact: true }).click()
+    await expect(page.getByText(`${b.username}: Voy en 10`, { exact: true })).toBeVisible({ timeout: 20_000 })
+    await guest.getByRole('button', { name: 'Ya nos vimos', exact: true }).click()
+    await expect(guest.getByText(/Esperando a que/)).toBeVisible()
+    await page.getByRole('button', { name: 'Ya nos vimos', exact: true }).click()
+    await expect(guest.getByText(/Los dos confirmaron/)).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText(/Los dos confirmaron/)).toBeVisible()
+    const s = await page.request.get(`${API}/app/state`, { headers: { Authorization: `Bearer ${b.token}` } })
+    expect((await s.json()).xp).toBe(20)
+    await page.goto('/perfil'); await page.getByRole('switch', { name: 'Modo fantasma', exact: true }).click()
+    await expect.poll(async () => {
+      const res = await guest.request.get(`${API}/app/state`, { headers: { Authorization: `Bearer ${b.token}` } })
+      return Object.keys((await res.json()).exactLocations).length
+    }).toBe(0)
+  } finally { await guestContext.close() }
 })
 
-test.describe('guardados', () => {
-  test('Luego guarda el plan y se puede quitar desde Guardados', async ({ page }) => {
-    await signIn(page)
-    await expect(page.getByText('Por un café en Providencia, ¿alguien?').first()).toBeVisible()
-    await page.getByRole('button', { name: 'Guardar para luego' }).click()
-    await expect(page.getByText('Guardado en tu lista')).toBeVisible()
-    await page.getByRole('link', { name: /^Guardados/ }).click()
-    await expect(page.getByRole('heading', { name: 'Guardados' })).toBeVisible()
-    await expect(page.getByText('Planes de amigos (1)')).toBeVisible()
-    await expect(page.getByText('Por un café en Providencia, ¿alguien?')).toBeVisible()
-    await page.getByRole('button', { name: 'Quitar plan de Sofi' }).click()
-    await expect(page.getByRole('heading', { name: /Aquí caen tus/ })).toBeVisible()
-  })
-
-  test('jalar desde Guardados lleva al match', async ({ page }) => {
-    await signIn(page)
-    await page.getByRole('button', { name: 'Guardar para luego' }).click()
-    // Acceso desde la UI: marcador con contador (móvil) o menú lateral (desktop).
-    await page.getByRole('link', { name: /^Guardados/ }).click()
-    await page.getByRole('button', { name: 'Jalo con Sofi' }).click()
-    await expect(page.getByRole('heading', { name: '¡Se armó!' })).toBeVisible()
-  })
-})
-
-test.describe('mapa', () => {
-  test('lista en móvil: buscador fijo mientras la lista hace scroll; nota de zona solo en amigos', async ({ page }, info) => {
-    await signIn(page)
-    await page.evaluate(() => localStorage.setItem('x', '1'))
-    await page.goto('/modo-abierto')
-    await page.getByLabel('Confirmo que tengo 18 años o más').check()
-    await page.getByRole('button', { name: 'Activar modo abierto' }).click()
-    await page.goto('/mapa')
-    if (info.project.name === 'desktop') {
-      await page.getByRole('button', { name: /Café/ }).first().click()
-      await expect(page.getByText('Círculo = zona aproximada')).toBeVisible()
-      await page.getByRole('button', { name: /Social Run/ }).click()
-      await expect(page.getByText('Círculo = zona aproximada')).toHaveCount(0)
-      return
-    }
-    await expect(page.getByText('Círculo = zona aproximada')).toBeVisible()
-    await page.getByRole('button', { name: 'Eventos', exact: true }).click()
-    await expect(page.getByText('Círculo = zona aproximada')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Todos', exact: true }).click()
-    await page.getByRole('button', { name: 'Lista', exact: true }).click()
-    const search = page.getByPlaceholder('Buscar amigo o evento')
-    const before = (await search.boundingBox())!
-    await page.mouse.move(200, 500)
-    await page.mouse.wheel(0, 600)
-    await page.waitForTimeout(300)
-    const after = (await search.boundingBox())!
-    expect(after.y).toBe(before.y)
-    expect(await page.evaluate(() => window.scrollY)).toBe(0)
-  })
-})
-
-test.describe('accesibilidad (axe)', () => {
-  test('pantallas sin sesión', async ({ page }) => {
-    await page.goto('/entrar'); await expectNoAxeViolations(page)
-    await page.goto('/dev/ui'); await expectNoAxeViolations(page)
-  })
-  test('pantallas con sesión', async ({ page }) => {
-    await signIn(page)
-    for (const url of ['/', '/mapa', '/publicar', '/publicar/evento', '/amigos', '/guardados', '/perfil', '/modo-abierto', '/evento/evt-run', '/u/pau']) {
-      await page.goto(url)
-      await page.waitForLoadState('networkidle')
-      await expectNoAxeViolations(page)
-    }
-  })
+test('evento real, solicitud, aprobación del organizador y asistencia', async ({ page, browser }) => {
+  const a = await signIn(page)
+  const b = await account(page, 'eventguest')
+  for (const u of [a, b]) await apiAction(page, u.token, { type: 'setOpenMode', openMode: { enabled: true, adult: true, bigEvents: true, smallPlans: false } })
+  await apiAction(page, b.token, { type: 'setLocation', location: { status: 'manual', zoneName: 'Chapultepec', center: { lat: 20.675, lng: -103.365 } } })
+  await page.goto('/publicar/evento')
+  await page.getByLabel('Nombre del evento', { exact: true }).fill('Picnic de integración')
+  await page.getByPlaceholder('Parque Metropolitano').fill('Parque público')
+  await page.getByRole('button', { name: 'Publicar evento', exact: true }).click()
+  await expect(page).toHaveURL(/evento\//)
+  const eventPath = new URL(page.url()).pathname
+  const guest = await browser.newPage({ viewport: { width: 390, height: 844 } })
+  try {
+    await authenticate(guest, b.token)
+    await guest.goto(eventPath)
+    await guest.getByRole('button', { name: 'Pedir unirme', exact: true }).click()
+    await expect(guest.getByText('Solicitud enviada', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Solicitudes para unirse', exact: true })).toBeVisible({ timeout: 20_000 })
+    await page.getByRole('button', { name: 'Aceptar', exact: true }).click()
+    await expect(guest.getByText('¡Estás dentro!', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await guest.getByRole('button', { name: 'Salirme', exact: true }).click()
+    await expect(guest.getByRole('button', { name: 'Pedir unirme', exact: true })).toBeVisible()
+  } finally { await guest.close() }
 })

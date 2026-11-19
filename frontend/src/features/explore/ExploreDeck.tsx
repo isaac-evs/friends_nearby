@@ -34,10 +34,10 @@ export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => voi
       : open ? 'sin eventos nuevos' : 'sin planes nuevos'
   useEffect(() => { onInfo?.({ counter, mode }) }, [counter, mode, onInfo])
 
-  const doSwipe = (dir: SwipeDir) => {
+  const doSwipe = async (dir: SwipeDir) => {
     if (!current) return
     if (current.kind === 'plan') {
-      if (dir === 'right') { const id = jalo(current.plan.id); if (id) nav(`/match/${id}`) }
+      if (dir === 'right') { const id = await jalo(current.plan.id); if (id) nav(`/match/${id}`) }
       else { swipe('plan', current.plan.id, dir === 'left' ? 'pass' : 'later'); if (dir === 'up') toast('Guardado en tu lista') }
     } else if (dir === 'right') nav(`/evento/${current.event.id}`)
     else { swipe('event', current.event.id, dir === 'left' ? 'pass' : 'later'); if (dir === 'up') toast('Guardado en tu lista') }

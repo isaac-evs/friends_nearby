@@ -38,14 +38,15 @@ export function CreateEventScreen() {
 
   const draft = (): EventDraft => ({ type, title, dayOffset, time, place, capacity, audience: aud, requiresApproval: approve })
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     const next: typeof errors = {}
     if (title.trim().length < 3) next.title = 'Ponle un nombre al evento (mínimo 3 letras).'
     if (place.trim().length < 3) next.place = 'Dinos el lugar público (parque, plaza, café, cancha).'
     setErrors(next)
     if (Object.keys(next).length || blocked) return
-    const ev = publishEvent(draft())
+    const ev = await publishEvent(draft())
+    if (!ev) return
     toast('Evento publicado')
     nav(`/evento/${ev.id}`)
   }
@@ -135,7 +136,7 @@ export function CreateEventScreen() {
       </div>
 
       <div className="sticky bottom-0 z-30 -mx-5 mt-auto grid grid-cols-[1fr_1.6fr] gap-2.5 border-t border-line bg-surface px-5 pt-3.5 pb-6 lg:col-span-2 lg:mx-0 lg:mt-4 lg:max-w-[620px] lg:rounded-xl lg:border lg:px-4 lg:pb-3.5 lg:shadow-lg">
-        <Button variant="secondary" pill size="md" onClick={() => { saveDraft(draft()); toast('Borrador guardado') }}>Guardar borrador</Button>
+        <Button variant="secondary" pill size="md" onClick={async () => { if (await saveDraft(draft())) toast('Borrador guardado') }}>Guardar borrador</Button>
         <Button type="submit" pill size="md" disabled={blocked} className="shadow-primary">Publicar evento</Button>
       </div>
     </form>

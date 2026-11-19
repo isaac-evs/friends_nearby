@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { Event, Plan } from '@/api/schemas'
-import { ME_ID } from '@/api/mock'
+import { ME_ID } from '@/api/constants'
 import { useApp } from '@/app/store'
 import { EVENT_TYPES, type EventGroup } from '@/lib/category'
 
@@ -25,7 +25,7 @@ export function useDeck(mode: Mode, type: TypeFilter): Deck {
     if (mode === 'amigos') {
       const all = state.plans.filter((p) => {
         const fs = state.friendships[p.authorId]
-        return p.authorId !== ME_ID && fs?.status === 'friends' && !state.blocks.includes(p.authorId) && new Date(p.expiresAt).getTime() > now
+        return p.authorId !== ME_ID && fs?.status === 'friends' && !fs.locationPaused && !state.blocks.includes(p.authorId) && new Date(p.expiresAt).getTime() > now
       })
       const remaining = all.filter((p) => !state.swipes[`plan:${p.id}`]).map((plan) => ({ kind: 'plan' as const, plan }))
       return { total: all.length, remaining, gated: false }

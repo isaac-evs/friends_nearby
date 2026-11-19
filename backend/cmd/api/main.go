@@ -17,6 +17,7 @@ import (
 	"github.com/isaac-evs/friends_nearby/backend/internal/awsadapters"
 	"github.com/isaac-evs/friends_nearby/backend/internal/config"
 	"github.com/isaac-evs/friends_nearby/backend/internal/location"
+	"github.com/isaac-evs/friends_nearby/backend/internal/ports"
 	"github.com/isaac-evs/friends_nearby/backend/internal/store"
 )
 
@@ -39,6 +40,10 @@ func main() {
 	}
 
 	s3 := awsadapters.NewS3(awsCfg, cfg.MediaBucket, "")
+	var mailer ports.Mailer
+	if cfg.MailFrom != "" {
+		mailer = awsadapters.SESMailer{Config: awsCfg, From: cfg.MailFrom}
+	}
 	h := &api.Handler{App: &app.App{
 		Cfg:       cfg,
 		Auth:      auth.New(cfg.JWTSecret, cfg.JWTTTL),
@@ -47,6 +52,7 @@ func main() {
 		Pusher:    awsadapters.NewWSPusher(awsCfg, cfg.WSManagementURL),
 		Queue:     awsadapters.NewSQSQueue(awsCfg, cfg.EventsQueueURL),
 		Presigner: s3,
+		Mailer:    mailer,
 	}}
 	lambda.Start(h.Handle)
 }

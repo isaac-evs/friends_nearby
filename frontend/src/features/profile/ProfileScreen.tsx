@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Activity, Check, ChevronRight, Compass, Flame, Settings, Star, Sun, Users } from 'lucide-react'
 import { Avatar, Button, ModalSheet, ProgressBar, ToggleRow } from '@/design'
 import { useActions, useApp } from '@/app/store'
-import { SEED_BADGES } from '@/api/mock'
 import { cn } from '@/lib/cn'
 
 const BADGE_ICONS = { star: Star, sun: Sun, compass: Compass, users: Users, activity: Activity, flame: Flame }
@@ -11,7 +10,7 @@ const BADGE_ICONS = { star: Star, sun: Sun, compass: Compass, users: Users, acti
 /** Pantalla 8: Mi perfil. */
 export function ProfileScreen() {
   const { state } = useApp()
-  const { toggleGhost, toggleRanking, signOut } = useActions()
+  const { toggleGhost, toggleRanking, signOut, uploadPhoto } = useActions()
   const nav = useNavigate()
   const [settings, setSettings] = useState(false)
   const me = state.users.me!
@@ -19,7 +18,7 @@ export function ProfileScreen() {
 
   const ranking = Object.values(state.users)
     .filter((u) => (u.id === 'me' ? me.rankingOptIn : u.rankingOptIn && state.friendships[u.id]?.status === 'friends' && !state.blocks.includes(u.id)))
-    .map((u) => (u.id === 'me' ? { ...u, weeklyXp: u.weeklyXp + state.xpEvents.reduce((a, x) => a + x.amount, 0) } : u))
+
     .sort((a, b) => b.weeklyXp - a.weeklyXp)
     .slice(0, 3)
 
@@ -29,7 +28,7 @@ export function ProfileScreen() {
       <header className="flex items-center gap-3.5">
         <Avatar userId="me" name={me.name} size={58} self />
         <div className="flex flex-1 flex-col gap-0.5">
-          <h1 className="text-2xl font-extrabold">{me.name}</h1>
+          <h1 className="text-2xl font-extrabold">{me.name}</h1><span className="text-caption text-muted">{me.handle}</span>
           <span className="self-start rounded-full border border-line bg-cat-comer px-[9px] py-px text-caption font-bold">Nivel {me.level} · {me.levelTitle ?? 'Social de barrio'}</span>
         </div>
         <button type="button" aria-label="Ajustes" onClick={() => setSettings(true)} className="flex size-11 flex-none items-center justify-center rounded-full border border-line bg-surface"><Settings aria-hidden="true" size={20} /></button>
@@ -42,14 +41,14 @@ export function ProfileScreen() {
 
       <div className="grid grid-cols-3 gap-2">
         <Stat tile="bg-accent" icon={<Flame aria-hidden="true" size={20} strokeWidth={2.2} />} value={`${me.streakWeeks} sem`} label="racha" shadow />
-        <Stat tile="bg-cat-musica" icon={<Check aria-hidden="true" size={20} strokeWidth={2.2} />} value={String(me.hangouts)} label="jales este mes" />
-        <Stat tile="bg-cat-estudiar" icon={<Compass aria-hidden="true" size={20} strokeWidth={2.2} />} value="5" label="zonas" />
+        <Stat tile="bg-cat-musica" icon={<Check aria-hidden="true" size={20} strokeWidth={2.2} />} value={String(me.hangouts)} label="jales confirmados" />
+        <Stat tile="bg-cat-estudiar" icon={<Compass aria-hidden="true" size={20} strokeWidth={2.2} />} value={String(state.zonesCount)} label="zonas" />
       </div>
 
       <section aria-label="Insignias" className="flex flex-col gap-2">
         <h2 className="text-meta font-bold">Insignias</h2>
         <ul className="grid grid-cols-3 gap-2">
-          {SEED_BADGES.map((b) => {
+          {state.badges.map((b) => {
             const Icon = BADGE_ICONS[b.icon]
             return (
               <li key={b.id} className={cn('flex flex-col items-center gap-1 rounded-lg p-2 text-center', b.earned ? 'border border-line bg-surface' : 'border-[1.5px] border-dashed border-line-dashed')}>
@@ -97,6 +96,9 @@ export function ProfileScreen() {
       <ModalSheet open={settings} title="Ajustes" onClose={() => setSettings(false)}>
         <div className="flex flex-col gap-2.5">
           <p className="text-sm text-muted">Sesión: {state.session?.email}</p>
+          <label className="flex min-h-11 items-center text-sm font-bold">Cambiar foto
+            <input aria-label="Cambiar foto" type="file" accept="image/jpeg,image/png,image/webp" className="ml-3 min-w-0" onChange={e => { const file = e.target.files?.[0]; if (file) void uploadPhoto(file); e.target.value = '' }} />
+          </label>
           <Button variant="secondary" full onClick={() => { signOut(); nav('/entrar') }}>Cerrar sesión</Button>
         </div>
       </ModalSheet>

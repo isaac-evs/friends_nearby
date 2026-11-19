@@ -32,7 +32,7 @@ export function MapList({ items, emptyHint, onLocate, selectedId }: { items: Map
             <div className="flex gap-2">
               {onLocate && <Button variant="secondary" className="h-11 flex-1 rounded-md text-sm" onClick={() => onLocate(it.id)}>Ver en el mapa</Button>}
               {!it.exact && (
-                <Button className="h-11 flex-1 rounded-md text-sm" onClick={() => { const id = jalo(it.plan.id); if (id) nav(`/match/${id}`) }}>Jalo</Button>
+                <Button className="h-11 flex-1 rounded-md text-sm" onClick={async () => { const id = await jalo(it.plan.id); if (id) nav(`/match/${id}`) }}>Jalo</Button>
               )}
             </div>
           </li>

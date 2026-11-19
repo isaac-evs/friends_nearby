@@ -4,46 +4,50 @@ import { ArrowLeft } from 'lucide-react'
 import { Button, Field, Logo, Notice, Pill } from '@/design'
 import { useActions } from '@/app/store'
 
-type Mode = 'login' | 'registro' | 'recuperar'
+type Mode = 'login' | 'registro' | 'recuperar' | 'reset'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Pantalla 1: Entrar / Registro / Olvidé mi contraseña (mismo lenguaje visual). */
 export function AuthScreen() {
-  const [mode, setMode] = useState<Mode>('login')
+  const resetToken = new URLSearchParams(window.location.search).get('reset')
+  const [mode, setMode] = useState<Mode>(resetToken ? 'reset' : 'login')
+  const [username, setUsername] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({})
+  const [errors, setErrors] = useState<{ name?: string; username?: string; email?: string; password?: string }>({})
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  const { signIn } = useActions()
+  const { signIn, forgotPassword, resetPassword } = useActions()
   const nav = useNavigate()
   const loc = useLocation()
   const from = (loc.state as { from?: string } | null)?.from ?? '/'
 
   const go = (m: Mode) => { setMode(m); setErrors({}); setSent(false) }
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     const next: typeof errors = {}
     if (mode === 'registro' && name.trim().length < 2) next.name = 'Dinos cómo te llamas (mínimo 2 letras).'
-    if (!EMAIL_RE.test(email)) next.email = 'Revisa tu correo: debe verse como tu@correo.com.'
+    if (mode === 'registro' && !/^[a-z0-9_]{3,20}$/.test(username)) next.username = 'Usa de 3 a 20 letras minúsculas, números o guion bajo.'
+    if (mode !== 'reset' && !EMAIL_RE.test(email)) next.email = 'Revisa tu correo: debe verse como tu@correo.com.'
     if (mode !== 'recuperar' && password.length < 8) next.password = 'Usa al menos 8 caracteres.'
     setErrors(next)
     if (Object.keys(next).length) return
     setLoading(true)
-    // Mock de red. Recuperar responde igual exista o no el correo (no revela cuentas).
-    window.setTimeout(() => {
-      setLoading(false)
-      if (mode === 'recuperar') { setSent(true); return }
-      signIn(email, mode === 'registro' ? name.trim() : undefined)
-      nav(from, { replace: true })
-    }, 500)
+    try {
+      if (mode === 'recuperar') { if (await forgotPassword(email)) setSent(true); return }
+      if (mode === 'reset') {
+        if (await resetPassword(resetToken!, password)) { window.history.replaceState({}, '', '/entrar'); setMode('login'); setPassword('') }
+        return
+      }
+      if (await signIn(email, password, mode === 'registro' ? name.trim() : undefined, username)) nav(from, { replace: true })
+    } finally { setLoading(false) }
   }
 
-  const title = mode === 'login' ? ['Tus amigos cerca.', 'Tus planes, ya.'] : mode === 'registro' ? ['Crea tu cuenta.', 'Y a jalar.'] : ['¿Olvidaste', 'tu contraseña?']
-  const sub = mode === 'login' ? 'Mira qué andan haciendo y únete con un swipe.' : mode === 'registro' ? 'Solo tu nombre y tu correo. Tu ubicación nunca sale de tu zona.' : 'Escribe tu correo y te mandamos un link para crear una nueva.'
+  const title = mode === 'login' ? ['Tus amigos cerca.', 'Tus planes, ya.'] : mode === 'registro' ? ['Crea tu cuenta.', 'Y a jalar.'] : mode === 'reset' ? ['Crea tu nueva', 'contraseña.'] : ['¿Olvidaste', 'tu contraseña?']
+  const sub = mode === 'login' ? 'Mira qué andan haciendo y únete con un swipe.' : mode === 'registro' ? 'Elige tu usuario para que tus amigos te encuentren.' : mode === 'reset' ? 'Usa al menos 8 caracteres.' : 'Escribe tu correo y te mandamos un link para crear una nueva.'
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col gap-6 px-6 pt-10 pb-7 lg:grid lg:max-w-[1120px] lg:grid-cols-2 lg:items-center lg:gap-x-20 lg:px-10">
@@ -78,7 +82,8 @@ export function AuthScreen() {
           {mode === 'registro' && (
             <Field label="Nombre" autoComplete="given-name" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
           )}
-          <Field label="Correo" type="email" autoComplete="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />
+          {mode === 'registro' && <Field label="Usuario" autoComplete="username" placeholder="tu_usuario" value={username} onChange={e => setUsername(e.target.value.toLowerCase())} error={errors.username} />}
+          {mode !== 'reset' && <Field label="Correo" type="email" autoComplete="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />}
           {mode !== 'recuperar' && (
             <Field
               label="Contraseña" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
@@ -91,7 +96,7 @@ export function AuthScreen() {
             </button>
           )}
           <Button type="submit" variant="dark" size="lg" pill full loading={loading}>
-            {mode === 'login' ? 'Entrar' : mode === 'registro' ? 'Crear cuenta' : 'Mandar link'}
+            {mode === 'login' ? 'Entrar' : mode === 'registro' ? 'Crear cuenta' : mode === 'reset' ? 'Guardar contraseña' : 'Mandar link'}
           </Button>
         </form>
       )}

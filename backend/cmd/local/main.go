@@ -76,6 +76,7 @@ func main() {
 		Pusher:    hub,
 		Queue:     queue,
 		Presigner: awsadapters.NewS3(awsCfg, cfg.MediaBucket, ""),
+		Mailer:    localMailer{},
 	}}
 
 	srv := &http.Server{Addr: ":8080", Handler: &server{h: handler, hub: hub}}
@@ -359,6 +360,19 @@ func (q *localQueue) run(ctx context.Context) {
 
 // fileSink replaces S3 for the worker.
 type fileSink struct{ dir string }
+
+type localMailer struct{}
+
+func (localMailer) SendReset(_ context.Context, email, link string) error {
+	if err := os.MkdirAll(".local/mail", 0700); err != nil {
+		return err
+	}
+	body, err := json.Marshal(map[string]string{"to": email, "reset_url": link})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(".local/mail", uuid.NewString()+".json"), body, 0600)
+}
 
 func (f fileSink) Put(_ context.Context, key string, body []byte) error {
 	path := filepath.Join(f.dir, filepath.FromSlash(key))

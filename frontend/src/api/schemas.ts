@@ -1,6 +1,5 @@
 /**
- * Contratos del frontend (Zod). Mientras no haya backend los datos salen de `api/mock/seed.ts`
- * y se validan contra estos esquemas. Ver README → "Contratos propuestos".
+ * Contratos del frontend (Zod), validados contra las respuestas del backend Go.
  */
 import { z } from 'zod'
 
@@ -28,6 +27,8 @@ export const Zone = z.object({
 export type Zone = z.infer<typeof Zone>
 
 export const User = z.object({
+
+  photoUrl: z.string().optional(),
   id: z.string(),
   name: z.string(),
   handle: z.string(),
@@ -77,6 +78,7 @@ export const Plan = z.object({
 export type Plan = z.infer<typeof Plan>
 
 export const Event = z.object({
+  ownerId: z.string().optional(),
   id: z.string(),
   type: EventType,
   subtype: z.string(),
@@ -105,6 +107,7 @@ export type Swipe = z.infer<typeof Swipe>
 
 /** `exactShareUntil`: hasta cuándo ambos ven la ubicación exacta del otro. */
 export const Match = z.object({
+  receivedMessage: z.string().nullable().optional(),
   id: z.string(),
   planId: z.string(),
   friendId: z.string(),

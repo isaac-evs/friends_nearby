@@ -9,7 +9,7 @@ import { cn } from '@/lib/cn'
  * de compartir en vivo y, al volver, mostramos cuánto tiempo estuvo en pausa.
  */
 export function LiveStatus({ className }: { className?: string }) {
-  const { state } = useApp()
+  const { state, connected } = useApp()
   const visible = usePageVisible()
   const hiddenAt = useRef<number | null>(null)
   const [pausedFor, setPausedFor] = useState<number | null>(null)
@@ -31,6 +31,7 @@ export function LiveStatus({ className }: { className?: string }) {
   let icon = <Radio aria-hidden="true" size={14} className="text-success" />
   let text = 'Zona en vivo'
   if (state.ghost) { icon = <EyeOff aria-hidden="true" size={14} />; text = 'Modo fantasma: nadie te ve' }
+  else if (state.location.status !== 'granted' || !connected) { icon = <RadioTower aria-hidden="true" size={14} />; text = 'No compartiendo en vivo' }
   else if (!visible) { icon = <RadioTower aria-hidden="true" size={14} />; text = 'No compartiendo en vivo' }
   else if (pausedFor !== null) { icon = <RadioTower aria-hidden="true" size={14} />; text = `Pausada hace ${pausedFor} min` }
 

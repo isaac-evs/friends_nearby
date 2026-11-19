@@ -11,6 +11,10 @@ import (
 // ErrGone means the WebSocket connection no longer exists.
 var ErrGone = errors.New("connection gone")
 
+type Mailer interface {
+	SendReset(ctx context.Context, email, link string) error
+}
+
 // Pusher sends a message to one WebSocket connection.
 // In AWS it calls API Gateway's postToConnection; locally it writes to a socket.
 type Pusher interface {

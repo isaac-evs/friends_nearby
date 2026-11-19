@@ -3,7 +3,6 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Activity, ArrowLeft, Check, Clock, MapPin, Share2, Users } from 'lucide-react'
 import { Avatar, AvatarStack, Button, ModalSheet, Notice, ProgressBar, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
-import { SEED_ATTENDEES } from '@/api/mock'
 import { EVENT_TYPES } from '@/lib/category'
 import { eventWhenShort, formatApproxDistance } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -12,7 +11,7 @@ import { cn } from '@/lib/cn'
 export function EventScreen() {
   const { id } = useParams()
   const { state } = useApp()
-  const { joinEvent, leaveEvent, setPace } = useActions()
+  const { joinEvent, leaveEvent, setPace, approveAttendance } = useActions()
   const toast = useToast()
   const nav = useNavigate()
   const [who, setWho] = useState(false)
@@ -25,7 +24,7 @@ export function EventScreen() {
   const chosenPace = att?.pace ?? pace ?? ev.paces?.[1] ?? ev.paces?.[0]
   const going = ev.going
   const friendsGoing = ev.friendsGoingIds.map((f) => state.users[f]).filter((u): u is NonNullable<typeof u> => !!u && !state.blocks.includes(u.id))
-  const attendees = (SEED_ATTENDEES[ev.id] ?? []).map((u) => state.users[u]).filter((u): u is NonNullable<typeof u> => !!u && !state.blocks.includes(u.id))
+  const attendees = (state.eventAttendees[ev.id] ?? []).map((u) => state.users[u]).filter((u): u is NonNullable<typeof u> => !!u && !state.blocks.includes(u.id))
   const names = friendsGoing.map((u) => u.name)
   const goingText = names.length === 0 ? '' : names.length === 1 ? `${names[0]} va` : `${names.slice(0, -1).join(', ')} y ${names.at(-1)} van`
   const full = going >= ev.capacity && !att
@@ -87,6 +86,15 @@ export function EventScreen() {
         <Notice tone="safety" icon="shield">Tú decides: la gente nueva solo ve tu nombre. Tu ubicación no se comparte y puedes salirte cuando quieras.</Notice>
       </div>
 
+      {ev.ownerId === 'me' && (state.pendingAttendees[ev.id] ?? []).length > 0 && <section aria-label="Solicitudes para el evento" className="px-5 py-4">
+        <h2 className="font-bold">Solicitudes para unirse</h2>
+        {(state.pendingAttendees[ev.id] ?? []).map(uid => <div key={uid} className="flex items-center gap-3 py-2">
+          <span className="flex-1">{state.users[uid]?.name}</span>
+          <Button onClick={() => approveAttendance(ev.id, uid, true)}>Aceptar</Button>
+          <Button variant="secondary" onClick={() => approveAttendance(ev.id, uid, false)}>Rechazar</Button>
+        </div>)}
+      </section>}
+
       <div className="sticky bottom-0 border-t border-line bg-surface px-[22px] pt-3.5 pb-[22px] lg:rounded-xl lg:border lg:px-6 lg:pt-4 lg:pb-4 lg:shadow-lg">
         {!att && (
           <div className="grid grid-cols-2 gap-2.5">
@@ -99,7 +107,7 @@ export function EventScreen() {
         {att?.status === 'going' && (
           <div role="status" className="flex min-h-[54px] items-center gap-3">
             <span className="flex size-12 flex-none items-center justify-center rounded-full border border-line bg-cat-comer"><Check aria-hidden="true" size={24} strokeWidth={2.8} /></span>
-            <span className="flex flex-1 flex-col"><span className="text-[19px] font-extrabold">¡Estás dentro!</span><span className="text-caption font-medium text-muted">{chosenPace ? `Grupo ${chosenPace} · ` : ''}te avisamos un día antes</span></span>
+            <span className="flex flex-1 flex-col"><span className="text-[19px] font-extrabold">¡Estás dentro!</span><span className="text-caption font-medium text-muted">{chosenPace ? `Grupo ${chosenPace} · ` : ''}tu asistencia quedó guardada</span></span>
             <Button variant="secondary" className="h-11 rounded-[12px] px-3 text-meta" onClick={() => leaveEvent(ev.id)}>Salirme</Button>
           </div>
         )}
