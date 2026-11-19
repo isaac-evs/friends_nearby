@@ -124,18 +124,18 @@ should send `{"action":"nearby"}` to get the current state.
 
 ## How it works
 
-- **Locations.** `loc:{user_id}` in Redis holds the last position with a TTL of
+- **Locations.** `loc:{user_id}` in Redis holds the last rounded cell with a TTL of
   `LOCATION_TTL_SECONDS` (default 120). Inactive users disappear on their own.
-- **Nearby.** On each update the code loads the user's accepted friends, reads
+- **Nearby.** On each update the code loads the user's accepted, mutually close friends, reads
   their locations with one `MGET`, and computes haversine distances. Each user is
-  judged against their own radius, so A can see B while B does not see A.
+  judged against the smaller of viewer search radius and subject visibility radius.
 - **Enter/leave.** `near:{viewer}` in Redis is the set of friends currently
   inside the viewer's radius. A message is sent only when a friend is added to or
   removed from that set.
 - **Ghost mode.** While on, location updates are rejected, nothing is written to
   Redis, and no history events are sent. Turning it on deletes your location and
   sends `friend_leave` to friends who could see you.
-- **History.** Every accepted update is sent to SQS; the worker writes
+- **History.** Every accepted rounded cell update is sent to SQS; the worker writes
   `history/YYYY/MM/DD/HH/<id>.jsonl` to the history bucket. It is write-only.
 - **Friendships.** Two rows per pair (`pending_out`/`pending_in`, then `accepted`
   on both), written in a transaction.
@@ -170,5 +170,5 @@ rules, and [INFRA_REQUESTS.md](docs/INFRA_REQUESTS.md) for the social table and 
 requirements. No Terraform files were changed.
 
 Nearby responses now round coordinates to 0.002 degrees. Exact positions are
-available only in the social state of active match participants. Password reset
+available only through explicit temporary grants between mutual close friends. Password reset
 revokes earlier JWTs and WebSocket actions via `session_version`.

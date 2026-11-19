@@ -10,11 +10,14 @@ import { eventToCard, planToCard } from './cards'
 import { useDeck, type Mode, type TypeFilter } from './useDeck'
 import { useNow } from '@/app/hooks'
 import { useToast } from '@/design'
+import { RangeControl } from '../range/RangeControl'
+import { radiusLabel } from '@/lib/reach'
+import { joinBlock } from '@/lib/commitments'
 
 export interface DeckInfo { counter: string; mode: Mode }
 
 /** Selector de modo + chips + pila de cards + acciones. Se usa en móvil y en el panel de desktop. */
-export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => void; compact?: boolean }) {
+export function ExploreDeck({ onInfo, compact, accessory }: { onInfo?: (i: DeckInfo) => void; compact?: boolean; /** Va en la misma fila que el selector Mis amigos | Abierto. */ accessory?: React.ReactNode }) {
   const { state } = useApp()
   const { swipe, jalo, resetSwipes, setOpenMode } = useActions()
   const nav = useNavigate()
@@ -37,7 +40,12 @@ export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => voi
   const doSwipe = async (dir: SwipeDir) => {
     if (!current) return
     if (current.kind === 'plan') {
-      if (dir === 'right') { const id = await jalo(current.plan.id); if (id) nav(`/match/${id}`) }
+      if (dir === 'right') {
+        const why = joinBlock(state, current.plan, `plan:${current.plan.id}`, now)
+        if (why) { toast(why); return }
+        const id = await jalo(current.plan.id)
+        if (id) nav(`/match/${id}`)
+      }
       else { swipe('plan', current.plan.id, dir === 'left' ? 'pass' : 'later'); if (dir === 'up') toast('Guardado en tu lista') }
     } else if (dir === 'right') nav(`/evento/${current.event.id}`)
     else { swipe('event', current.event.id, dir === 'left' ? 'pass' : 'later'); if (dir === 'up') toast('Guardado en tu lista') }
@@ -47,14 +55,17 @@ export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => voi
   const { removePlan } = useActions()
 
   return (
-    <div className="flex flex-col gap-3">
-      <SegmentedControl<Mode>
-        label="Qué ver" value={mode} onChange={(m) => { setMode(m); setType('Todos') }}
-        options={[
-          { value: 'amigos', label: 'Mis amigos' },
-          { value: 'abierto', label: <>{compact ? 'Abierto · eventos' : 'Abierto'}<span aria-hidden="true" className="size-1.5 rounded-full bg-accent" /></> },
-        ]}
-      />
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center gap-2">
+        <SegmentedControl<Mode>
+          label="Qué ver" value={mode} onChange={(m) => { setMode(m); setType('Todos') }} className="min-w-0 flex-1"
+          options={[
+            { value: 'amigos', label: 'Mis amigos' },
+            { value: 'abierto', label: <>{compact ? 'Abierto · eventos' : 'Abierto'}<span aria-hidden="true" className="size-1.5 rounded-full bg-accent" /></> },
+          ]}
+        />
+        {accessory}
+      </div>
 
       {myPlan && !open && (
         <Notice tone="accent" icon="eye" role="status">
@@ -78,9 +89,9 @@ export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => voi
         <EmptyState
           className="min-h-[420px]" icon={<ShieldCheck aria-hidden="true" size={30} />}
           title="El modo abierto está apagado"
-          text="Sirve para unirte a eventos con gente nueva. Gente nueva solo ve tu nombre, nunca tu ubicación."
+          text="Se activa desde tu perfil y sirve para unirte a eventos con gente nueva. Gente nueva solo ve tu nombre, nunca tu ubicación."
         >
-          <ButtonLink to="/modo-abierto" variant="dark" pill>Ver cómo funciona</ButtonLink>
+          <ButtonLink to="/perfil" variant="dark" pill>Ir a mi perfil</ButtonLink>
           {state.openMode.adult && <Button variant="ghost" onClick={() => setOpenMode({ enabled: true })}>Activar de nuevo</Button>}
         </EmptyState>
       ) : current ? (
@@ -90,7 +101,7 @@ export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => voi
             onSwipe={doSwipe}
             ariaLabel={current.kind === 'plan' ? `Plan de ${state.users[current.plan.authorId]?.name ?? 'tu amigo'}` : `Evento ${current.event.title}`}
           >
-            <CardBody {...(current.kind === 'plan' ? planToCard(current.plan, state.users[current.plan.authorId]!, now) : eventToCard(current.event))} />
+            <CardBody {...(current.kind === 'plan' ? planToCard(current.plan, state.users[current.plan.authorId]!, state.location.center, now) : eventToCard(current.event, state.location.center))} />
           </SwipeStack>
           <SwipeActions
             joinLabel={current.kind === 'plan' ? 'Jalo' : 'Me uno'}
@@ -99,16 +110,19 @@ export function ExploreDeck({ onInfo, compact }: { onInfo?: (i: DeckInfo) => voi
             onJoin={() => doSwipe('right')}
           />
           <p className="text-center text-caption leading-snug font-medium text-muted">
-            {open ? 'Gente nueva solo ve tu nombre, nunca tu ubicación.' : 'Desliza → para jalar · ← para pasar (no le avisamos)'}
+            {!compact && `${counter} · `}{open ? 'Gente nueva solo ve tu nombre, nunca tu ubicación.' : 'Desliza → para jalar · ← para pasar'}
           </p>
           <p className="sr-only">Con teclado: flecha derecha para jalar, izquierda para pasar y abajo para guardar.</p>
         </>
       ) : (
         <EmptyState
           className="min-h-[420px]" icon={<Layers aria-hidden="true" size={30} />}
-          title={open ? 'No hay más eventos así' : 'Ya viste todo lo de cerca'}
-          text={open ? 'Arma el tuyo: elige el tipo, el lugar público y el cupo.' : 'Publica qué andas haciendo y deja que tus amigos jalen contigo.'}
+          title={deck.hidden > 0 && deck.total === 0 ? 'Nada dentro de tu rango' : open ? 'No hay más eventos así' : 'Ya viste todo lo de cerca'}
+          text={deck.hidden > 0
+            ? `Hay ${deck.hidden} ${open ? (deck.hidden === 1 ? 'evento' : 'eventos') : (deck.hidden === 1 ? 'plan' : 'planes')} más fuera de ${radiusLabel(state.radiusM)}. Amplía el rango para verlos.`
+            : open ? 'Arma el tuyo: elige el tipo, el lugar público y el cupo.' : 'Publica qué andas haciendo y deja que tus amigos jalen contigo.'}
         >
+          {deck.hidden > 0 && <RangeControl />}
           <ButtonLink to={open ? '/publicar/evento' : '/publicar'} variant="dark" pill>{open ? 'Crear evento' : 'Publicar mi plan'}</ButtonLink>
           <Button variant="ghost" onClick={() => resetSwipes(open ? 'event' : 'plan')}>Volver a ver</Button>
         </EmptyState>

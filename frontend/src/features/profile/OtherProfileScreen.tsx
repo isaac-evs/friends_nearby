@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Activity, Hand, MoreHorizontal, Send, UserPlus } from 'lucide-react'
-import { Avatar, AvatarStack, Button, ModalSheet, Notice, Pill, useToast } from '@/design'
+import { ArrowLeft, Activity, MoreHorizontal, Send, UserPlus } from 'lucide-react'
+import { Avatar, AvatarStack, Button, ModalSheet, Notice, Pill, StreakBadge, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { avatarColor } from '@/lib/avatar'
 import { eventWhenShort } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { LevelCard, ProfileStats } from './ProfileParts'
 
 const REASONS = ['Spam o cuenta falsa', 'Acoso o mensajes ofensivos', 'Contenido inapropiado', 'Otro motivo']
 
-/** Pantalla 11: Perfil de otra persona (en común, agregar amigo, saludar, bloquear / reportar). */
+/** Pantalla 11: Perfil de otra persona (en común, agregar amigo, bloquear / reportar). */
 export function OtherProfileScreen() {
   const { id } = useParams()
   const { state } = useApp()
-  const { setFriendStatus, wave, block, report, toggleRoomie, loadUser } = useActions()
+  const { setFriendStatus, removeFriend, block, report, loadUser } = useActions()
   const toast = useToast()
   const nav = useNavigate()
   const [menu, setMenu] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  useEffect(() => { let active = true; setLoaded(false); if (id) void loadUser(id).finally(() => { if (active) setLoaded(true) }); return () => { active = false } }, [id, loadUser])
+  useEffect(()=>{let live=true;setLoaded(false);if(id)void loadUser(id).finally(()=>{if(live)setLoaded(true)});return()=>{live=false}},[id,loadUser])
   const u = id ? state.users[id] : undefined
   if (!u && !loaded) return <p role="status" className="p-6">Cargando perfil…</p>
   if (!u || u.id === 'me' || state.blocks.includes(u.id)) return <Navigate to="/amigos" replace />
@@ -27,7 +29,6 @@ export function OtherProfileScreen() {
   const fs = state.friendships[u.id]
   const status = fs?.status ?? 'none'
   const mutual = (fs?.mutualFriendIds ?? []).map((m) => state.users[m]).filter((x): x is NonNullable<typeof x> => !!x && !state.blocks.includes(x.id))
-  const waved = state.waved.includes(u.id)
   const first = u.name.split(' ')[0]!
 
   return (
@@ -42,21 +43,27 @@ export function OtherProfileScreen() {
       </header>
 
       {menu && (
-        <div role="menu" className="absolute top-[84px] right-[22px] z-20 flex w-[200px] flex-col rounded-lg border border-line bg-surface p-1 shadow-md">
-          <button type="button" role="menuitem" onClick={async () => { if (await block(u.id)) { toast(`Bloqueaste a ${first}`); nav('/amigos', { replace: true }) } }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold">Bloquear a {first}</button>
+        <div role="menu" className="absolute top-[84px] right-[22px] z-20 flex w-[220px] flex-col rounded-lg border border-line bg-surface p-1 shadow-md">
+          {status === 'friends' && (
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); setRemoving(true) }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold">Eliminar a {first} de amigos</button>
+          )}
+          <button type="button" role="menuitem" onClick={async () => { if (!await block(u.id)) return; toast(`Bloqueaste a ${first}`); nav('/amigos', { replace: true }) }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold">Bloquear a {first}</button>
           <button type="button" role="menuitem" onClick={() => { setMenu(false); setReporting(true) }} className="h-11 rounded-[12px] px-3 text-left text-sm font-bold text-danger">Reportar perfil</button>
         </div>
       )}
 
       <div className="flex flex-1 flex-col gap-3.5 px-[22px] pt-[58px] pb-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:content-start lg:items-start lg:gap-x-10 lg:gap-y-5 lg:px-2 lg:pt-16">
         <div className="flex flex-col gap-1.5">
-          <h1 className="text-[30px] leading-none font-extrabold tracking-[-0.8px]">{u.name}</h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-[30px] leading-none font-extrabold tracking-[-0.8px]">{u.name}</h1>
+            <StreakBadge weeks={u.streakWeeks} />
+          </div>
           <span className="text-meta font-bold text-muted">{u.handle}{u.city ? ` · ${u.city}` : ''}</span>
           <div className="flex flex-wrap gap-1.5">
-            <Pill tone="surface" className="bg-cat-comer">Nivel {u.level}</Pill>
             {u.pace && <Pill tone="surface" className="bg-cat-musica">{u.pace}</Pill>}
             {u.interests && <Pill>{u.interests}</Pill>}
           </div>
+          {u.bio && <p className="max-w-[46ch] pt-1 text-sm leading-normal text-text">{u.bio}</p>}
         </div>
 
         {(mutual.length > 0 || u.metAt) && (
@@ -79,21 +86,18 @@ export function OtherProfileScreen() {
           </section>
         )}
 
-        <div className="grid grid-cols-3 gap-2">
-          <Mini tile="bg-accent" value={`${u.streakWeeks} sem`} label="racha" />
-          <Mini value={String(u.hangouts)} label="jales" />
-          <Mini value={String(u.eventsCount)} label="eventos" />
+        {/* Igual que tu perfil: amigos, planes y eventos a los que ha asistido, y su nivel. */}
+        <div className="flex flex-col gap-3.5">
+          <ProfileStats friends={u.friendsCount ?? mutual.length} plans={u.hangouts} events={u.eventsCount} />
+          <LevelCard level={u.level} />
         </div>
 
-        <Notice tone="safety" icon="shield">Agregarse no comparte ubicaciones. Cada quien decide después si muestra su zona.</Notice>
+        <Notice tone="safety" icon="shield">Agregarse no comparte ubicaciones. Cada quien decide después si muestra su ubicación.</Notice>
       </div>
 
       <div className="sticky bottom-0 border-t border-line bg-surface px-[22px] pt-3.5 pb-[22px] lg:rounded-xl lg:border lg:px-6 lg:pt-4 lg:pb-4 lg:shadow-lg">
         {status === 'none' && (
-          <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-            <Button variant="secondary" size="lg" className={cn('text-[15px] font-bold', waved && 'bg-cat-comer')} onClick={async () => { if (await wave(u.id)) toast(`Saludaste a ${first}`) }} icon={<Hand aria-hidden="true" size={18} />}>{waved ? '¡Saludado!' : 'Saludar'}</Button>
-            <Button size="lg" className="text-[15px] font-bold" onClick={() => setFriendStatus(u.id, 'requested_out')} icon={<UserPlus aria-hidden="true" size={18} />}>Agregar amigo</Button>
-          </div>
+          <Button size="lg" full className="text-[15px] font-bold" onClick={() => setFriendStatus(u.id, 'requested_out')} icon={<UserPlus aria-hidden="true" size={18} />}>Agregar amigo</Button>
         )}
         {status === 'requested_out' && (
           <div role="status" className="flex min-h-[54px] items-center gap-3">
@@ -104,37 +108,34 @@ export function OtherProfileScreen() {
         )}
         {status === 'requested_in' && (
           <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-            <Button variant="secondary" size="lg" className="text-[15px] font-bold" onClick={async () => { if (await setFriendStatus(u.id, 'none')) nav('/amigos') }}>Rechazar</Button>
-            <Button size="lg" className="text-[15px] font-bold" onClick={async () => { if (await setFriendStatus(u.id, 'friends')) toast(`${first} ya es tu amigo`) }}>Aceptar solicitud</Button>
+            <Button variant="secondary" size="lg" className="text-[15px] font-bold" onClick={async () => { if (!await setFriendStatus(u.id, 'none')) return; nav('/amigos') }}>Rechazar</Button>
+            <Button size="lg" className="text-[15px] font-bold" onClick={async () => { if (!await setFriendStatus(u.id, 'friends')) return; toast(`${first} ya es tu amigo`) }}>Aceptar solicitud</Button>
           </div>
         )}
         {status === 'friends' && (
-          <div className="grid grid-cols-[1fr_1.6fr] gap-2.5">
-            <Pill tone="muted" className="h-[54px] justify-center rounded-lg text-sm">Ya son amigos</Pill>
-            <Button size="lg" className="text-[15px] font-bold" onClick={async () => { if (await wave(u.id)) toast(`Saludaste a ${first}`) }} icon={<Hand aria-hidden="true" size={18} />}>{waved ? '¡Saludado!' : 'Saludar'}</Button>
-          </div>
+          <Pill tone="muted" className="h-[54px] w-full justify-center rounded-lg text-sm">Ya son amigos</Pill>
         )}
       </div>
+
+      <ModalSheet open={removing} title={`Eliminar a ${first}`} onClose={() => setRemoving(false)}>
+        <div className="flex flex-col gap-3.5">
+          <p className="text-sm leading-normal">¿Dejar de ser amigos de <strong>{u.name}</strong>? No le avisamos. Ya no verán la ubicación del otro y tendrán que mandarse una solicitud para volver a ser amigos.</p>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Button variant="secondary" onClick={() => setRemoving(false)}>Mantener</Button>
+            <Button variant="dark" onClick={async () => { if (!await removeFriend(u.id)) return; setRemoving(false); toast(`Eliminaste a ${first} de tus amigos`) }}>Eliminar</Button>
+          </div>
+        </div>
+      </ModalSheet>
 
       <ModalSheet open={reporting} title={`Reportar a ${first}`} onClose={() => setReporting(false)}>
         <ul className="flex flex-col">
           {REASONS.map((r) => (
             <li key={r}>
-              <button type="button" className="flex min-h-12 w-full items-center border-b border-surface-sunken text-left text-[15px] font-bold" onClick={async () => { if (await report(u.id, r)) { setReporting(false); toast('Gracias, recibimos tu reporte') } }}>{r}</button>
+              <button type="button" className="flex min-h-12 w-full items-center border-b border-surface-sunken text-left text-[15px] font-bold" onClick={async () => { if (!await report(u.id, r)) return; setReporting(false); toast('Gracias, revisamos tu reporte') }}>{r}</button>
             </li>
           ))}
         </ul>
       </ModalSheet>
-      {status === 'friends' && <Button variant="secondary" className="mx-5 mb-5" onClick={() => toggleRoomie(u.id)}>{state.roomies.includes(u.id) ? 'Quitar de roomies' : 'Marcar como roomie'}</Button>}
-    </div>
-  )
-}
-
-function Mini({ tile, value, label }: { tile?: string; value: string; label: string }) {
-  return (
-    <div className={cn('flex flex-col rounded-md border border-line px-2.5 py-2', tile ?? 'bg-surface')}>
-      <span className="text-xl font-extrabold">{value}</span>
-      <span className="text-[11px] font-bold">{label}</span>
     </div>
   )
 }

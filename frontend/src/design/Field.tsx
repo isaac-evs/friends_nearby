@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn'
 
 /** Input con label arriba. 16 px para evitar el zoom de iOS; alto 50, radio `md`, borde `line-input`. */
 export function Field({
-  label, hint, error, icon, className, ...rest
+  label, hint, error, icon, className, 'aria-describedby': extraDescribedBy, ...rest
 }: { label: string; hint?: string; error?: string; icon?: ReactNode; className?: string } & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId()
   const hintId = `${id}-hint`
@@ -15,8 +15,8 @@ export function Field({
         <input
           id={id}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error || hint ? hintId : undefined}
           {...rest}
+          aria-describedby={[error || hint ? hintId : null, extraDescribedBy].filter(Boolean).join(' ') || undefined}
           className={cn(
             'h-[50px] w-full rounded-md border bg-surface px-4 text-base text-ink',
             error ? 'border-danger' : 'border-line-input',

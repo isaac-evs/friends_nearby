@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { formatApproxDistance, formatPlanTime, timeLabel } from './format'
-import { roundToZone, ZONE_GRID_DEG } from './geo'
+import { formatApproxDistance, formatNearby, formatPlanTime, staleLabel, timeLabel } from './format'
+import { roundToCell, CELL_GRID_DEG } from './geo'
 
 describe('formatApproxDistance', () => {
   it('siempre es aproximada', () => {
@@ -29,10 +29,21 @@ describe('timeLabel', () => {
   })
 })
 
-describe('roundToZone', () => {
+describe('roundToCell', () => {
   it('redondea a la cuadrícula de zona', () => {
-    const r = roundToZone({ lat: 20.67513, lng: -103.36487 })
-    expect(Math.abs(r.lat / ZONE_GRID_DEG - Math.round(r.lat / ZONE_GRID_DEG))).toBeLessThan(1e-6)
+    const r = roundToCell({ lat: 20.67513, lng: -103.36487 })
+    expect(Math.abs(r.lat / CELL_GRID_DEG - Math.round(r.lat / CELL_GRID_DEG))).toBeLessThan(1e-6)
     expect(r).toEqual({ lat: 20.676, lng: -103.364 })
+  })
+})
+
+describe('formatNearby y staleLabel', () => {
+  it('rangos de cercanía de una persona', () => {
+    expect([100, 300, 700, 1500, 4000, 8000].map(formatNearby)).toEqual(['a menos de 250 m', 'a menos de 500 m', 'a menos de 1 km', 'a menos de 3 km', 'a menos de 5 km', 'a unos 8 km'])
+  })
+  it('solo dice "actualizado" si pasaron más de 5 min', () => {
+    const now = Date.now()
+    expect(staleLabel(new Date(now - 3 * 60_000).toISOString(), now)).toBe('')
+    expect(staleLabel(new Date(now - 12 * 60_000).toISOString(), now)).toBe('actualizado hace 12 min')
   })
 })

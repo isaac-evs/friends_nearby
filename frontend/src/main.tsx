@@ -9,11 +9,11 @@ import { ToastProvider } from './design'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <AppProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </AppProvider>
+          <AppProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </AppProvider>
     </BrowserRouter>
   </StrictMode>,
 )

@@ -10,15 +10,18 @@ PAY_PER_REQUEST, sin GSI. Pasar el nombre a Lambda API como `SOCIAL_TABLE`.
 Si se omite, el código usa `${USERS_TABLE}-social`; en AWS **no crea la tabla**.
 El runner local sí la crea.
 
-Dar al rol API GetItem, PutItem, UpdateItem, DeleteItem y Query sobre su ARN.
+Dar al rol API GetItem, PutItem, UpdateItem, DeleteItem, Query y ConditionCheckItem sobre su ARN.
 Hay transacciones entre la tabla social y users; se autorizan por las operaciones
 de los items. No se necesita Scan ni acceso del worker a la tabla social.
 
-Guarda perfiles/preferencias/progreso, plan actual, eventos/asistencias,
+Guarda perfiles/preferencias/progreso, planes programados, eventos/asistencias,
 matches/referencias, reportes y tokens de recuperación. El atributo numérico
 `version` permite escrituras condicionales. Las expiraciones se verifican en
-código; no requieren TTL para proteger la vigencia. No configurar TTL sobre
-campos anidados. Falta una política futura de retención/limpieza de datos antiguos.
+código; no requieren TTL para proteger la vigencia. Configurar TTL sobre el atributo raíz numérico `expires_at` para limpiar recibos
+de acciones (`requests#UUID`, 24 h). Las fechas de planes/eventos y permisos se
+validan en código; no configurar TTL sobre campos anidados. Otros documentos
+requieren una política futura de retención/limpieza. No se necesita TTL para
+autorizar una operación correctamente.
 
 ## Recuperación de contraseña por SES
 
@@ -61,3 +64,17 @@ No hacen falta Cognito ni índices de email/username.
 
 No se ejecutó Terraform ni se validó AWS. SES, S3/CloudFront, API Gateway y sus
 permisos requieren comprobación en ese entorno después de aplicar estos cambios.
+
+## Contrato G1–G4 y migración
+
+Las nuevas colecciones sociales `.v2` usan la misma tabla, sin índices nuevos.
+Conservar datos de users/friendships. No migrar automáticamente planes/eventos
+experimentales `.v1`: el frontend nuevo exige lugar público confirmado y horarios.
+Ver el procedimiento y las restricciones en FRONTEND_INTEGRATION.md.
+
+Redis debe admitir claves `exact:<UUID>` de TTL corto para concesiones explícitas;
+no requiere recursos nuevos ni persistencia adicional. Historial SQS/S3 recibe
+únicamente celdas aproximadas; no configurar un flujo de coordenadas exactas.
+Los radios actuales de la aplicación se guardan en el perfil social; no requieren
+cambiar esquemas de users ni nuevos GSI. El registro `ranking.v2` es una proyección
+pública actualizada por transacción.

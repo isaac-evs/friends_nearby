@@ -50,6 +50,31 @@ func (s *Store) Set(ctx context.Context, userID string, loc models.Location) err
 	return s.rdb.Set(ctx, locKey(userID), b, s.ttl).Err()
 }
 
+// Exact coordinates are a separate, short-lived value, written only while an
+// explicit sharing grant exists. They never enter DynamoDB, SQS or history.
+func (s *Store) SetExact(ctx context.Context, id string, loc models.Location) error {
+	b, e := json.Marshal(loc)
+	if e != nil {
+		return e
+	}
+	return s.rdb.Set(ctx, "exact:"+id, b, s.ttl).Err()
+}
+func (s *Store) GetExact(ctx context.Context, id string) (*models.Location, error) {
+	b, e := s.rdb.Get(ctx, "exact:"+id).Bytes()
+	if errors.Is(e, redis.Nil) {
+		return nil, nil
+	}
+	if e != nil {
+		return nil, e
+	}
+	var loc models.Location
+	e = json.Unmarshal(b, &loc)
+	return &loc, e
+}
+func (s *Store) DeleteExact(ctx context.Context, id string) error {
+	return s.rdb.Del(ctx, "exact:"+id).Err()
+}
+
 // Get returns nil when the user has no live location.
 func (s *Store) Get(ctx context.Context, userID string) (*models.Location, error) {
 	b, err := s.rdb.Get(ctx, locKey(userID)).Bytes()
@@ -94,7 +119,7 @@ func (s *Store) GetMany(ctx context.Context, userIDs []string) (map[string]model
 }
 
 func (s *Store) Delete(ctx context.Context, userID string) error {
-	return s.rdb.Del(ctx, locKey(userID)).Err()
+	return s.rdb.Del(ctx, locKey(userID), "exact:"+userID).Err()
 }
 
 // IsNear reports whether friend is in viewer's near set.

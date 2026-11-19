@@ -14,9 +14,10 @@ import (
 // Document is a versioned social entity. Transactions use optimistic concurrency
 // so concurrent joins, confirmations and rewards cannot overwrite one another.
 type Document struct {
-	PK, SK  string
-	Version int
-	Data    json.RawMessage
+	PK, SK    string
+	Version   int
+	Data      json.RawMessage
+	ExpiresAt int64
 }
 
 var ErrConflict = errors.New("state changed; retry the request")
@@ -143,6 +144,12 @@ func (s *Store) ListDocuments(ctx context.Context, pk string) ([]Document, error
 	}
 }
 func (s *Store) CommitDocuments(ctx context.Context, docs []Document) error {
+	return s.CommitDocumentsChecked(ctx, docs, nil)
+}
+func (s *Store) CommitDocumentsChecked(ctx context.Context, docs, checks []Document) error {
+	return s.CommitDocumentsAndAccounts(ctx, docs, checks, nil)
+}
+func (s *Store) CommitDocumentsAndAccounts(ctx context.Context, docs, checks []Document, accounts []AccountChange) error {
 	if len(docs) == 0 {
 		return nil
 	}
@@ -151,6 +158,9 @@ func (s *Store) CommitDocuments(ctx context.Context, docs []Document) error {
 		item := docKey(d.PK, d.SK)
 		item["data"] = &types.AttributeValueMemberS{Value: string(d.Data)}
 		item["version"] = &types.AttributeValueMemberN{Value: strconv.Itoa(d.Version + 1)}
+		if d.ExpiresAt > 0 {
+			item["expires_at"] = &types.AttributeValueMemberN{Value: strconv.FormatInt(d.ExpiresAt, 10)}
+		}
 		cond := "attribute_not_exists(pk)"
 		var vals map[string]types.AttributeValue
 		if d.Version > 0 {
@@ -159,11 +169,39 @@ func (s *Store) CommitDocuments(ctx context.Context, docs []Document) error {
 		}
 		items = append(items, types.TransactWriteItem{Put: &types.Put{TableName: aws.String(s.SocialTable()), Item: item, ConditionExpression: aws.String(cond), ExpressionAttributeValues: vals}})
 	}
+	for _, d := range checks {
+		cond := "attribute_not_exists(pk)"
+		var vals map[string]types.AttributeValue
+		if d.Version > 0 {
+			cond = "version = :v"
+			vals = map[string]types.AttributeValue{":v": &types.AttributeValueMemberN{Value: strconv.Itoa(d.Version)}}
+		}
+		items = append(items, types.TransactWriteItem{ConditionCheck: &types.ConditionCheck{TableName: aws.String(s.SocialTable()), Key: docKey(d.PK, d.SK), ConditionExpression: aws.String(cond), ExpressionAttributeValues: vals}})
+	}
+	nameConditions := map[int]bool{}
+	for _, change := range accounts {
+		extra, err := s.accountWrites(change)
+		if err != nil {
+			return err
+		}
+		for i, x := range extra {
+			if x.Put != nil {
+				nameConditions[len(items)+i] = true
+			}
+		}
+		items = append(items, extra...)
+	}
+	if len(items) > 100 {
+		return errors.New("transaction exceeds 100 related records")
+	}
 	_, err := s.db.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{TransactItems: items})
 	var canceled *types.TransactionCanceledException
 	if errors.As(err, &canceled) {
-		for _, r := range canceled.CancellationReasons {
+		for i, r := range canceled.CancellationReasons {
 			if aws.ToString(r.Code) == "ConditionalCheckFailed" {
+				if nameConditions[i] {
+					return ErrUsernameTaken
+				}
 				return ErrConflict
 			}
 		}

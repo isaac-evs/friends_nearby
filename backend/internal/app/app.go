@@ -81,7 +81,22 @@ func (a *App) pushUser(ctx context.Context, userID string, msg Message) {
 		slog.Error("list connections", "user", userID, "err", err)
 		return
 	}
+	if len(ids) == 0 {
+		return
+	}
+	u, err := a.Store.GetUser(ctx, userID)
+	if err != nil || u == nil {
+		return
+	}
 	for _, id := range ids {
+		conn, err := a.Store.GetConnection(ctx, id)
+		if err != nil || conn == nil {
+			continue
+		}
+		if conn.SessionVersion != u.SessionVersion {
+			_ = a.Store.DeleteConnection(ctx, id)
+			continue
+		}
 		a.pushConn(ctx, id, payload)
 	}
 }
@@ -125,6 +140,23 @@ func (a *App) HandleLocation(ctx context.Context, userID string, loc models.Loca
 		return ErrGhostMode
 	}
 	loc.TS = time.Now().UnixMilli()
+	// Persist only a rounded cell by default. Exact positions have a separate
+	// Redis key, and exist only while an explicit close-friend grant is active.
+	exactAudience, err := a.Store.HasExactAudience(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if exactAudience {
+		if err = a.Loc.SetExact(ctx, userID, loc); err != nil {
+			return err
+		}
+	} else {
+		if err = a.Loc.DeleteExact(ctx, userID); err != nil {
+			return err
+		}
+	}
+	loc.Lat = math.Round(loc.Lat/0.002) * 0.002
+	loc.Lng = math.Round(loc.Lng/0.002) * 0.002
 
 	if err := a.Loc.Set(ctx, userID, loc); err != nil {
 		return err
@@ -149,22 +181,30 @@ func (a *App) HandleLocation(ctx context.Context, userID string, loc models.Loca
 		if f == nil {
 			continue
 		}
-		blocked, err := a.Store.IsBlocked(ctx, userID, fid)
+		allowed, err := a.Store.CanSeeLocation(ctx, fid, userID)
 		if err != nil {
 			return err
 		}
 		floc, ok := locs[fid]
-		present := ok && !f.GhostMode && !blocked
+		present := ok && !f.GhostMode && allowed
+		minePolicy, err := a.Store.LocationPolicy(ctx, userID)
+		if err != nil {
+			return err
+		}
+		friendPolicy, err := a.Store.LocationPolicy(ctx, fid)
+		if err != nil {
+			return err
+		}
 		var dist float64
 		if present {
 			dist = location.DistanceM(loc, floc)
 		}
 		// What I see about my friend, using my radius.
-		if err := a.transition(ctx, me.UserID, f, present && dist <= float64(me.RadiusM), dist); err != nil {
+		if err := a.transition(ctx, me.UserID, f, present && dist <= float64(min(minePolicy.SearchRadius, friendPolicy.Radius)), dist); err != nil {
 			return err
 		}
 		// What my friend sees about me, using their radius.
-		if err := a.transition(ctx, f.UserID, me, present && dist <= float64(f.RadiusM), dist); err != nil {
+		if err := a.transition(ctx, f.UserID, me, present && dist <= float64(min(friendPolicy.SearchRadius, minePolicy.Radius)), dist); err != nil {
 			return err
 		}
 	}
@@ -184,7 +224,7 @@ func (a *App) transition(ctx context.Context, viewerID string, other *models.Use
 			return err
 		}
 		pub := a.Public(other)
-		d := int(math.Round(dist))
+		d := int(math.Round(dist/50) * 50)
 		a.pushUser(ctx, viewerID, Message{Type: MsgFriendEnter, Friend: &pub, Distance: &d})
 	case near && was:
 		// Still nearby: no message, just keep the state from expiring.
@@ -293,7 +333,7 @@ func (a *App) Snapshot(ctx context.Context, userID string) ([]NearbyFriend, erro
 		if u == nil || u.GhostMode {
 			continue
 		}
-		blocked, err := a.Store.IsBlocked(ctx, userID, id)
+		allowed, err := a.Store.CanSeeLocation(ctx, userID, id)
 		if err != nil {
 			return nil, err
 		}
@@ -301,16 +341,27 @@ func (a *App) Snapshot(ctx context.Context, userID string) ([]NearbyFriend, erro
 		if err != nil {
 			return nil, err
 		}
-		if blocked || f == nil || f.Status != models.StatusAccepted {
+		if !allowed || f == nil || f.Status != models.StatusAccepted {
 			continue
 		}
 		fl, ok := locs[id]
 		if !ok {
 			continue
 		}
+		viewerPolicy, err := a.Store.LocationPolicy(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		subjectPolicy, err := a.Store.LocationPolicy(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if location.DistanceM(*mine, fl) > float64(min(viewerPolicy.SearchRadius, subjectPolicy.Radius)) {
+			continue
+		}
 		result = append(result, NearbyFriend{
 			PublicUser: a.Public(u),
-			DistanceM:  int(math.Round(location.DistanceM(*mine, fl))),
+			DistanceM:  int(math.Round(location.DistanceM(*mine, fl)/50) * 50),
 			Location:   models.Location{Lat: math.Round(fl.Lat/0.002) * 0.002, Lng: math.Round(fl.Lng/0.002) * 0.002, TS: fl.TS},
 		})
 	}

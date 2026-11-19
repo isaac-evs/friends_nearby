@@ -12,6 +12,11 @@ import { CreateEventScreen } from '@/features/publish/CreateEventScreen'
 import { EventScreen } from '@/features/events/EventScreen'
 import { FriendsScreen } from '@/features/friends/FriendsScreen'
 import { ProfileScreen } from '@/features/profile/ProfileScreen'
+import { NotificationsScreen } from '@/features/notifications/NotificationsScreen'
+import { PlansScreen } from '@/features/plans/PlansScreen'
+import { LevelScreen } from '@/features/profile/LevelScreen'
+import { PrivacyScreen } from '@/features/privacy/PrivacyScreen'
+import { EditProfileScreen } from '@/features/profile/EditProfileScreen'
 import { OtherProfileScreen } from '@/features/profile/OtherProfileScreen'
 import { SavedScreen } from '@/features/saved/SavedScreen'
 import { OpenModeScreen } from '@/features/open-mode/OpenModeScreen'
@@ -34,7 +39,12 @@ export function App() {
             <Route path="publicar" element={<PublishScreen />} />
             <Route path="publicar/evento" element={<CreateEventScreen />} />
             <Route path="amigos" element={<FriendsScreen />} />
+            <Route path="planes" element={<PlansScreen />} />
+            <Route path="notificaciones" element={<NotificationsScreen />} />
             <Route path="perfil" element={<ProfileScreen />} />
+            <Route path="perfil/editar" element={<EditProfileScreen />} />
+            <Route path="perfil/nivel" element={<LevelScreen />} />
+            <Route path="privacidad" element={<PrivacyScreen />} />
             <Route path="guardados" element={<SavedScreen />} />
             <Route path="modo-abierto" element={<OpenModeScreen />} />
             <Route path="match/:id" element={<MatchScreen />} />

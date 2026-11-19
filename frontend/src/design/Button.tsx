@@ -8,7 +8,8 @@ export type ButtonSize = 'md' | 'lg'
 
 const base =
   'inline-flex items-center justify-center gap-2 font-bold transition-colors duration-150 select-none ' +
-  'disabled:bg-surface-sunken disabled:text-muted disabled:border disabled:border-dashed disabled:border-line-dashed disabled:shadow-none'
+  'disabled:bg-surface-sunken disabled:text-muted disabled:border disabled:border-dashed disabled:border-line-dashed disabled:shadow-none ' +
+  'aria-disabled:bg-surface-sunken aria-disabled:text-muted aria-disabled:border aria-disabled:border-dashed aria-disabled:border-line-dashed aria-disabled:shadow-none'
 
 const variants: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-white hover:bg-primary-hover',

@@ -1,31 +1,31 @@
 /**
  * Geo y privacidad de ubicación.
  *
- * PRECISIÓN DOCUMENTADA (regla de privacidad del brief):
- *  - El cliente nunca recibe ni calcula el punto exacto de otra persona fuera de un match activo.
- *  - Las zonas se entregan con el centro redondeado a `ZONE_GRID_DEG` (0.002° ≈ 220 m) y un radio
- *    `ZONE_RADIUS_M` (500 m). Es decir, una zona es un círculo de ~1 km de diámetro.
- *  - Tu propia ubicación se redondea con `roundToZone` antes de guardarla o mostrarla; nunca se
- *    envía a analítica ni a logs.
+ * PRECISIÓN DOCUMENTADA:
+ *  - Nunca hay coordenadas exactas de una persona salvo que ella las comparta, por un rato, con un amigo cercano.
+ *  - La ubicación de una persona se redondea a una celda de `CELL_GRID_DEG` (0.002° ≈ 220 m) y se dibuja como un
+ *    círculo difuso de `APPROX_RADIUS_M` (500 m). No hay zonas ni colonias: solo esa celda.
+ *  - Los planes y eventos SÍ tienen lugar exacto: es un punto de encuentro, no la ubicación de nadie.
+ *  - Tu propia ubicación se redondea antes de guardarla o mostrarla; nunca va a analítica ni a logs.
  */
 
-export const ZONE_GRID_DEG = 0.002
-export const ZONE_RADIUS_M = 500
+export const CELL_GRID_DEG = 0.002
+export const APPROX_RADIUS_M = 500
 
 export interface LatLng {
   lat: number
   lng: number
 }
 
-/** Centro de referencia del mock (Chapultepec, Guadalajara). */
+/** MOCK: centro de referencia (Chapultepec, Guadalajara). Solo lo usan `api/mock/*` y las pruebas. */
 export const MOCK_ORIGIN: LatLng = { lat: 20.675, lng: -103.365 }
 
 const M_PER_DEG_LAT = 110_574
 const mPerDegLng = (lat: number) => 111_320 * Math.cos((lat * Math.PI) / 180)
 
-/** Redondea una coordenada a la cuadrícula de zona (nunca persistas el valor sin redondear). */
-export function roundToZone(p: LatLng): LatLng {
-  const snap = (v: number) => Math.round(v / ZONE_GRID_DEG) * ZONE_GRID_DEG
+/** Redondea una coordenada a la celda aproximada (nunca persistas el valor sin redondear). */
+export function roundToCell(p: LatLng): LatLng {
+  const snap = (v: number) => Math.round(v / CELL_GRID_DEG) * CELL_GRID_DEG
   return { lat: Number(snap(p.lat).toFixed(4)), lng: Number(snap(p.lng).toFixed(4)) }
 }
 

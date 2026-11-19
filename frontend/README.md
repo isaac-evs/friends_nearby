@@ -1,87 +1,58 @@
-# Friends Nearby / ¿Jalas? — frontend integrado
+# ¿Jalas? — frontend integrado
 
-React, TypeScript y Vite, conectado al backend Go real. No hay login simulado ni
-datos de ejemplo en los flujos. `src/api/mock/` se conserva como referencia del
-diseño y no se importa en la aplicación.
+Interfaz G1–G4 de Alan Varela (`e054728`) conectada al backend Go del repositorio.
+La especificación de producto vigente está en [docs/especificacion.md](docs/especificacion.md).
 
-## Desarrollo local
+## Ejecutar
 
-Primera terminal, desde `backend/`:
+En una terminal, desde `backend/`:
 
 ```powershell
 docker compose up -d
 go run ./cmd/local
 ```
 
-Segunda terminal, desde `frontend/`:
+En otra terminal, desde `frontend/`:
 
 ```powershell
-npm ci
 Copy-Item .env.example .env
+npm ci
 npm run dev
 ```
 
-Abre http://localhost:5173 y crea una cuenta. Usa dos cuentas en perfiles de
-navegador independientes para probar amistad y matches. La ubicación necesita
-HTTPS o localhost. Elegir zona manual permite explorar y publicar, pero no envía
-una posición en vivo ni permite validar encuentros.
+Abrir http://localhost:5173 y registrar una cuenta real. La sesión usa un JWT en
+sessionStorage; los perfiles, amistad, planes, eventos y progreso se guardan en
+backend. No hay cuentas de ejemplo, aceptaciones ni confirmaciones automáticas.
+El cliente usa `VITE_API_URL` y `VITE_WS_URL`; los valores locales están en
+`.env.example`. Ningún secreto debe ir en variables `VITE_*`.
 
-## AWS
-
-Variables de **build** (Vite las incorpora al bundle):
-
-```dotenv
-VITE_API_URL=https://<http-api>.execute-api.<region>.amazonaws.com
-VITE_WS_URL=wss://<websocket-api>.execute-api.<region>.amazonaws.com/<stage>
-```
-
-Usar los outputs Terraform `http_api_url` y `websocket_url`. No usar el endpoint
-interno `WS_MANAGEMENT_URL` ni exponer JWT_SECRET o credenciales en `VITE_*`.
-El hosting debe resolver rutas SPA como `/evento/<id>` a `index.html`.
-
-## Contrato y estado
-
-- `api/client.ts`: HTTP autenticado y validación Zod de respuestas.
-- `GET /app/state`: proyección de las pantallas, filtrada por el servidor.
-- `POST /app/actions`: acciones sociales persistentes y autorizadas.
-- Auth, amistad, perfil y fotos usan también los endpoints REST anteriores.
-- WebSocket con reconexión; refresco cada 10 s como recuperación de avisos perdidos.
-- JWT en `sessionStorage`; preferencias y datos sociales en DynamoDB.
-- `me` es un alias visual; el backend identifica siempre al usuario por su JWT.
-
-La ubicación exacta se envía al servidor autenticado solo con permiso y pestaña
-visible. No se guarda en storage del navegador. Los amigos reciben zonas de
-500 m con centros redondeados a 0.002°. El punto exacto se entrega únicamente
-a participantes de un match vigente, con amistad, sin bloqueos ni ghost mode.
-
-El registro solicita username único. Las solicitudes, planes, eventos,
-asistencias, mensajes rápidos, confirmaciones, progreso, bloqueos, reportes,
-modo abierto, roomies y borradores se guardan en el servidor. El backend calcula
-XP y evita recompensas duplicadas. El organizador aprueba solicitudes de eventos.
-Los planes para roomies se comparten con amigos que el autor marca desde su perfil.
-Planes abiertos siguen limitados a amigos con consentimiento y preferencia de
-planes chicos; los eventos abiertos permiten descubrir gente nueva sin compartir
-ubicaciones de participantes.
-
-No hay geocodificación automática: los eventos se colocan en la zona seleccionada
-del organizador; el nombre del lugar describe el punto de encuentro. No hay
-recordatorios por correo ni chat completo.
+La ubicación personal solo aparece entre cercanos mutuos. Planes y eventos
+requieren un lugar público explícito seleccionado en el mapa. Se puede usar
+ubicación manual para descubrir/publicar; el check-in exige permiso de GPS.
+Apagar modo abierto conserva las asistencias existentes en Mis planes.
 
 ## Pruebas
 
 ```powershell
-npm run build
+npm run typecheck
 npm test
-npx playwright install chromium
-# Con Docker y el backend local ejecutándose:
-npx playwright test --workers=1
+npm run build
+npm run test:e2e
 ```
 
-Las E2E crean cuentas reales en DynamoDB Local y verifican registro, errores,
-persistencia, QR, amistad, mensajes y encuentros entre dos cuentas, eventos y
-diseños móvil/escritorio. Capturas y trazas quedan en `test-results/`.
+E2E requiere backend local, DynamoDB, Redis y Chromium de Playwright instalado
+(`npx playwright install chromium`). La suite `e2e/integration` crea cuentas reales
+y prueba iPhone, Pixel y escritorio. Cubre descubrimiento manual, ruta del
+anfitrión al encuentro, cancelación sin resurrección, asistencia con modo abierto
+apagado y éxito de escritura aunque falle el refresco posterior. Los E2E anteriores
+basados en seed/mock permanecen fuera de esta suite como referencia de diseño.
+Las pruebas unitarias del antiguo reducer usan `src/api/mock/store.tsx`, aislado
+de producción; no sustituyen las pruebas contra el servidor.
 
-Recuperación local: abrir `reset_url` en `backend/.local/mail/*.json`. Fotos:
-requieren S3/CloudFront reales; los valores locales no emulan media.
-Ver [contrato](../backend/docs/FRONTEND_INTEGRATION.md) y
-[pendientes AWS](../backend/docs/INFRA_REQUESTS.md).
+MapLibre carga el mapa base CARTO por internet. La carga de imágenes necesita
+S3/CloudFront configurados; el runner local genera URLs pero no emula S3. La
+recuperación local imprime el enlace en consola; AWS requiere SES y salida HTTPS.
+No hay recordatorios programados ni edición/cancelación de eventos en esta UI.
+
+Contrato, migración y límites: [FRONTEND_INTEGRATION.md](../backend/docs/FRONTEND_INTEGRATION.md).
+Cambios que debe aplicar el responsable de infra: [INFRA_REQUESTS.md](../backend/docs/INFRA_REQUESTS.md).

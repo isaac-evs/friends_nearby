@@ -1,23 +1,22 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { EyeOff, MapPin, Eye } from 'lucide-react'
-import { Button, Chip, Notice } from '@/design'
-import { useActions, useApp } from '@/app/store'
-import { ZONES, zoneCenter } from '@/api/constants'
-import { roundToZone, type LatLng } from '@/lib/geo'
+import { Button, Notice } from '@/design'
+import { useActions } from '@/app/store'
+import { roundToCell, type LatLng } from '@/lib/geo'
+import { MapPickerSheet } from '@/features/publish/MapPickerSheet'
 
-/** Pantalla 2: pre-permiso, zona manual y manejo de `denied`. */
+/** Pantalla 2: pre-permiso, ubicación aproximada elegida en el mapa y manejo de `denied`. */
 export function PermissionScreen() {
-  const { state } = useApp()
   const { setLocation } = useActions()
   const nav = useNavigate()
   const loc = useLocation()
   const from = (loc.state as { from?: string } | null)?.from ?? '/'
   const [phase, setPhase] = useState<'ask' | 'asking' | 'denied' | 'manual'>('ask')
-  const [zone, setZone] = useState<string>(state.location.zoneName)
+  const [mapOpen, setMapOpen] = useState(false)
 
-  const finish = async (status: 'granted' | 'manual', zoneName: string, center?: LatLng) => {
-    if (await setLocation(status, zoneName, center ?? zoneCenter(zoneName))) nav(from, { replace: true })
+  const finish = async (status: 'granted' | 'manual', center: LatLng) => {
+    if (await setLocation(status, center)) nav(from, { replace: true })
   }
 
   const ask = () => {
@@ -25,9 +24,8 @@ export function PermissionScreen() {
     setPhase('asking')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        // Privacidad: redondeamos de inmediato a zona y descartamos el punto exacto. Nunca se registra.
-        const center = roundToZone({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        void finish('granted', 'Mi zona', center)
+        // Privacidad: redondeamos de inmediato a una celda aproximada y descartamos el punto exacto. Nunca se registra.
+        finish('granted', roundToCell({ lat: pos.coords.latitude, lng: pos.coords.longitude }))
       },
       () => setPhase('denied'),
       { maximumAge: 60_000, timeout: 10_000 },
@@ -40,10 +38,10 @@ export function PermissionScreen() {
         <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2.5">
           <h1 className="text-[32px] leading-[1.05] font-extrabold tracking-[-0.8px] lg:text-[44px]">
-            {phase === 'denied' ? 'Sin ubicación, tú eliges tu zona' : 'Elige tu zona'}
+            {phase === 'denied' ? 'Sin ubicación, la eliges tú' : 'Elige tu ubicación aproximada'}
           </h1>
           <p className="text-[15px] leading-snug text-text">
-            Verás planes y eventos cerca de esa zona. Puedes activar la ubicación cuando quieras desde los ajustes de tu navegador.
+            Verás planes y eventos cerca de ese punto. Se redondea a unos cientos de metros y nadie ve el punto exacto. Puedes activar la ubicación cuando quieras desde los ajustes de tu navegador.
           </p>
         </div>
         {phase === 'denied' && (
@@ -51,16 +49,13 @@ export function PermissionScreen() {
         )}
         </div>
         <div className="flex flex-1 flex-col gap-6 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-8 lg:shadow-card">
-        <div role="group" aria-label="Zonas disponibles" className="flex flex-wrap gap-2">
-          {ZONES.map((z) => (
-            <Chip key={z} selected={zone === z} onClick={() => setZone(z)} className="h-11">{z}</Chip>
-          ))}
-        </div>
+        <p className="text-sm leading-snug text-text">Marca en el mapa dónde estás (o cerca de dónde estás). Puedes cambiarlo cuando quieras.</p>
         <div className="mt-auto flex flex-col gap-2.5">
-          <Button size="lg" full onClick={() => finish('manual', zone)}>Usar {zone}</Button>
+          <Button size="lg" full icon={<MapPin aria-hidden="true" size={18} />} onClick={() => setMapOpen(true)}>Elegir en el mapa</Button>
           {phase === 'denied' && <Button variant="ghost" full onClick={ask}>Intentar de nuevo</Button>}
         </div>
         </div>
+        <MapPickerSheet open={mapOpen} onClose={() => setMapOpen(false)} onPick={(c) => finish('manual', c)} />
       </Layout>
     )
   }
@@ -80,22 +75,22 @@ export function PermissionScreen() {
       </div>
 
       <div className="flex flex-col gap-2.5">
-        <h1 className="text-[32px] leading-[1.05] font-extrabold tracking-[-0.8px] lg:text-[44px]">Tus amigos ven tu zona, no tu punto exacto</h1>
+        <h1 className="text-[32px] leading-[1.05] font-extrabold tracking-[-0.8px] lg:text-[44px]">Tus amigos cercanos ven dónde andas, no tu punto exacto</h1>
         <p className="text-[15px] leading-snug text-text">Necesitamos tu ubicación para mostrarte quién anda cerca.</p>
       </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-6 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-8 lg:shadow-card">
       <ul className="flex flex-col gap-3.5">
-        <Point tile="bg-cat-estudiar" icon={<Eye aria-hidden="true" size={20} />}>En cards y mapa solo se ve tu <strong className="text-ink">zona aproximada</strong>.</Point>
-        <Point tile="bg-cat-comer" icon={<MapPin aria-hidden="true" size={20} />}>Tu punto exacto solo lo ve <strong className="text-ink">tu match</strong>, mientras dura el plan.</Point>
+        <Point tile="bg-cat-estudiar" icon={<Eye aria-hidden="true" size={20} />}>En el mapa solo se ve tu <strong className="text-ink">ubicación aproximada</strong>, y solo a tus amigos cercanos.</Point>
+        <Point tile="bg-cat-comer" icon={<MapPin aria-hidden="true" size={20} />}>Tu punto exacto solo lo ve quien tú elijas, <strong className="text-ink">por el tiempo que elijas</strong>.</Point>
         <Point tile="bg-cat-musica" icon={<EyeOff aria-hidden="true" size={20} />}><strong className="text-ink">Modo fantasma</strong>: desapareces de todo en un toque.</Point>
       </ul>
 
       <div className="mt-auto flex flex-col gap-2.5">
         <p className="text-center text-caption text-muted">Solo usamos tu ubicación mientras la app está abierta.</p>
         <Button size="lg" full loading={phase === 'asking'} onClick={ask}>Activar ubicación</Button>
-        <Button variant="ghost" full onClick={() => setPhase('manual')}>Ahora no, elijo mi zona a mano</Button>
+        <Button variant="ghost" full onClick={() => setPhase('manual')}>Ahora no, la elijo en el mapa</Button>
       </div>
       </div>
     </Layout>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Button, Field, Logo, Notice, Pill } from '@/design'
+import { UsernameInput } from '@/api/schemas'
 import { useActions } from '@/app/store'
 
 type Mode = 'login' | 'registro' | 'recuperar' | 'reset'
@@ -30,7 +31,7 @@ export function AuthScreen() {
     e.preventDefault()
     const next: typeof errors = {}
     if (mode === 'registro' && name.trim().length < 2) next.name = 'Dinos cómo te llamas (mínimo 2 letras).'
-    if (mode === 'registro' && !/^[a-z0-9_]{3,20}$/.test(username)) next.username = 'Usa de 3 a 20 letras minúsculas, números o guion bajo.'
+    if (mode === 'registro' && !UsernameInput.safeParse({ username }).success) next.username = 'Usa de 3 a 20 letras minúsculas, números o guion bajo.'
     if (mode !== 'reset' && !EMAIL_RE.test(email)) next.email = 'Revisa tu correo: debe verse como tu@correo.com.'
     if (mode !== 'recuperar' && password.length < 8) next.password = 'Usa al menos 8 caracteres.'
     setErrors(next)

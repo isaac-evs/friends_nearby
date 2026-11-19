@@ -92,6 +92,12 @@ func (h *Handler) handleHTTP(ctx context.Context, ev events.APIGatewayV2HTTPRequ
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	switch {
+	case method == "POST" && path == "/me/password":
+		return h.changePassword(r)
+	case method == "POST" && path == "/me/media/presign":
+		return h.mediaPresign(r)
+	case method == "GET" && len(parts) == 2 && parts[0] == "usernames":
+		return h.usernameAvailable(r, parts[1])
 	case method == "GET" && path == "/app/state":
 		return h.appState(r)
 	case method == "POST" && path == "/app/actions":
@@ -144,7 +150,7 @@ func (h *Handler) register(r *request) httpResp {
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email || len(email) > 254 {
 		return respond(400, errBody("invalid email"))
 	}
-	if !usernameRe.MatchString(username) {
+	if !validUsername(username) {
 		return respond(400, errBody("username must be 3-20 characters: a-z, 0-9 or _"))
 	}
 	if n := len(in.Password); n < 8 || n > 72 {
@@ -275,6 +281,20 @@ func (h *Handler) patchMe(r *request) httpResp {
 	if !before.GhostMode && after.GhostMode {
 		if err := h.App.EnterGhost(r.ctx, after); err != nil {
 			return internalError("enter ghost mode", err)
+		}
+		t := newSocialTx(h, r)
+		p, e := t.person(r.userID)
+		if e != nil {
+			return responseError(e)
+		}
+		p.ExactEpoch++
+		p.Exact = map[string]string{}
+		p.ExactRequests = map[string]string{}
+		if e = t.putPerson(r.userID, p); e != nil {
+			return responseError(e)
+		}
+		if e = t.commit(); e != nil {
+			return responseError(e)
 		}
 	}
 	return respond(200, after)
@@ -476,6 +496,20 @@ func (h *Handler) removeFriend(r *request, otherID string) httpResp {
 	}
 	if err := h.App.Store.DeleteFriendship(r.ctx, r.userID, otherID); err != nil {
 		return internalError("delete friendship", err)
+	}
+	t := newSocialTx(h, r)
+	p, e := t.person(r.userID)
+	if e != nil {
+		return responseError(e)
+	}
+	if e = t.clearPair(&p, otherID); e != nil {
+		return responseError(e)
+	}
+	if e = t.putPerson(r.userID, p); e != nil {
+		return responseError(e)
+	}
+	if e = t.commit(); e != nil {
+		return responseError(e)
 	}
 	if f.Status == models.StatusAccepted {
 		users, err := h.App.Store.GetUsers(r.ctx, []string{r.userID, otherID})

@@ -3,34 +3,45 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/google/uuid"
+	"github.com/isaac-evs/friends_nearby/backend/internal/models"
+	"github.com/isaac-evs/friends_nearby/backend/internal/store"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/isaac-evs/friends_nearby/backend/internal/models"
-	"github.com/isaac-evs/friends_nearby/backend/internal/store"
 )
 
 func action(c *client, token string, in map[string]any) map[string]any {
 	c.t.Helper()
+	if in["requestId"] == nil {
+		in["requestId"] = uuid.NewString()
+	}
 	code, out := c.do("POST", "/app/actions", token, in)
 	if code != 200 {
 		c.t.Fatalf("action %v: %d %v", in, code, out)
 	}
 	return out
 }
+func rejected(c *client, token string, in map[string]any, expected int) {
+	c.t.Helper()
+	in["requestId"] = uuid.NewString()
+	code, out := c.do("POST", "/app/actions", token, in)
+	if code != expected {
+		c.t.Fatalf("expected %d got %d: %v", expected, code, out)
+	}
+}
 func state(c *client, token string) map[string]any {
 	c.t.Helper()
 	code, out := c.do("GET", "/app/state", token, nil)
 	if code != 200 {
-		c.t.Fatalf("state: %d %v", code, out)
+		c.t.Fatalf("state %d %v", code, out)
 	}
 	return out
 }
 func setZone(c *client, token string) {
-	action(c, token, map[string]any{"type": "setLocation", "location": map[string]any{"status": "granted", "zoneName": "Mi zona", "center": map[string]float64{"lat": 19.4326, "lng": -99.1332}}})
+	action(c, token, map[string]any{"type": "setLocation", "location": map[string]any{"status": "manual", "center": map[string]any{"lat": 19.432, "lng": -99.134}}})
 }
 func makeFriends(c *client, a, b, aid string) {
 	c.t.Helper()
@@ -41,143 +52,184 @@ func makeFriends(c *client, a, b, aid string) {
 }
 func locate(c *client, id string, lat float64) {
 	c.t.Helper()
-	if e := c.e.App.HandleLocation(context.Background(), id, models.Location{Lat: lat, Lng: -99.1332}); e != nil {
+	if e := c.e.App.HandleLocation(context.Background(), id, models.Location{Lat: lat, Lng: -99.134}); e != nil {
 		c.t.Fatal(e)
 	}
 }
-func publish(c *client, token string) string {
-	return action(c, token, map[string]any{"type": "publishPlan", "category": "cafe", "line": "Vamos por un café", "durationMin": 60, "audience": "amigos"})["result"].(map[string]any)["id"].(string)
+func publishInput() map[string]any {
+	return map[string]any{"type": "publishPlan", "category": "cafe", "line": "Café en la plaza", "startsAt": time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), "durationMin": 60, "joinPolicy": "friends_and_guests", "lateJoin": true, "place": map[string]any{"name": "Plaza pública", "center": map[string]any{"lat": 19.434, "lng": -99.134}}}
 }
-
-func TestSocialPlanMatchPrivacyAndReward(t *testing.T) {
+func publish(c *client, token string) string {
+	return action(c, token, publishInput())["result"].(map[string]any)["id"].(string)
+}
+func TestPublicVenueManualDiscoveryCancellationAndIncomingMatch(t *testing.T) {
 	c := newClient(t)
 	a, aid := c.register("alice")
-	b, bid := c.register("bob")
+	b, _ := c.register("bob")
 	outsider, _ := c.register("carla")
 	setZone(c, a)
 	setZone(c, b)
 	makeFriends(c, a, b, aid)
-	locate(c, aid, 19.4326)
-	locate(c, bid, 19.4327)
 	pid := publish(c, a)
 	s := state(c, b)
-	if len(s["plans"].([]any)) != 1 {
-		t.Fatal("friend plan missing")
+	plans := s["plans"].([]any)
+	if len(plans) != 1 {
+		t.Fatal("manual location plan missing")
 	}
-	if len(s["exactLocations"].(map[string]any)) != 0 {
-		t.Fatal("exact location leaked before match")
+	pl := plans[0].(map[string]any)
+	if pl["place"].(map[string]any)["center"].(map[string]any)["lat"] != 19.434 {
+		t.Fatal("public venue overwritten with private center")
 	}
-	plan := s["plans"].([]any)[0].(map[string]any)
-	center := plan["zone"].(map[string]any)["center"].(map[string]any)
-	if center["lat"] == 19.4326 {
-		t.Fatal("plan coordinates were not rounded")
-	}
-	code, _ := c.do("POST", "/app/actions", outsider, map[string]any{"type": "jalo", "id": pid})
-	want(t, "stranger joins", code, 403)
+	rejected(c, outsider, map[string]any{"type": "jalo", "id": pid}, 403)
 	mid := action(c, b, map[string]any{"type": "jalo", "id": pid})["result"].(string)
-	same := action(c, b, map[string]any{"type": "jalo", "id": pid})["result"].(string)
-	if mid != same {
-		t.Fatal("join not idempotent")
+	if len(state(c, a)["matches"].([]any)) != 1 {
+		t.Fatal("host cannot discover incoming encounter")
 	}
-	s = state(c, b)
-	if len(s["exactLocations"].(map[string]any)) != 1 {
-		t.Fatal("active match has no exact location")
+	if len(state(c, a)["exactLocations"].(map[string]any)) != 0 {
+		t.Fatal("match automatically granted exact location")
 	}
 	action(c, a, map[string]any{"type": "quickMessage", "id": mid, "message": "Voy en 10"})
-	m := state(c, b)["matches"].([]any)[0].(map[string]any)
-	if m["receivedMessage"] != "Voy en 10" {
-		t.Fatal("quick message not delivered")
+	if state(c, b)["matches"].([]any)[0].(map[string]any)["receivedMessage"] != "Voy en 10" {
+		t.Fatal("message not delivered")
 	}
-	locate(c, bid, 19.44)
-	code, _ = c.do("POST", "/app/actions", b, map[string]any{"type": "confirmMeet", "id": mid})
-	want(t, "distant confirmation", code, 400)
-	locate(c, bid, 19.4327)
-	action(c, b, map[string]any{"type": "confirmMeet", "id": mid, "who": "them"})
-	if state(c, a)["xp"].(float64) != 0 {
-		t.Fatal("one confirmation rewarded")
+	rejected(c, b, map[string]any{"type": "verifyTogether", "id": mid, "center": map[string]any{"lat": 20, "lng": -99}}, 400)
+	for _, token := range []string{a, b} {
+		action(c, token, map[string]any{"type": "verifyTogether", "id": mid, "center": map[string]any{"lat": 19.434, "lng": -99.134}})
+		action(c, token, map[string]any{"type": "confirmMeet", "id": mid})
+	}
+	xp := state(c, a)["xp"]
+	if xp.(float64) <= 0 {
+		t.Fatal("mutual check-in did not reward")
 	}
 	action(c, a, map[string]any{"type": "confirmMeet", "id": mid})
-	action(c, a, map[string]any{"type": "confirmMeet", "id": mid})
-	if state(c, a)["xp"].(float64) != 20 || state(c, b)["xp"].(float64) != 20 {
-		t.Fatal("both participants need exactly one reward")
+	if state(c, a)["xp"] != xp {
+		t.Fatal("reward duplicated")
 	}
-	code, _ = c.do("POST", "/app/actions", outsider, map[string]any{"type": "confirmMeet", "id": mid})
-	want(t, "stranger confirms", code, 403)
-	code, _ = c.do("PATCH", "/me", a, map[string]bool{"ghost_mode": true})
-	want(t, "ghost", code, 200)
-	s = state(c, b)
-	if len(s["exactLocations"].(map[string]any)) != 0 {
-		t.Fatal("ghost location leaked")
+	action(c, a, map[string]any{"type": "removePlan", "id": pid})
+	for _, token := range []string{a, b} {
+		s = state(c, token)
+		if len(s["plans"].([]any)) != 0 || len(s["matches"].([]any)) != 0 {
+			t.Fatal("canceled plan resurrected")
+		}
 	}
-	action(c, b, map[string]any{"type": "block", "userId": aid})
-	s = state(c, b)
-	if len(s["matches"].([]any)) != 0 || len(s["plans"].([]any)) != 0 {
-		t.Fatal("block did not hide content")
+}
+func TestClosePresenceAndExplicitExactConsent(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, bid := c.register("bob")
+	setZone(c, a)
+	setZone(c, b)
+	makeFriends(c, a, b, aid)
+	locate(c, aid, 19.432345)
+	locate(c, bid, 19.4324)
+	if !state(c, b)["friendships"].(map[string]any)[aid].(map[string]any)["locationPaused"].(bool) {
+		t.Fatal("normal friend saw presence")
 	}
-	code, _ = c.do("GET", "/users/search?username=alice", b, nil)
-	want(t, "blocked search", code, 404)
-	code, _ = c.do("GET", "/app/user?username=bob", a, nil)
-	want(t, "reverse blocked search", code, 404)
-	code, _ = c.do("POST", "/friends/requests", a, map[string]string{"username": "bob"})
-	want(t, "blocked friendship", code, 404)
+	action(c, a, map[string]any{"type": "requestClose", "userId": bid})
+	action(c, b, map[string]any{"type": "acceptClose", "userId": aid})
+	if state(c, a)["friendships"].(map[string]any)[bid].(map[string]any)["locationPaused"].(bool) {
+		t.Fatal("close guest without plan missing on map")
+	}
+	action(c, a, map[string]any{"type": "startExact", "userId": bid, "minutes": 60})
+	locate(c, aid, 19.432345)
+	if len(state(c, b)["exactLocations"].(map[string]any)) != 1 {
+		t.Fatal("explicit exact location missing")
+	}
+	loc, _ := c.e.App.Loc.Get(context.Background(), aid)
+	if loc.Lat == 19.432345 {
+		t.Fatal("raw GPS in normal presence")
+	}
+	for _, body := range c.e.Queue.Bodies {
+		if strings.Contains(string(body), "19.432345") {
+			t.Fatal("raw GPS persisted to history")
+		}
+	}
+	action(c, b, map[string]any{"type": "setGhost", "enabled": true})
+	action(c, b, map[string]any{"type": "setGhost", "enabled": false})
+	locate(c, aid, 19.432345)
+	if len(state(c, b)["exactLocations"].(map[string]any)) != 0 {
+		t.Fatal("incoming exact grant revived after ghost")
+	}
+	action(c, a, map[string]any{"type": "startExact", "userId": bid, "minutes": 30})
+	locate(c, aid, 19.432345)
+	action(c, a, map[string]any{"type": "stopExact", "userId": bid})
+	if len(state(c, b)["exactLocations"].(map[string]any)) != 0 {
+		t.Fatal("revoked exact grant still visible")
+	}
+	action(c, a, map[string]any{"type": "removeClose", "userId": bid})
+	if !state(c, b)["friendships"].(map[string]any)[aid].(map[string]any)["locationPaused"].(bool) {
+		t.Fatal("presence visible after removing close")
+	}
 }
-
-func createEvent(c *client, token string, approval bool, capacity int) string {
-	return action(c, token, map[string]any{"type": "publishEvent", "eventType": "correr", "title": "Carrera en el parque", "startsAt": time.Now().Add(24 * time.Hour).Format(time.RFC3339), "placeName": "Parque público", "capacity": capacity, "audience": "abierto", "requiresApproval": approval})["result"].(map[string]any)["id"].(string)
+func open(c *client, token string, enabled bool) {
+	action(c, token, map[string]any{"type": "setOpenMode", "openMode": map[string]any{"enabled": enabled, "adult": true, "bigEvents": true, "smallPlans": true}})
 }
-func enableOpen(c *client, token string) {
-	action(c, token, map[string]any{"type": "setOpenMode", "openMode": map[string]bool{"enabled": true, "adult": true, "bigEvents": true, "smallPlans": true}})
+func eventInput() map[string]any {
+	return map[string]any{"type": "publishEvent", "eventType": "arte", "title": "Museo de la plaza", "startsAt": time.Now().Add(time.Hour).UTC().Format(time.RFC3339), "endsAt": time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339), "placeName": "Museo público", "capacity": 2, "requiresApproval": true, "center": map[string]any{"lat": 19.434, "lng": -99.134}}
 }
-func TestSocialEventsConsentApprovalCapacityAndPersistence(t *testing.T) {
+func TestEventVenueApprovalAndLeaveWithOpenModeDisabled(t *testing.T) {
 	c := newClient(t)
 	a, _ := c.register("alice")
 	b, bid := c.register("bob")
-	third, tid := c.register("carla")
 	setZone(c, a)
-	enableOpen(c, a)
-	code, _ := c.do("POST", "/app/actions", b, map[string]any{"type": "setOpenMode", "openMode": map[string]bool{"enabled": true}})
-	want(t, "adult consent", code, 400)
-	eid := createEvent(c, a, true, 2)
-	if len(state(c, b)["events"].([]any)) != 0 {
-		t.Fatal("events visible without consent")
+	setZone(c, b)
+	open(c, a, true)
+	open(c, b, true)
+	bad := eventInput()
+	delete(bad, "center")
+	rejected(c, a, bad, 400)
+	ev := action(c, a, eventInput())["result"].(map[string]any)
+	id := ev["id"].(string)
+	action(c, b, map[string]any{"type": "joinEvent", "id": id})
+	action(c, a, map[string]any{"type": "approveAttendance", "id": id, "userId": bid})
+	xp := state(c, b)["xp"]
+	open(c, b, false)
+	if len(state(c, b)["events"].([]any)) != 1 {
+		t.Fatal("existing attendance hidden with open mode disabled")
 	}
-	enableOpen(c, b)
-	enableOpen(c, third)
-	action(c, b, map[string]any{"type": "joinEvent", "id": eid, "pace": "Tranquilo"})
-	if state(c, b)["xp"].(float64) != 0 {
-		t.Fatal("pending attendance rewarded")
+	action(c, b, map[string]any{"type": "leaveEvent", "id": id})
+	if len(state(c, b)["attendances"].([]any)) != 0 {
+		t.Fatal("cannot leave attendance")
 	}
-	code, _ = c.do("POST", "/app/actions", b, map[string]any{"type": "approveAttendance", "id": eid, "userId": bid})
-	want(t, "self approval", code, 403)
-	action(c, a, map[string]any{"type": "approveAttendance", "id": eid, "userId": bid})
-	if state(c, b)["xp"].(float64) != 40 {
-		t.Fatal("approved attendance not rewarded")
-	}
-	code, _ = c.do("POST", "/app/actions", third, map[string]any{"type": "joinEvent", "id": eid})
-	want(t, "capacity", code, 400)
-	action(c, b, map[string]any{"type": "leaveEvent", "id": eid})
-	action(c, b, map[string]any{"type": "joinEvent", "id": eid})
-	action(c, a, map[string]any{"type": "approveAttendance", "id": eid, "userId": bid})
-	if state(c, b)["xp"].(float64) != 40 {
-		t.Fatal("rejoin rewarded twice")
-	}
-	action(c, b, map[string]any{"type": "swipe", "kind": "event", "id": eid, "action": "later"})
-	action(c, b, map[string]any{"type": "saveDraft", "draft": map[string]string{"title": "Borrador"}})
-	code, out := c.do("POST", "/auth/login", "", map[string]string{"email": "bob@example.com", "password": "password123"})
-	want(t, "login", code, 200)
-	fresh := state(c, out["token"].(string))
-	if fresh["swipes"].(map[string]any)["event:"+eid] != "later" {
-		t.Fatal("swipe not persisted")
-	}
-	if fresh["eventDraft"].(map[string]any)["title"] != "Borrador" {
-		t.Fatal("draft not persisted")
-	}
-	action(c, a, map[string]any{"type": "block", "userId": tid})
-	if len(state(c, third)["events"].([]any)) != 0 {
-		t.Fatal("blocked organizer event visible")
+	if state(c, b)["xp"] != xp {
+		t.Fatal("leave modified rewards")
 	}
 }
-
+func TestActionReceiptReplayAndProfileChange(t *testing.T) {
+	c := newClient(t)
+	a, _ := c.register("alice")
+	setZone(c, a)
+	in := publishInput()
+	in["requestId"] = uuid.NewString()
+	one := action(c, a, in)
+	two := action(c, a, in)
+	if one["result"].(map[string]any)["id"] != two["result"].(map[string]any)["id"] || len(state(c, a)["plans"].([]any)) != 1 {
+		t.Fatal("replayed publication duplicated")
+	}
+	in["line"] = "Otra operación"
+	code, _ := c.do("POST", "/app/actions", a, in)
+	want(t, "receipt mismatch", code, 409)
+	action(c, a, map[string]any{"type": "updateHandle", "username": "alice.test"})
+	code, out := c.do("GET", "/usernames/alice.test", a, nil)
+	want(t, "availability", code, 200)
+	if out["available"] != true {
+		t.Fatal("own username unavailable")
+	}
+	c.ws("$connect", "old-password-session", "", map[string]string{"token": a})
+	code, out = c.do("POST", "/me/password", a, map[string]string{"current": "password123", "next": "newpassword456"})
+	want(t, "change password", code, 200)
+	if code == 200 {
+		code, _ = c.do("GET", "/me", a, nil)
+		want(t, "old session", code, 401)
+		c.e.Pusher.Reset()
+		c.e.App.NotifyChange(context.Background(), state(c, out["token"].(string))["session"].(map[string]any)["userId"].(string))
+		if len(c.e.Pusher.Messages("old-password-session")) != 0 {
+			t.Fatal("revoked session received a push")
+		}
+		code, _ = c.do("GET", "/me", out["token"].(string), nil)
+		want(t, "new session", code, 200)
+	}
+}
 func TestDocumentConcurrentWritesDoNotLoseUpdates(t *testing.T) {
 	c := newClient(t)
 	ctx := context.Background()
@@ -207,43 +259,6 @@ func TestDocumentConcurrentWritesDoNotLoseUpdates(t *testing.T) {
 	if ok != 1 || conflict != 1 {
 		t.Fatalf("success=%d conflicts=%d", ok, conflict)
 	}
-}
-
-func TestRoomiePlanAuthorizationAndMatchExpiry(t *testing.T) {
-	c := newClient(t)
-	a, aid := c.register("alice")
-	b, bid := c.register("bob")
-	setZone(c, a)
-	setZone(c, b)
-	makeFriends(c, a, b, aid)
-	locate(c, aid, 19.4326)
-	locate(c, bid, 19.4327)
-	pid := action(c, a, map[string]any{"type": "publishPlan", "category": "cafe", "line": "Café con roomies", "durationMin": 60, "audience": "roomies"})["result"].(map[string]any)["id"].(string)
-	if len(state(c, b)["plans"].([]any)) != 0 {
-		t.Fatal("private roomie plan leaked")
-	}
-	code, _ := c.do("POST", "/app/actions", b, map[string]any{"type": "jalo", "id": pid})
-	want(t, "unselected roomie", code, 403)
-	action(c, a, map[string]any{"type": "toggleRoomie", "userId": bid})
-	mid := action(c, b, map[string]any{"type": "jalo", "id": pid})["result"].(string)
-	d, e := c.e.Store.GetDocument(context.Background(), "match#"+mid, "data")
-	if e != nil {
-		t.Fatal(e)
-	}
-	var payload map[string]any
-	if e = json.Unmarshal(d.Data, &payload); e != nil {
-		t.Fatal(e)
-	}
-	payload["exactShareUntil"] = time.Now().Add(-time.Minute).Format(time.RFC3339)
-	d.Data, _ = json.Marshal(payload)
-	if e = c.e.Store.CommitDocuments(context.Background(), []store.Document{d}); e != nil {
-		t.Fatal(e)
-	}
-	if len(state(c, b)["exactLocations"].(map[string]any)) != 0 {
-		t.Fatal("expired match revealed exact position")
-	}
-	code, _ = c.do("POST", "/app/actions", b, map[string]any{"type": "confirmMeet", "id": mid})
-	want(t, "expired confirmation", code, 400)
 }
 
 type resetMail struct{ link string }
@@ -282,4 +297,31 @@ func TestPasswordResetSingleUseAndSessionRevocation(t *testing.T) {
 	if strings.Contains(mail.link, "reset") {
 		t.Fatal("unknown account email sent")
 	}
+}
+
+func TestInvitationsAndOverlappingReservations(t *testing.T) {
+	c := newClient(t)
+	a, aid := c.register("alice")
+	b, _ := c.register("bob")
+	d, did := c.register("diana")
+	setZone(c, a)
+	setZone(c, b)
+	setZone(c, d)
+	makeFriends(c, a, b, aid)
+	code, _ := c.do("POST", "/friends/requests", b, map[string]string{"username": "diana"})
+	want(t, "guest friendship request", code, 201)
+	_, me := c.do("GET", "/me", b, nil)
+	bid := me["user_id"].(string)
+	code, _ = c.do("POST", "/friends/"+bid+"/accept", d, nil)
+	want(t, "guest friendship accept", code, 200)
+	pid := publish(c, a)
+	action(c, b, map[string]any{"type": "jalo", "id": pid})
+	action(c, b, map[string]any{"type": "invitePeople", "id": pid, "inviteIds": []string{did}})
+	inv := state(c, d)["invites"].([]any)[0].(map[string]any)
+	rejected(c, a, map[string]any{"type": "respondInvite", "id": inv["id"], "accept": true}, 400)
+	action(c, d, map[string]any{"type": "respondInvite", "id": inv["id"], "accept": true})
+	if len(state(c, d)["matches"].([]any)) != 1 {
+		t.Fatal("invited guest did not join")
+	}
+	rejected(c, d, publishInput(), 409)
 }

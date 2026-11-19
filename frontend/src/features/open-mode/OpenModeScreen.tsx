@@ -17,7 +17,7 @@ export function OpenModeScreen() {
   const [adult, setAdult] = useState(om.adult)
 
   const activate = async () => {
-    if (!await setOpenMode({ enabled: true, adult, bigEvents: big, smallPlans: small })) return
+    if (!await setOpenMode({ enabled: true, adult: true, bigEvents: big, smallPlans: small })) return
     toast('Modo abierto activado')
     nav('/')
   }
@@ -64,7 +64,7 @@ export function OpenModeScreen() {
       <div className="mt-auto flex flex-col gap-1.5">
         <Button size="lg" full disabled={!adult} onClick={activate} className={cn(!adult && 'pointer-events-none')}>{om.enabled ? 'Guardar preferencias' : 'Activar modo abierto'}</Button>
         {om.enabled ? (
-          <Button variant="ghost" full onClick={async () => { if (await setOpenMode({ enabled: false })) { toast('Modo abierto apagado'); nav('/perfil') } }}>Apagar modo abierto</Button>
+          <Button variant="ghost" full onClick={async () => { if (!await setOpenMode({ enabled: false })) return; toast('Modo abierto apagado'); nav('/perfil') }}>Apagar modo abierto</Button>
         ) : (
           <Button variant="ghost" full onClick={() => nav(-1)}>Ahora no, solo amigos</Button>
         )}

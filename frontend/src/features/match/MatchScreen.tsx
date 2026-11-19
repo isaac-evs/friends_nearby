@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { Check, Lock, MapPin, Navigation } from 'lucide-react'
-import { Avatar, ButtonLink, Notice } from '@/design'
+import { Avatar, AvatarStack, Button, ButtonLink, Notice, buttonClass, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { PLAN_CATEGORIES } from '@/lib/category'
-import { formatApproxDistance, formatPlanTime, timeLabel } from '@/lib/format'
+import { formatApproxDistance } from '@/lib/format'
+import { planDistanceM } from '@/lib/reach'
+import { countdownLabel, durationText, startLabel, verifyWindow, VERIFY_LEAD_MIN, planStart } from '@/lib/planTime'
+import { useClock } from '@/app/hooks'
 import { cn } from '@/lib/cn'
 
 const QUICK = ['Voy en 10', 'Ya llegué', 'Se me complicó']
@@ -12,16 +16,26 @@ const QUICK = ['Voy en 10', 'Ya llegué', 'Se me complicó']
 export function MatchScreen() {
   const { id } = useParams()
   const { state } = useApp()
-  const { setQuickMessage, confirmMeet } = useActions()
+  const { setQuickMessage, confirmMeet, verifyTogether } = useActions()
+  const [checking, setChecking] = useState(false)
+  const toast = useToast()
+  const now = useClock(15_000)
   const match = state.matches.find((m) => m.id === id)
   const plan = match && state.plans.find((p) => p.id === match.planId)
   const friend = match && state.users[match.friendId]
+  const me = state.users.me!
 
   const waiting = !!match && match.myConfirmed && !match.theirConfirmed
 
   if (!match || !plan || !friend) return <Navigate to="/" replace />
+  const verify = async () => { setChecking(true); try { await verifyTogether(match.id) } finally { setChecking(false) } }
   const cat = PLAN_CATEGORIES[plan.category]
   const both = match.myConfirmed && match.theirConfirmed
+  const win = verifyWindow(plan, now)
+  const verifyAt = startLabel(new Date(planStart(plan) - VERIFY_LEAD_MIN * 60_000).toISOString(), now)
+  const others = Math.max(0, plan.joinedCount - 1) // además de ti
+  // Cómo llegar: si el plan tiene lugar exacto (público) se abre en la app de mapas; si no, el mapa de la app.
+  const dest = plan.place ? `https://www.google.com/maps/dir/?api=1&destination=${plan.place.center.lat},${plan.place.center.lng}` : null
 
   return (
     <div className="flex min-h-dvh flex-col gap-[18px] px-[22px] pt-10 pb-6 lg:min-h-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:items-start lg:gap-x-16 lg:gap-y-5 lg:p-0 lg:pt-6">
@@ -40,13 +54,42 @@ export function MatchScreen() {
           <div className="flex flex-col gap-0.5">
             <span className="text-[11px] font-bold tracking-[0.8px] text-muted uppercase">Punto de encuentro</span>
             <span className="text-base font-extrabold">{match.meetPoint}</span>
-            <span className="text-meta font-semibold text-text">a {formatApproxDistance(plan.zone.approxDistanceM)} · {formatPlanTime(plan).replace(/^en /, 'empieza en ')}</span>
+            <span className="text-meta font-semibold text-text">{startLabel(plan.startsAt, now)} · dura {durationText(plan.durationMin)}</span>
+            <span className="text-meta font-semibold text-text">{countdownLabel(plan, now)} · a {formatApproxDistance(planDistanceM(plan, state.location.center))}</span>
           </div>
         </div>
-        <Notice tone="privacy" icon="lock" className="!rounded-[12px] !py-2">
-          Tu ubicación exacta la ve solo {friend.name}, hasta las {timeLabel(match.exactShareUntil)}.
-        </Notice>
-        <ButtonLink to="/mapa" size="md" icon={<Navigation aria-hidden="true" size={18} strokeWidth={2.4} />}>Cómo llegar</ButtonLink>
+        {plan.photoUrl && <img src={plan.photoUrl} alt="Foto del plan" className="h-36 w-full rounded-md border border-line object-cover" />}
+        {match.togetherAt ? (
+          <Notice tone="safety" icon="shield" role="status" className="!rounded-[12px] !py-2">Verificado: llegaste al punto de encuentro.</Notice>
+        ) : (
+          <>
+            <Notice tone="privacy" icon="lock" className="!rounded-[12px] !py-2">
+              Tu ubicación solo la usa el sistema, una vez, para comprobar que llegaste. Ni {friend.name} ni nadie la ve.
+            </Notice>
+            {win === 'open' ? (
+              <Button variant="secondary" loading={checking} onClick={verify}>Verificar que estoy aquí</Button>
+            ) : (
+              <>
+                {/* aria-disabled (no disabled) para que el motivo sea alcanzable con teclado y lector de pantalla. */}
+                <Button variant="secondary" aria-disabled="true" aria-describedby="verify-why" onClick={() => toast(win === 'early' ? `Se activa 30 min antes del inicio (${verifyAt})` : 'El plan ya terminó')}>Verificar que estoy aquí</Button>
+                <p id="verify-why" className="text-caption font-medium text-muted">{win === 'early' ? `Se activa 30 min antes del inicio (${verifyAt}).` : 'El plan ya terminó: ya no se puede verificar.'}</p>
+              </>
+            )}
+          </>
+        )}
+        <Link to={`/mapa?sel=${plan.id}`} className="flex min-h-11 items-center justify-center text-sm font-bold text-primary">Ver dónde es en el mapa</Link>
+        {dest ? (
+          <a href={dest} target="_blank" rel="noopener noreferrer" className={buttonClass('primary', 'md')}>
+            <Navigation aria-hidden="true" size={18} strokeWidth={2.4} />Cómo llegar<span className="sr-only"> (abre tu app de mapas en otra pestaña)</span>
+          </a>
+        ) : (
+          <ButtonLink to="/mapa" size="md" icon={<Navigation aria-hidden="true" size={18} strokeWidth={2.4} />}>Cómo llegar</ButtonLink>
+        )}
+      </section>
+
+      <section aria-label="Quiénes van" className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 lg:col-start-2">
+        <AvatarStack people={[{ id: 'me', name: me.name, avatarUrl: me.avatarUrl }, { id: friend.id, name: friend.name, avatarUrl: friend.avatarUrl }]} size={40} />
+        <span className="text-sm font-bold">Van: tú y {friend.name}{others > 0 ? ` y ${others} más` : ''}</span>
       </section>
 
       <section aria-label="Mensajes rápidos" className="flex flex-col gap-2.5 lg:col-start-2">

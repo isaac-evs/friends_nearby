@@ -96,8 +96,9 @@ func (s *Store) CreateUser(ctx context.Context, u *models.User) error {
 
 func (s *Store) GetUser(ctx context.Context, id string) (*models.User, error) {
 	out, err := s.db.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(s.cfg.UsersTable),
-		Key:       map[string]types.AttributeValue{"user_id": &types.AttributeValueMemberS{Value: id}},
+		TableName:      aws.String(s.cfg.UsersTable),
+		ConsistentRead: aws.Bool(true),
+		Key:            map[string]types.AttributeValue{"user_id": &types.AttributeValueMemberS{Value: id}},
 	})
 	if err != nil || out.Item == nil {
 		return nil, err
