@@ -6,7 +6,7 @@ import { useClock } from '@/app/hooks'
 import { countdownLabel, durationText, startLabel } from '@/lib/planTime'
 import { JoinButton, useJoinBlock } from './JoinButton'
 import { PlanDetailSheet } from './PlanDetailSheet'
-import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
+import { eventLook, PLAN_CATEGORIES } from '@/lib/category'
 import { eventRange, formatApproxDistance, formatNearby, staleLabel, timeLabel } from '@/lib/format'
 import { InviteButton } from './InviteButton'
 import type { MapEventItem, MapItem, MapPerson, MapPlan } from './useMapData'
@@ -21,7 +21,7 @@ export function SelectedSheet({ item, className }: { item: MapItem; className?: 
 
 function EventSheet({ item, className }: { item: MapEventItem; className?: string }) {
   const e = item.event
-  const t = EVENT_TYPES[e.type]
+  const t = eventLook(e)
   return (
     <BottomSheet label="Seleccionado en el mapa" className={className}>
       <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+import { dateKey, startOfDay } from '@/lib/tz'
 import type { Event, Friendship, Invite, Plan } from '@/api/schemas'
 
 /**
@@ -59,7 +60,7 @@ const DAY = 24 * 60 * MIN
 export const NEAR_METERS = 500
 export const STARTS_SOON_MIN = 10
 
-const dayKey = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}` }
+const dayKey = (ms: number) => dateKey(ms)
 const iso = (ms: number) => new Date(ms).toISOString()
 const inPlan = (p: Plan, me: string) => p.authorId === me || !!p.memberIds?.includes(me) || !!p.roster?.some((r) => r.userId === me)
 
@@ -119,9 +120,9 @@ export const BUCKETS: Bucket[] = ['Hoy', 'Esta semana', 'Antes']
 
 export function bucketOf(at: string, now: number): Bucket {
   const t = new Date(at).getTime()
-  const start = new Date(now); start.setHours(0, 0, 0, 0)
-  if (t >= start.getTime()) return 'Hoy'
-  return t >= start.getTime() - 6 * DAY ? 'Esta semana' : 'Antes'
+  const start = startOfDay(now)
+  if (t >= start) return 'Hoy'
+  return t >= start - 6 * DAY ? 'Esta semana' : 'Antes'
 }
 
 /** Una fila ya agrupada: varias personas que hicieron lo mismo en el mismo plan ("Mau y 2 más se unieron"). */

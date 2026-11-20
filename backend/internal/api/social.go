@@ -139,6 +139,8 @@ type socialEvent struct {
 	Owner     string            `json:"organizerId"`
 	Type      string            `json:"type"`
 	Subtype   string            `json:"subtype"`
+	TypeIcon  string            `json:"typeIcon,omitempty"`
+	TypeColor string            `json:"typeColor,omitempty"`
 	Title     string            `json:"title"`
 	Starts    string            `json:"startsAt"`
 	Ends      string            `json:"endsAt"`
@@ -232,6 +234,9 @@ type socialAction struct {
 	RequestID   string          `json:"requestId"`
 	Accuracy    float64         `json:"accuracy"`
 	Enabled     *bool           `json:"enabled"`
+	Subtype     string          `json:"subtype"`
+	TypeIcon    string          `json:"typeIcon"`
+	TypeColor   string          `json:"typeColor"`
 }
 type socialTx struct {
 	h        *Handler
@@ -359,6 +364,10 @@ func validPoint(p point) bool {
 func approximate(p point) point {
 	return point{math.Round(p.Lat/0.002) * 0.002, math.Round(p.Lng/0.002) * 0.002}
 }
+
+// mxZone: las semanas de la racha se cuentan en hora de Ciudad de México (UTC−6 fijo desde 2022); todos los instantes se guardan en UTC.
+var mxZone = time.FixedZone("America/Mexico_City", -6*3600)
+
 func nowISO() string             { return time.Now().UTC().Format(time.RFC3339Nano) }
 func instant(s string) time.Time { dt, _ := time.Parse(time.RFC3339Nano, s); return dt }
 func active(s string) bool       { return instant(s).After(time.Now()) }
@@ -377,12 +386,12 @@ func reward(p *personal, amount int, reason, id string) {
 		amount -= recoverXP
 	}
 	p.XP += amount
-	for p.XP >= 500 && p.Level < 100 {
-		p.XP -= 500
+	for p.XP >= xpPerLevel && p.Level < 100 {
+		p.XP -= xpPerLevel
 		p.Level++
 	}
-	if p.Level == 100 && p.XP > 500 {
-		p.XP = 500
+	if p.Level == 100 && p.XP > xpPerLevel {
+		p.XP = xpPerLevel
 	}
 	p.Rewards = append(p.Rewards, xpEvent{id, amount, reason, nowISO()})
 	if len(p.Rewards) > 500 {
@@ -396,14 +405,14 @@ func streak(history []historyItem) int {
 		if dt.After(time.Now()) {
 			continue
 		}
-		y, w := dt.ISOWeek()
+		y, w := dt.In(mxZone).ISOWeek()
 		seen[fmt.Sprintf("%d-%d", y, w)] = true
 	}
 	now := time.Now().UTC()
 	n := 0
 	for i := 0; i < 5200; i++ {
 		dt := now.AddDate(0, 0, -7*i)
-		y, w := dt.ISOWeek()
+		y, w := dt.In(mxZone).ISOWeek()
 		if !seen[fmt.Sprintf("%d-%d", y, w)] {
 			if i == 0 {
 				continue
@@ -449,22 +458,26 @@ func responseError(e error) httpResp {
 // ---------------------------------------------------------------- G6: reglas de confiabilidad
 
 const (
-	checkInMeters   = 250 // radio exacto para confirmar la llegada (sin margen extra)
-	checkInLeadMin  = 10  // el check-in y el lobby abren 10 min antes
-	graceAfterEdit  = 2 * time.Hour
-	noShowPenalty   = 80
-	finishXP        = 30 // quien organiza gana XP al terminar su plan
-	arrivedBonusXP  = 5  // + por cada persona que llegó a tu plan
-	maxArrivedBonus = 25
-	lateCancelXP    = 60
-	startedCancelXP = 100
-	minLevel        = -9 // easter egg: por debajo del nivel 1 hay nivel 0 y niveles negativos; con 10 XP vuelves al 1
-	recoverXP       = 10
-	recordSize      = 20
-	messageCooldown = time.Second // chat del plan: libre, pero sin ráfagas
-	maxChatRunes    = 280
-	maxTimeline     = 100
-	staleLocation   = 15 * time.Minute // una ubicación más vieja que esto no cuenta como "a cuánto está"
+	checkInMeters     = 250 // radio exacto para confirmar la llegada (sin margen extra)
+	checkInLeadMin    = 10  // el check-in y el lobby abren 10 min antes
+	graceAfterEdit    = 2 * time.Hour
+	noShowPenalty     = 80
+	finishXP          = 30 // quien organiza gana XP al terminar su plan
+	arrivedBonusXP    = 5  // + por cada persona que llegó a tu plan
+	maxArrivedBonus   = 25
+	lateCancelXP      = 60
+	startedCancelXP   = 100
+	minLevel          = -9 // easter egg: por debajo del nivel 1 hay nivel 0 y niveles negativos; con 10 XP vuelves al 1
+	recoverXP         = 10
+	joinOrganizerXP   = 5 // quien organiza un evento gana por cada persona que se une
+	arriveOrganizerXP = 5 // y otro tanto si esa persona llega
+	maxSubtypeRunes   = 20
+	xpPerLevel        = 150 // XP para subir de nivel (antes 500): ~4-6 jales por nivel
+	recordSize        = 20
+	messageCooldown   = time.Second // chat del plan: libre, pero sin ráfagas
+	maxChatRunes      = 280
+	maxTimeline       = 100
+	staleLocation     = 15 * time.Minute // una ubicación más vieja que esto no cuenta como "a cuánto está"
 )
 
 var chatThemes = "indigo,naranja,verde,oscuro,rojo"
@@ -587,3 +600,9 @@ func cleanText(v string, max int) string {
 	}
 	return v
 }
+
+// eventIcons: íconos que se pueden elegir para un evento de tipo "otro" (solo ese evento).
+const eventIcons = "star,heart,camera,gamepad,bike,mountain,coffee,pizza,palette,mic,dumbbell,tent,film,book,paw,sparkles"
+
+// eventColors: colores (tokens de categoría) para un evento de tipo "otro".
+const eventColors = "cafe,correr,deporte,estudiar,comer,musica,clase,otro"

@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 1,
   timeout: 60_000,
   reporter: 'list',
-  use: { baseURL: 'http://localhost:5173', trace: 'retain-on-failure' },
+  use: { baseURL: 'http://localhost:5173', timezoneId: 'America/Mexico_City', trace: 'retain-on-failure' },
   webServer: { command: 'npm run dev -- --port 5173 --strictPort', url: 'http://localhost:5173', reuseExistingServer: true },
   projects: [
     { name: 'iphone', use: { ...devices['iPhone 14'], browserName: 'chromium' } },

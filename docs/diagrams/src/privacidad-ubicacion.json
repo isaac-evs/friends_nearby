@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Ubicación: qué se guarda y quién la ve",
+    "output": "privacidad-ubicacion.html",
+    "quality_profile": "showcase",
+    "locale": "es"
+  },
+  "stages": [
+    {
+      "label": "Dispositivo"
+    },
+    {
+      "label": "Servidor"
+    },
+    {
+      "label": "Quién lo ve"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "gps",
+      "type": "frontend",
+      "label": "GPS",
+      "sublabel": "tu dispositivo",
+      "stage": 0,
+      "row": 1,
+      "tag": "mientras la app está abierta"
+    },
+    {
+      "id": "round",
+      "type": "security",
+      "label": "Redondeo",
+      "sublabel": "celda de ~300 m",
+      "stage": 1,
+      "row": 1,
+      "tag": "nunca coordenada cruda"
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis",
+      "sublabel": "última ubicación",
+      "stage": 1,
+      "row": 2,
+      "tag": "TTL"
+    },
+    {
+      "id": "close",
+      "type": "backend",
+      "label": "Amigos cercanos",
+      "sublabel": "mapa, aproximada",
+      "stage": 2,
+      "row": 0,
+      "tag": "dentro de tu radio"
+    },
+    {
+      "id": "friends",
+      "type": "backend",
+      "label": "Amigos",
+      "sublabel": "a cuántos metros",
+      "stage": 2,
+      "row": 1,
+      "tag": "100 m, sin mapa"
+    },
+    {
+      "id": "plan",
+      "type": "backend",
+      "label": "Integrantes",
+      "sublabel": "distancia al lugar",
+      "stage": 2,
+      "row": 2,
+      "tag": "50 m, 10 min antes"
+    },
+    {
+      "id": "nobody",
+      "type": "external",
+      "label": "Desconocidos",
+      "sublabel": "nada",
+      "stage": 2,
+      "row": 3,
+      "tag": "nunca"
+    }
+  ],
+  "flows": [
+    {
+      "id": "gps-round",
+      "from": "gps",
+      "to": "round",
+      "label": "coordenada",
+      "classification": "WebSocket",
+      "variant": "emphasis"
+    },
+    {
+      "id": "round-redis",
+      "from": "round",
+      "to": "redis",
+      "label": "celda",
+      "classification": "con TTL",
+      "variant": "security"
+    },
+    {
+      "id": "round-close",
+      "from": "round",
+      "to": "close",
+      "label": "aproximada",
+      "classification": "mutuos",
+      "variant": "emphasis"
+    },
+    {
+      "id": "round-friends",
+      "from": "round",
+      "to": "friends",
+      "label": "distancia",
+      "classification": "redondeada",
+      "variant": "default"
+    },
+    {
+      "id": "redis-plan",
+      "from": "redis",
+      "to": "plan",
+      "label": "al lugar",
+      "classification": "solo ese plan",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Sin pausa",
+      "items": [
+        "Al desconectarte queda tu última ubicación",
+        "Se muestra con \"hace cuánto\""
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Exacta, solo si tú quieres",
+      "items": [
+        "Solo con un amigo cercano que elijas",
+        "Por 30 min, 1 h, 2 h o 4 h; se apaga sola"
+      ]
+    }
+  ]
+}

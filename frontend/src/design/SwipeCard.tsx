@@ -8,7 +8,7 @@ export type SwipeDir = 'right' | 'left' | 'up'
 
 /* ---------- Cuerpo de la card (presentacional) ---------- */
 
-interface TileProps { tileClass: string; icon: ReactNode; category: string; xp: string }
+interface TileProps { tileClass: string; icon: ReactNode; category: string; xp: string; /** Foto del plan o evento: reemplaza el ícono del mosaico. */ photoUrl?: string }
 
 export interface FriendCardProps extends TileProps {
   variant: 'friend'
@@ -37,10 +37,11 @@ export function CardBody(p: CardProps) {
   return (
     <>
       <div className={cn('relative flex flex-none items-center justify-center', isFriend ? 'h-[42%] max-h-[230px] min-h-[96px]' : 'h-[38%] max-h-[200px] min-h-[90px]', p.tileClass)}>
+        {p.photoUrl && <img src={p.photoUrl} alt="" className="absolute inset-0 size-full object-cover" />}
         <span className="absolute top-3.5 left-3.5 rounded-full bg-white/90 px-[11px] py-[5px] text-caption font-bold">{p.category}</span>
         {isFriend && <span className="absolute top-3.5 right-3.5 rounded-full bg-white/90 px-[11px] py-[5px] text-caption font-semibold">{p.time}</span>}
         {!isFriend && <DateBadge day={p.day} month={p.month} className="absolute bottom-3.5 left-3.5" />}
-        <span className="text-ink">{p.icon}</span>
+        {!p.photoUrl && <span className="text-ink">{p.icon}</span>}
         <span className="absolute right-3.5 bottom-3.5 rounded-full bg-white px-2.5 py-[5px] text-caption font-bold text-accent-text shadow-sm">{p.xp}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2.5 px-[18px] pt-4 pb-[18px]">

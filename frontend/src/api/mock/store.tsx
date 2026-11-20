@@ -127,7 +127,7 @@ export function initialState(b: Bootstrap): AppState {
     location: { status: p.location?.status ?? 'unknown', center: b.myCenter },
     openMode: p.openMode ?? { enabled: false, adult: false, bigEvents: true, smallPlans: false },
     xp: 340,
-    xpGoal: 500,
+    xpGoal: 150,
     users: withStreak(byId(b.users), b.history),
     friendships: Object.fromEntries(b.friendships.map((f) => [f.userId, { ...f, close: savedClose(p.close?.[f.userId] ?? legacy(p)?.[f.userId]) ?? f.close }])),
     plans: b.plans,

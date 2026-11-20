@@ -1,18 +1,11 @@
+import { startOfWeek } from '@/lib/tz'
+
 /**
- * Racha: semanas SEGUIDAS con al menos un plan o evento al que fuiste. La semana va de lunes a domingo (hora local).
+ * Racha: semanas SEGUIDAS con al menos un plan o evento al que fuiste. La semana va de lunes a domingo (hora de México).
  * La semana en curso todavía no rompe la racha: si aún no tienes un plan esta semana, cuenta hasta la semana pasada.
  */
-export const weekStart = (t: number): number => {
-  const d = new Date(t)
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-  return d.getTime()
-}
-const prevWeek = (ws: number): number => {
-  const d = new Date(ws)
-  d.setDate(d.getDate() - 7)
-  return d.getTime()
-}
+export const weekStart = (t: number): number => startOfWeek(t)
+const prevWeek = (ws: number): number => startOfWeek(ws - 3 * 86_400_000) // lunes de la semana anterior (sin depender de la zona del dispositivo)
 
 /** ¿Ya cuenta esta semana (hubo al menos un plan o evento)? */
 export function thisWeekDone(dates: string[], now = Date.now()): boolean {

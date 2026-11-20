@@ -412,8 +412,14 @@ func TestChatThemeDeleteAndCheckInReason(t *testing.T) {
 	}
 	action(c, b, map[string]any{"type": "planMessage", "id": pid, "message": "hola"})
 	msg := planInState(c, a, pid)["timeline"].([]any)[0].(map[string]any)
-	rejected(c, b, map[string]any{"type": "deleteChatMessage", "id": pid, "message": msg["id"]}, 403)
-	action(c, a, map[string]any{"type": "deleteChatMessage", "id": pid, "message": msg["id"]})
+	action(c, a, map[string]any{"type": "planMessage", "id": pid, "message": "otro"})
+	rejected(c, b, map[string]any{"type": "deleteChatMessage", "id": pid, "message": planInState(c, a, pid)["timeline"].([]any)[1].(map[string]any)["id"]}, 403)
+	// Cada quien borra los suyos; quien organiza, cualquiera; nadie borra los de otra persona.
+	action(c, b, map[string]any{"type": "deleteChatMessage", "id": pid, "message": msg["id"]})
+	if tl := planInState(c, a, pid)["timeline"].([]any); len(tl) != 1 {
+		t.Fatalf("own message not deleted: %v", tl)
+	}
+	action(c, a, map[string]any{"type": "deleteChatMessage", "id": pid, "message": planInState(c, a, pid)["timeline"].([]any)[0].(map[string]any)["id"]})
 	if tl := planInState(c, a, pid)["timeline"]; tl != nil && len(tl.([]any)) != 0 {
 		t.Fatalf("message not deleted: %v", tl)
 	}
@@ -683,4 +689,34 @@ func TestEventDescriptionEditCancelAnnouncementsAndChat(t *testing.T) {
 	if eventByID(c, b, id) != nil || eventByID(c, a, id) != nil {
 		t.Fatal("canceled event still listed")
 	}
+}
+
+// El organizador gana XP al publicar (60) y +5 por cada persona que se une; el tipo "otro" lleva nombre e ícono propios.
+func TestEventOrganizerXPAndCustomType(t *testing.T) {
+	c := newClient(t)
+	a, _ := c.register("alice")
+	b, _ := c.register("bob")
+	for _, tok := range []string{a, b} {
+		setZone(c, tok)
+		open(c, tok, true)
+	}
+	in := eventInput()
+	in["requiresApproval"] = false
+	in["capacity"] = 5
+	in["eventType"] = "otro"
+	in["subtype"] = "Noche de karaoke para toda la banda"
+	in["typeIcon"] = "mic"
+	in["typeColor"] = "musica"
+	id := action(c, a, in)["result"].(map[string]any)["id"].(string)
+	ev := eventByID(c, a, id)
+	if ev["subtype"] != "Noche de karaoke par" || ev["typeIcon"] != "mic" || ev["typeColor"] != "musica" {
+		t.Fatalf("custom type = %v / %v", ev["subtype"], ev["typeIcon"])
+	}
+	before := state(c, a)["xp"].(float64)
+	action(c, b, map[string]any{"type": "joinEvent", "id": id})
+	if got := state(c, a)["xp"].(float64); got != before+5 {
+		t.Fatalf("organizer xp %v → %v, want +5", before, got)
+	}
+	// Lejos del lugar no hay check-in.
+	rejected(c, b, map[string]any{"type": "checkInEvent", "id": id, "center": map[string]any{"lat": 19.5, "lng": -99.2}}, 400)
 }

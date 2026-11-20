@@ -30,7 +30,7 @@ export const LEGAL_SECTIONS: LegalSection[] = [
       'Amigos: solo ven a cuántos metros estás (redondeado a 100 m), sin coordenadas y nunca en el mapa.',
       'Quienes van a un mismo plan: ven a cuánto estás del lugar del plan (redondeado a 100 m), nunca dónde andas.',
       'Quien no es tu amigo no ve tu ubicación. Tu ubicación exacta solo se comparte si tú la compartes, por el tiempo que elijas, con un amigo cercano.',
-      'Si te desconectas, tus amigos ven tu última ubicación aproximada con “hace cuánto”. El modo fantasma la oculta a todos.',
+      'Si te desconectas, tus amigos ven tu última ubicación aproximada con “hace cuánto”.',
       'Guardamos la ubicación aproximada (redondeada a celdas de unos cientos de metros), no la coordenada exacta, salvo mientras compartas la exacta.',
     ],
   },
@@ -65,7 +65,7 @@ export const LEGAL_SECTIONS: LegalSection[] = [
     title: 'Tus derechos (ARCO) y cómo ejercerlos',
     items: [
       'Puedes Acceder a tus datos, Rectificarlos, Cancelarlos u Oponerte a su uso.',
-      'Desde la app: edita tu perfil y tu contraseña en Cuenta, borra tu historial, bloquea o reporta personas, apaga el modo abierto y activa el modo fantasma.',
+      'Desde la app: edita tu perfil y tu contraseña en Cuenta, borra tu historial, bloquea o reporta personas y apaga el modo abierto.',
       'Para ejercer un derecho que no puedas hacer desde la app, solicítalo al equipo del proyecto; responderemos en un máximo de 20 días hábiles.',
       'Puedes revocar el permiso de ubicación en cualquier momento desde tu navegador o sistema.',
     ],

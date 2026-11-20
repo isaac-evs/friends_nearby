@@ -1,3 +1,4 @@
+import { hhmm } from '@/lib/tz'
 /**
  * Ciclo de vida de un plan (G6): penalizaciones, confiabilidad, lobby y check-in. Las MISMAS reglas que aplica el servidor
  * (`backend/internal/api/social.go`); aquí solo sirven para avisar antes ("Perderás 25 XP"), el servidor decide.
@@ -73,8 +74,7 @@ export function arrivalXP(startsAt: string, at: number | string = Date.now()): {
 /** Cómo llegó alguien, con la hora: "Llegaste 11:39 · a tiempo" (tú) o "Llegó 11:40 · tarde (12 min)" (otra persona). */
 export function arrivedLabel(startsAt: string, arrivedAt: string, you = false): string {
   const a = arrivalXP(startsAt, arrivedAt)
-  const hh = new Date(arrivedAt)
-  const clock = `${String(hh.getHours()).padStart(2, '0')}:${String(hh.getMinutes()).padStart(2, '0')}`
+  const clock = hhmm(new Date(arrivedAt).getTime())
   const how = a.label === 'temprano' ? 'temprano' : a.label === 'a tiempo' ? 'a tiempo' : `tarde (${a.lateMin} min)`
   return `${you ? 'Llegaste' : 'Llegó'} ${clock} · ${how}`
 }

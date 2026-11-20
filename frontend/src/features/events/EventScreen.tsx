@@ -5,11 +5,11 @@ import { Avatar, AvatarStack, Button, ModalSheet, ProgressBar, SearchField, Togg
 import { useActions, useApp } from '@/app/store'
 import { api } from '@/api/client'
 import { ME_ID } from '@/api/me'
-import { EVENT_TYPES } from '@/lib/category'
+import { eventLook } from '@/lib/category'
 import { eventRange, formatApproxDistance, formatAgo } from '@/lib/format'
 import { eventDistanceM } from '@/lib/reach'
 import { joinBlock } from '@/lib/commitments'
-import { countdownLabel, planPhase } from '@/lib/planTime'
+import { countdownLabel, minutesUntilStart, planPhase } from '@/lib/planTime'
 import { useClock } from '@/app/hooks'
 import { cn } from '@/lib/cn'
 import { ChatPanel } from '@/features/plans/ChatPanel'
@@ -19,8 +19,8 @@ import { EditEventSheet } from './EditEventSheet'
 /** Detalle de evento: la foto es el hero (con cuánto falta), descripción, avisos, chat (si quien organiza lo activa) y quién organiza. */
 export function EventScreen() {
   const { id } = useParams()
-  const { state } = useApp()
-  const { joinEvent, leaveEvent, approveAttendance, cancelEvent, postAnnouncement, deleteAnnouncement, setEventChat, eventMessage, deleteEventMessage } = useActions()
+  const { state, lastPosition } = useApp()
+  const { checkInEvent, joinEvent, leaveEvent, approveAttendance, cancelEvent, postAnnouncement, deleteAnnouncement, setEventChat, eventMessage, deleteEventMessage } = useActions()
   const toast = useToast()
   const nav = useNavigate()
   const ready = useOpenModeReady()
@@ -32,6 +32,8 @@ export function EventScreen() {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [arriving, setArriving] = useState(false)
+  const [arriveErr, setArriveErr] = useState<string | null>(null)
   const ev = state.events.find((e) => e.id === id)
   const att = state.attendances.find((a) => a.eventId === id)
   const userId = state.session?.userId ?? ME_ID
@@ -40,7 +42,7 @@ export function EventScreen() {
   useEffect(() => { if (chatOpen && id && lastAt && lastAt > seen) { api.notifications.markChatSeen(userId, id, lastAt); setSeen(lastAt) } }, [chatOpen, lastAt, seen, id, userId])
   if (!ev) return <Navigate to="/" replace />
 
-  const t = EVENT_TYPES[ev.type]
+  const t = eventLook(ev)
   const mine = ev.organizerId === ME_ID
   const going = ev.going
   const friendsGoing = ev.friendsGoingIds.map((f) => state.users[f]).filter((u): u is NonNullable<typeof u> => !!u && !state.blocks.includes(u.id))
@@ -56,6 +58,16 @@ export function EventScreen() {
   const canChat = ev.chatEnabled && (mine || att?.status === 'going')
   const unread = chatOpen ? 0 : (ev.timeline ?? []).filter((m) => m.userId !== ME_ID && m.at > seen).length
   const announcements = [...(ev.announcements ?? [])].reverse()
+
+  // Check-in del evento: abre 10 min antes; da +5 XP a quien organiza (y se suma a tu historial).
+  const canArrive = att?.status === 'going' && !att.arrived && !mine && (phase === 'live' || (phase === 'upcoming' && minutesUntilStart(ev, now) <= 10))
+  const arrive = async () => {
+    setArriving(true); setArriveErr(null)
+    const pos = lastPosition()
+    const err = await checkInEvent(ev.id, pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : null, pos?.coords.accuracy)
+    setArriving(false)
+    if (err) setArriveErr(err); else toast('¡Listo! Ya llegaste')
+  }
 
   const share = async () => {
     try { await navigator.clipboard.writeText(window.location.href); toast('Link del evento copiado') } catch { toast('No pudimos copiar el link') }
@@ -161,7 +173,7 @@ export function EventScreen() {
           <section aria-label="Administrar el evento" className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-3.5 lg:col-span-2">
             <h2 className="text-meta font-extrabold">Administrar</h2>
             <div className="flex min-h-[56px] items-center gap-3">
-              <span className="flex flex-1 flex-col"><span className="text-sm font-bold">Chat del evento</span><span className="text-caption font-medium text-muted">{ev.chatEnabled ? 'Quienes van pueden escribir. Tú puedes borrar mensajes.' : 'Apagado: nadie puede escribir.'}</span></span>
+              <span className="flex flex-1 flex-col"><span className="text-sm font-bold">Chat del evento</span><span className="text-caption font-medium text-muted">{ev.chatEnabled ? 'Quienes van pueden escribir. Cada quien borra los suyos; tú, cualquiera.' : 'Apagado: nadie puede escribir.'}</span></span>
               <Toggle checked={!!ev.chatEnabled} onChange={(v) => void setEventChat(ev.id, v)} label="Chat del evento" />
             </div>
             <div className="grid grid-cols-2 gap-2.5">
@@ -199,6 +211,14 @@ export function EventScreen() {
             <Button variant="secondary" className="h-11 rounded-[12px] px-3 text-meta" onClick={() => leaveEvent(ev.id)}>Salirme</Button>
           </div>
         )}
+        {canArrive && (
+          <div className="flex flex-col gap-2">
+            <Button size="lg" full loading={arriving} onClick={arrive}>{arriving ? 'Verificando…' : 'Ya llegué'}</Button>
+            {arriveErr && <p role="alert" className="text-caption font-semibold text-danger">{arriveErr}</p>}
+          </div>
+        )}
+        {att?.status === 'going' && att.arrived && <p role="status" className="text-caption font-semibold text-success-text">Ya hiciste check-in. ¡Disfruta el evento!</p>}
+        {mine && <p className="rounded-lg bg-cat-comer px-3 py-2.5 text-caption leading-snug font-bold text-ink">Ganas +60 XP por organizar, +5 por cada persona que se une y +5 más si llega.</p>}
         {att?.status === 'pending' && (
           <div role="status" className="flex min-h-[54px] items-center gap-3">
             <span className="flex size-12 flex-none items-center justify-center rounded-full border border-line bg-cat-estudiar"><Clock aria-hidden="true" size={22} /></span>
@@ -239,7 +259,7 @@ export function EventScreen() {
       {chatOpen && canChat && (
         <ChatPanel
           chat={{ id: ev.id, title: ev.title, ownerId: ev.organizerId ?? '', memberIds: [ev.organizerId ?? '', ...(state.attendees[ev.id] ?? [])], timeline: ev.timeline }}
-          readOnly={phase === 'ended'} onSend={(text) => eventMessage(ev.id, text)} onDelete={mine ? (m) => void deleteEventMessage(ev.id, m) : undefined} onClose={() => setChatOpen(false)}
+          readOnly={phase === 'ended'} onSend={(text) => eventMessage(ev.id, text)} onDelete={(m) => void deleteEventMessage(ev.id, m)} onClose={() => setChatOpen(false)}
         />
       )}
     </div>

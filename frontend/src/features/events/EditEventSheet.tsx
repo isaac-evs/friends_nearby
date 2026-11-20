@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { Button, Field, ModalSheet, Toggle, useToast } from '@/design'
 import { useActions } from '@/app/store'
 import type { Event } from '@/api/schemas'
+import { dateKey, hhmm } from '@/lib/tz'
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const dateOf = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
-const timeOf = (iso: string) => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+const dateOf = (iso: string) => dateKey(new Date(iso).getTime())
+const timeOf = (iso: string) => hhmm(new Date(iso).getTime())
 
 /** Editar tu evento: nombre, descripción, fecha y horas, cupo y quién entra. El cupo no puede quedar por debajo de quienes ya van. */
 export function EditEventSheet({ ev, onClose }: { ev: Event | null; onClose: () => void }) {

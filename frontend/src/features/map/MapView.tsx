@@ -3,7 +3,7 @@ import Map, { AttributionControl, Marker, Source, Layer, type MapRef } from 'rea
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Crosshair, Minus, Plus } from 'lucide-react'
 import { ClusterMarker, EventMarker, EVENT_PIN_OFFSET, MeMarker, PersonMarker, PLAN_PIN_OFFSET, PlanMarker } from '@/design'
-import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
+import { eventLook, PLAN_CATEGORIES } from '@/lib/category'
 import { circlePolygon, APPROX_RADIUS_M } from '@/lib/geo'
 import { useApp } from '@/app/store'
 import { eventRange, formatApproxDistance } from '@/lib/format'
@@ -156,7 +156,7 @@ export default function MapView({
           const p = itemPoint(it)
           const selected = selectedId === it.id
           if (it.kind === 'event') {
-            const t = EVENT_TYPES[it.event.type]
+            const t = eventLook(it.event)
             return (
               <Marker onClick={stop} key={it.id} longitude={p.lng} latitude={p.lat} anchor="top" offset={[0, -EVENT_PIN_OFFSET]} style={{ zIndex: selected ? 3 : 2 }}>
                 <EventMarker

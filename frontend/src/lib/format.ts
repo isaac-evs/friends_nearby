@@ -1,4 +1,5 @@
-/** Formatos es-MX: distancias siempre aproximadas, tiempos relativos y fechas. */
+/** Formatos es-MX: distancias siempre aproximadas, tiempos relativos y fechas (en hora de México). */
+import { TZ, startOfDay, wall } from '@/lib/tz'
 
 export function formatApproxDistance(m: number): string {
   if (m < 1000) return `~${Math.max(100, Math.round(m / 100) * 100)} m`
@@ -54,7 +55,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** "hoy", "ayer" o "hace N días" (por día calendario, no por horas). */
 export function formatLastVisit(iso: string, now = Date.now()): string {
-  const day = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime() }
+  const day = (t: number) => startOfDay(t)
   const days = Math.round((day(now) - day(new Date(iso).getTime())) / 86_400_000)
   if (days <= 0) return 'hoy'
   if (days === 1) return 'ayer'
@@ -62,20 +63,20 @@ export function formatLastVisit(iso: string, now = Date.now()): string {
 }
 
 export function weekdayLong(iso: string): string {
-  return cap(new Date(iso).toLocaleDateString('es-MX', { weekday: 'long' }))
+  return cap(new Date(iso).toLocaleDateString('es-MX', { timeZone: TZ, weekday: 'long' }))
 }
 export function weekdayShort(iso: string): string {
-  return cap(new Date(iso).toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', ''))
+  return cap(new Date(iso).toLocaleDateString('es-MX', { timeZone: TZ, weekday: 'short' }).replace('.', ''))
 }
 export function dayNumber(iso: string): string {
-  return String(new Date(iso).getDate())
+  return String(wall(new Date(iso).getTime()).d)
 }
 export function monthShortUpper(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-MX', { month: 'short' }).replace('.', '').toUpperCase()
+  return new Date(iso).toLocaleDateString('es-MX', { timeZone: TZ, month: 'short' }).replace('.', '').toUpperCase()
 }
 export function timeLabel(iso: string): string {
   return new Date(iso)
-    .toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true })
+    .toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true })
     .replace(/\s?([ap])\.?\s?m\.?/i, (_, x: string) => ` ${x.toLowerCase()}m`)
 }
 /** "Sábado · 7:00 am" */
@@ -84,9 +85,8 @@ export function eventWhen(iso: string): string {
 }
 /** "Sáb 21 nov · 7:00 am" */
 export function eventWhenShort(iso: string): string {
-  const d = new Date(iso)
-  const mon = d.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '')
-  return `${weekdayShort(iso)} ${d.getDate()} ${mon} · ${timeLabel(iso)}`
+  const mon = new Date(iso).toLocaleDateString('es-MX', { timeZone: TZ, month: 'short' }).replace('.', '')
+  return `${weekdayShort(iso)} ${dayNumber(iso)} ${mon} · ${timeLabel(iso)}`
 }
 
 /** "Sáb 21 nov · 7:00 am – 9:00 pm" (si termina otro día: "… – Dom 22 nov · 2:00 am"). Para eventos: inicio y FIN, no duración. */

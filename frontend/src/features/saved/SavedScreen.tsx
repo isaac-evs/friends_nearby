@@ -4,7 +4,7 @@ import { ArrowLeft, Bookmark, ChevronDown, Clock, MapPin } from 'lucide-react'
 import { Avatar, Button, ButtonLink, EmptyState, Pill } from '@/design'
 import { useActions, useApp } from '@/app/store'
 import { useNow } from '@/app/hooks'
-import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
+import { eventLook, PLAN_CATEGORIES } from '@/lib/category'
 import { eventRange, formatApproxDistance, formatPlanTime } from '@/lib/format'
 import { eventDistanceM, planDistanceM } from '@/lib/reach'
 import { cn } from '@/lib/cn'
@@ -80,7 +80,7 @@ export function SavedScreen() {
               <h2 className="text-meta font-bold">Eventos ({saved.events.length})</h2>
               <ul className="flex flex-col gap-2.5">
                 {saved.events.map((e) => {
-                  const t = EVENT_TYPES[e.type]
+                  const t = eventLook(e)
                   return (
                     <li key={e.id} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-3.5 shadow-sm">
                       <div className="flex items-center gap-3">

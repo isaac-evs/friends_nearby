@@ -6,6 +6,10 @@ Terraform for the Friends Nearby AWS backend: clients talk to API Gateway (WebSo
 
 The same diagram lives in [`docs/architecture.mmd`](docs/architecture.mmd).
 
+Captura del diagrama: [`docs/evidence/infra/infra-readme-architecture.png`](../docs/evidence/infra/infra-readme-architecture.png). Versión interactiva con la arquitectura completa del sistema: [`docs/diagrams/arquitectura-sistema.html`](../docs/diagrams/arquitectura-sistema.html).
+
+![Arquitectura de infraestructura](../docs/evidence/infra/infra-readme-architecture.png)
+
 ```mermaid
 graph LR
     subgraph Clients["Clients"]

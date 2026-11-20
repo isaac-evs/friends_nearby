@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Publicar un plan: una acción idempotente",
+    "output": "accion-idempotente.html",
+    "quality_profile": "showcase",
+    "locale": "es"
+  },
+  "participants": [
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "App React",
+      "sublabel": "store.tsx"
+    },
+    {
+      "id": "gw",
+      "type": "cloud",
+      "label": "API Gateway",
+      "sublabel": "HTTP"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Lambda API",
+      "sublabel": "Go"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "DynamoDB",
+      "sublabel": "estado"
+    }
+  ],
+  "messages": [
+    {
+      "id": "post",
+      "from": "app",
+      "to": "gw",
+      "y": 160,
+      "label": "POST /app/actions + requestId",
+      "variant": "emphasis"
+    },
+    {
+      "id": "fwd",
+      "from": "gw",
+      "to": "api",
+      "y": 190,
+      "label": "invoca",
+      "variant": "default"
+    },
+    {
+      "id": "receipt",
+      "from": "api",
+      "to": "db",
+      "y": 225,
+      "label": "¿ya existe el recibo?",
+      "variant": "default"
+    },
+    {
+      "id": "none",
+      "from": "db",
+      "to": "api",
+      "y": 255,
+      "label": "no",
+      "variant": "return"
+    },
+    {
+      "id": "tx",
+      "from": "api",
+      "to": "db",
+      "y": 330,
+      "label": "valida y guarda plan + recibo",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ok",
+      "from": "db",
+      "to": "api",
+      "y": 360,
+      "label": "ok",
+      "variant": "return"
+    },
+    {
+      "id": "res",
+      "from": "api",
+      "to": "app",
+      "y": 395,
+      "label": "200 + resultado",
+      "variant": "return"
+    },
+    {
+      "id": "state",
+      "from": "app",
+      "to": "api",
+      "y": 430,
+      "label": "GET /app/state",
+      "variant": "default"
+    },
+    {
+      "id": "stateres",
+      "from": "api",
+      "to": "app",
+      "y": 460,
+      "label": "estado completo",
+      "variant": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Idempotente",
+      "items": [
+        "Si se repite el requestId, devuelve el mismo resultado",
+        "Si el cuerpo cambia con el mismo requestId, responde 409"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "El servidor decide",
+      "items": [
+        "Valida permisos, horarios y cupos",
+        "El frontend solo pinta lo que recibe"
+      ]
+    }
+  ]
+}

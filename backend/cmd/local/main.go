@@ -85,14 +85,18 @@ func main() {
 		Mailer:    localMailer{},
 	}}
 
-	srv := &http.Server{Addr: ":8080", Handler: &server{h: handler, hub: hub}}
+	port := os.Getenv("PORT") // opcional: permite correr una segunda instancia aislada (por ejemplo, para capturas)
+	if port == "" {
+		port = "8080"
+	}
+	srv := &http.Server{Addr: ":" + port, Handler: &server{h: handler, hub: hub}}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("local backend listening", "http", "http://localhost:8080", "ws", "ws://localhost:8080/ws?token=<jwt>")
+	slog.Info("local backend listening", "http", "http://localhost:"+port, "ws", "ws://localhost:"+port+"/ws?token=<jwt>")
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fatal("server", err)
 	}
