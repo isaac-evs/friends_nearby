@@ -7,6 +7,7 @@ import type { JoinPolicy, PlanCategory } from '@/api/schemas'
 import { cn } from '@/lib/cn'
 import { useMe } from '@/app/store'
 import { PublishTabs } from './PublishTabs'
+import { PreviewBanner } from './PreviewBanner'
 import { PlacePicker, type PlaceValue } from './PlacePicker'
 import { InvitePicker } from './InvitePicker'
 import { LateJoinRow } from './LateJoinRow'
@@ -89,6 +90,11 @@ export function PublishScreen() {
     <div className="lg:grid lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] lg:items-start lg:gap-16">
     <form noValidate onSubmit={submit} className="flex flex-col gap-4 px-[22px] pt-9 pb-[104px] lg:p-0">
       <PublishTabs />
+      {/* Vista previa que baja contigo mientras llenas el plan (en escritorio está a un lado). */}
+      <PreviewBanner
+        label="Vista previa del plan" tileClass={catDef.tile} icon={catDef.icon({ size: 30, strokeWidth: 1.8 })} photoUrl={photo}
+        kicker={`${catDef.label} · ${startsPreview}`} title={line.trim() || '¿Qué andas haciendo?'} meta={`${place.name.trim() || 'Elige el lugar'} · por ${me.name}`}
+      />
       <header className="flex flex-col gap-1">
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-[30px] font-extrabold tracking-[-0.8px]">¿Qué andas haciendo?</h1>
@@ -200,8 +206,8 @@ export function PublishScreen() {
         </p>
       </fieldset>
 
-      <Notice tone="privacy" icon="eye">
-        El plan se ve en su lugar exacto, porque ahí es el encuentro. Tu ubicación sigue siendo aproximada.
+      <Notice tone="privacy" icon="eye" title="El plan se ve en su lugar exacto">
+        Es el punto de encuentro. Tu ubicación sigue aproximada.
       </Notice>
       {errors.conflict && <p role="alert" className="text-sm font-semibold text-danger">{errors.conflict}</p>}
 
@@ -212,7 +218,7 @@ export function PublishScreen() {
       <h2 className="text-h3 font-extrabold">Así lo verán tus amigos</h2>
       <div aria-hidden="true" className="flex h-[410px] w-[340px] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card">
         <CardBody
-          variant="friend" tileClass={catDef.tile} icon={catDef.icon({ size: 72, strokeWidth: 1.5 })} category={catDef.label}
+          variant="friend" photoUrl={photo} tileClass={catDef.tile} icon={catDef.icon({ size: 72, strokeWidth: 1.5 })} category={catDef.label}
           time={startsPreview} xp="+20 XP" person={{ id: me.id, name: me.name, avatarUrl: me.avatarUrl }}
           where={place.name.trim() ? place.name.trim() : 'Elige el lugar'} title={line.trim() || '¿Qué andas haciendo?'} chip="0 ya jalaron"
         />

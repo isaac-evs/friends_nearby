@@ -23,7 +23,7 @@ func (t *socialTx) userView(u *models.User) (map[string]any, error) {
 	if e != nil {
 		return nil, e
 	}
-	out := map[string]any{"id": u.UserID, "name": u.DisplayName, "handle": "@" + u.Username, "level": p.Level, "streakWeeks": streak(p.History), "hangouts": p.Hangouts, "eventsCount": p.Events, "totalXp": max(0, (p.Level-1)*500+p.XP), "friendsCount": len(ids)}
+	out := map[string]any{"id": u.UserID, "name": u.DisplayName, "handle": "@" + u.Username, "level": p.Level, "streakWeeks": streak(p.History), "hangouts": p.Hangouts, "eventsCount": p.Events, "totalXp": max(0, (p.Level-1)*xpPerLevel+p.XP), "friendsCount": len(ids)}
 	if p.Bio != "" {
 		out["bio"] = p.Bio
 	}
@@ -516,7 +516,7 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 				continue
 			}
 			if uid == r.userID && uid != ev.Owner && m.Status != "left" {
-				attendances = append(attendances, map[string]any{"eventId": ev.ID, "pace": m.Pace, "joinedAt": m.Joined, "status": m.Status})
+				attendances = append(attendances, map[string]any{"eventId": ev.ID, "pace": m.Pace, "joinedAt": m.Joined, "status": m.Status, "arrived": m.Verified != ""})
 			}
 			if m.Status == "going" {
 				attendees[ev.ID] = append(attendees[ev.ID], uid)
@@ -661,7 +661,7 @@ func (h *Handler) buildState(r *request) (map[string]any, error) {
 	badges := []map[string]any{{"id": "primer-jale", "label": "Primer jale", "icon": "star", "tile": "bg-cat-comer", "earned": p.Hangouts > 0}, {"id": "anfitrion", "label": "Anfitrión", "icon": "users", "tile": "bg-cat-otro", "earned": p.Events >= 3}, {"id": "racha-10", "label": "Racha 10", "icon": "flame", "tile": "bg-cat-musica", "earned": streak(p.History) >= 10}}
 	sort.Slice(plans, func(i, j int) bool { return plans[i].Starts < plans[j].Starts })
 	sort.Slice(events, func(i, j int) bool { return events[i].Starts < events[j].Starts })
-	return map[string]any{"session": map[string]string{"email": me.Email, "userId": me.UserID}, "location": map[string]any{"status": p.Location.Status, "center": center}, "ghost": me.GhostMode, "openMode": p.Open, "xp": p.XP, "xpGoal": 500, "users": users, "friendships": friendships, "plans": plans, "events": events, "matches": matches, "swipes": p.Swipes, "radiusM": p.Radius, "visibilityRadiusM": p.Visibility, "invites": invites, "exactShares": shares, "exactGrants": grants, "exactPending": exactPending, "exactRequests": incomingExact, "exactLocations": exactLocations, "presence": presence, "friendDistances": distances, "pastPlans": pastPlans, "canceledPlans": canceled, "history": myHistory, "attendances": attendances, "attendees": attendees, "pendingAttendees": pendingAttendees, "xpEvents": p.Rewards, "record": recordOrEmpty(p.Record), "blocks": p.Blocks, "reports": []any{}, "badges": badges, "dayOffset": 0, "eventDraft": p.Draft, "rankings": map[string]any{"global": global, "amigos": friendsRank}}, nil
+	return map[string]any{"session": map[string]string{"email": me.Email, "userId": me.UserID}, "location": map[string]any{"status": p.Location.Status, "center": center}, "ghost": me.GhostMode, "openMode": p.Open, "xp": p.XP, "xpGoal": xpPerLevel, "users": users, "friendships": friendships, "plans": plans, "events": events, "matches": matches, "swipes": p.Swipes, "radiusM": p.Radius, "visibilityRadiusM": p.Visibility, "invites": invites, "exactShares": shares, "exactGrants": grants, "exactPending": exactPending, "exactRequests": incomingExact, "exactLocations": exactLocations, "presence": presence, "friendDistances": distances, "pastPlans": pastPlans, "canceledPlans": canceled, "history": myHistory, "attendances": attendances, "attendees": attendees, "pendingAttendees": pendingAttendees, "xpEvents": p.Rewards, "record": recordOrEmpty(p.Record), "blocks": p.Blocks, "reports": []any{}, "badges": badges, "dayOffset": 0, "eventDraft": p.Draft, "rankings": map[string]any{"global": global, "amigos": friendsRank}}, nil
 }
 
 // pastPlanFor: un plan terminado hace menos de `historyDays`, solo para quien fue (o lo organizó). Sin distancias ni ubicaciones.

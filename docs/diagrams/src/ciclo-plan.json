@@ -1,0 +1,25 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": { "title": "Ciclo de vida de un plan", "output": "ciclo-plan.html", "quality_profile": "showcase", "locale": "es" },
+  "mainPath": ["proximo", "lobby", "encurso", "terminado"],
+  "states": [
+    { "id": "proximo", "type": "start", "label": "Próximo", "sublabel": "se puede unir", "tag": "publicado", "step": "01" },
+    { "id": "lobby", "type": "waiting", "label": "Lobby", "sublabel": "10 min antes", "tag": "check-in abierto", "step": "02" },
+    { "id": "encurso", "type": "active", "label": "En curso", "sublabel": "chat y llegadas", "tag": "250 m", "step": "03" },
+    { "id": "terminado", "type": "success", "label": "Terminado", "sublabel": "historial 30 días", "tag": "XP", "step": "04" },
+    { "id": "cancelado", "type": "failure", "label": "Cancelado", "sublabel": "ya no aparece", "tag": "terminal" }
+  ],
+  "transitions": [
+    { "id": "proximo-lobby", "from": "proximo", "to": "lobby", "label": "faltan 10 min" },
+    { "id": "lobby-encurso", "from": "lobby", "to": "encurso", "label": "empieza" },
+    { "id": "encurso-terminado", "from": "encurso", "to": "terminado", "label": "termina o se cierra", "variant": "emphasis" },
+    { "id": "proximo-cancelado", "from": "proximo", "to": "cancelado", "label": "organizador cancela", "variant": "security" },
+    { "id": "lobby-cancelado", "from": "lobby", "to": "cancelado", "label": "organizador cancela", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Llegar", "items": ["Check-in a menos de 250 m del lugar", "Otra persona puede confirmar si falla el GPS"] },
+    { "dot": "amber", "title": "Unirse tarde", "items": ["Solo si quien organiza lo permite", "Unirse hasta 2 min tarde sigue siendo a tiempo"] },
+    { "dot": "rose", "title": "Cancelar", "items": ["Sin costo si faltan más de 90 min (−10 XP)", "−60 XP con menos de 15 min; −100 XP si ya empezó"] }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura de ¿Jalas?",
+    "output": "arquitectura-sistema.html",
+    "quality_profile": "showcase",
+    "locale": "es"
+  },
+  "components": [
+    { "id": "client", "type": "external", "label": "App web y móvil", "sublabel": "React + Vite", "pos": [40, 300], "size": [130, 64] },
+    { "id": "apihttp", "type": "cloud", "label": "API Gateway", "sublabel": "HTTP API", "pos": [250, 190], "size": [130, 60], "tag": "REST" },
+    { "id": "apiws", "type": "cloud", "label": "API Gateway", "sublabel": "WebSocket", "pos": [250, 410], "size": [130, 60], "tag": "ubicación" },
+    { "id": "lambda", "type": "backend", "label": "Lambda API", "sublabel": "Go", "pos": [470, 300], "size": [130, 64], "tag": "reglas del negocio" },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "ElastiCache", "pos": [470, 150], "size": [130, 60], "tag": "TTL" },
+    { "id": "dynamo", "type": "database", "label": "DynamoDB", "sublabel": "cuentas, planes, eventos", "pos": [690, 300], "size": [140, 64] },
+    { "id": "sqs", "type": "messagebus", "label": "SQS", "sublabel": "eventos + DLQ", "pos": [470, 450], "size": [130, 60] },
+    { "id": "worker", "type": "backend", "label": "Lambda worker", "sublabel": "Go", "pos": [690, 450], "size": [140, 60] },
+    { "id": "s3", "type": "cloud", "label": "S3", "sublabel": "fotos + historial", "pos": [690, 590], "size": [140, 60] },
+    { "id": "cdn", "type": "cloud", "label": "CloudFront", "sublabel": "CDN de fotos", "pos": [250, 590], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "AWS (Terraform)", "wraps": ["apihttp", "apiws", "lambda", "redis", "dynamo", "sqs", "worker", "s3", "cdn"] },
+    { "kind": "security-group", "label": "VPC privada, sin NAT", "wraps": ["lambda", "redis"] }
+  ],
+  "connections": [
+    { "id": "client-http", "from": "client", "to": "apihttp", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "client-ws", "from": "client", "to": "apiws", "label": "WSS", "variant": "emphasis" },
+    { "id": "http-lambda", "from": "apihttp", "to": "lambda" },
+    { "id": "ws-lambda", "from": "apiws", "to": "lambda" },
+    { "id": "lambda-redis", "from": "lambda", "to": "redis", "label": "celdas", "fromSide": "top", "toSide": "bottom" },
+    { "id": "lambda-dynamo", "from": "lambda", "to": "dynamo", "label": "lee y escribe" },
+    { "id": "lambda-sqs", "from": "lambda", "to": "sqs", "label": "eventos", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "sqs-worker", "from": "sqs", "to": "worker", "variant": "dashed" },
+    { "id": "worker-s3", "from": "worker", "to": "s3", "label": "historial", "variant": "dashed" },
+    { "id": "cdn-s3", "from": "cdn", "to": "s3", "label": "origen" },
+    { "id": "cdn-client", "from": "cdn", "to": "client", "label": "fotos", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Entrada", "items": ["REST para acciones y estado", "WebSocket solo para ubicación en vivo"] },
+    { "dot": "emerald", "title": "Datos", "items": ["Redis guarda celdas redondeadas con TTL", "DynamoDB guarda cuentas, amistades, planes y eventos"] },
+    { "dot": "amber", "title": "Asíncrono", "items": ["Los eventos de ubicación pasan por SQS", "El worker agrupa el historial en S3"] }
+  ]
+}

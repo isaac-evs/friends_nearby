@@ -50,8 +50,8 @@ export function PrivacyScreen() {
         <h1 className="text-h1 font-extrabold">Amigos cercanos</h1>
       </header>
 
-      <Notice tone="privacy" icon="eye">
-        Amigo cercano es de dos vías: los dos tienen que aceptar. Se ven la ubicación aproximada. Tu ubicación exacta solo la ve quien tú elijas, por un rato.
+      <Notice tone="privacy" icon="eye" title="Amigo cercano es de dos vías: los dos tienen que aceptar.">
+        Se ven aproximado. La exacta solo la ve quien elijas, por un rato.
       </Notice>
 
       <p role="status" className={cn('rounded-lg border px-3.5 py-3 text-sm font-bold', 'border-line bg-cat-musica text-ink')}>{summary}</p>

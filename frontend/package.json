@@ -8,8 +8,10 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test": "TZ=America/Mexico_City vitest run",
+    "test:e2e": "playwright test",
+    "evidence": "node scripts/capture-evidence.mjs",
+    "diagrams": "node scripts/render-diagrams.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.74.0",

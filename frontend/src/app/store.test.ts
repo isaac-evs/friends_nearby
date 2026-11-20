@@ -146,12 +146,12 @@ describe('XP y nivel máximo', () => {
     return { ...s, xp, users: { ...s.users, me: { ...s.users.me!, level } } }
   }
   it('sube de nivel al llegar a la meta y conserva el sobrante', () => {
-    const s = addXp(at(7, 490), 30, 'Ya nos vimos')
+    const s = addXp(at(7, 140), 30, 'Ya nos vimos')
     expect(s.users.me?.level).toBe(8)
     expect(s.xp).toBe(20)
   })
   it('el nivel 100 es el máximo: no sube más y la barra queda llena', () => {
-    const s = addXp(at(99, 490), 30, 'Ya nos vimos')
+    const s = addXp(at(99, 140), 30, 'Ya nos vimos')
     expect(s.users.me?.level).toBe(100)
     expect(s.xp).toBe(s.xpGoal)
     const again = addXp(s, 500, 'Más XP')

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": { "title": "Cómo se gana y se pierde XP", "output": "xp-y-niveles.html", "quality_profile": "showcase", "locale": "es" },
+  "stages": [{ "label": "Qué haces" }, { "label": "Efecto" }, { "label": "Progreso" }],
+  "nodes": [
+    { "id": "evento", "type": "frontend", "label": "Publicar evento", "sublabel": "organizar", "stage": 0, "row": 0, "tag": "+60" },
+    { "id": "llegar", "type": "frontend", "label": "Llegar a un plan", "sublabel": "check-in", "stage": 0, "row": 1, "tag": "+30 a +5" },
+    { "id": "terminar", "type": "frontend", "label": "Terminar tu plan", "sublabel": "organizador", "stage": 0, "row": 2, "tag": "+30, +5 por persona" },
+    { "id": "cancelar", "type": "frontend", "label": "Cancelar tarde", "sublabel": "o ya empezado", "stage": 0, "row": 3, "tag": "−10 a −100" },
+    { "id": "noshow", "type": "frontend", "label": "No llegar", "sublabel": "no-show", "stage": 0, "row": 4, "tag": "−80" },
+    { "id": "gana", "type": "backend", "label": "Ganas XP", "sublabel": "una vez por motivo", "stage": 1, "row": 1 },
+    { "id": "pierde", "type": "security", "label": "Pierdes XP", "sublabel": "cuenta como falla", "stage": 1, "row": 3 },
+    { "id": "barra", "type": "database", "label": "Barra de XP", "sublabel": "150 XP por nivel", "stage": 2, "row": 1, "tag": "nivel 1 a 100" },
+    { "id": "record", "type": "database", "label": "Confiabilidad", "sublabel": "últimos 20 compromisos", "stage": 2, "row": 3 }
+  ],
+  "flows": [
+    { "id": "f1", "from": "evento", "to": "gana", "label": "+60", "classification": "organizar", "variant": "emphasis" },
+    { "id": "f2", "from": "llegar", "to": "gana", "label": "puntualidad", "classification": "check-in", "variant": "emphasis" },
+    { "id": "f3", "from": "terminar", "to": "gana", "label": "+30 y más", "classification": "plan", "variant": "emphasis" },
+    { "id": "f4", "from": "cancelar", "to": "pierde", "label": "según el tiempo", "classification": "cancelación", "variant": "security" },
+    { "id": "f5", "from": "noshow", "to": "pierde", "label": "−80", "classification": "falta", "variant": "security" },
+    { "id": "f6", "from": "gana", "to": "barra", "label": "suma", "classification": "XP", "variant": "emphasis" },
+    { "id": "f7", "from": "pierde", "to": "barra", "label": "resta", "classification": "XP", "variant": "security" },
+    { "id": "f8", "from": "pierde", "to": "record", "label": "falla", "classification": "historial", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Niveles", "items": ["Del 1 al 100, 150 XP por nivel", "Cada 10 niveles cambia el tramo y la insignia"] },
+    { "dot": "rose", "title": "Easter egg", "items": ["Sin XP, el nivel 1 baja al 0 y a negativos (hasta −9)", "Con 10 XP vuelves al nivel 1"] }
+  ]
+}

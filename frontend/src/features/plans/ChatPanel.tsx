@@ -113,7 +113,7 @@ export function ChatPanel({ chat: plan, onSend, onDelete, onTheme, onClose: onCl
                 {newDay && <span className="mx-auto my-2 rounded-full bg-surface px-3 py-1 text-caption font-bold text-muted shadow-xs">{dayLabel(m.at)}</span>}
                 <div className={cn('flex max-w-[84%] items-end gap-2 ', mine ? 'self-end' : 'self-start', first && 'mt-1.5')}>
                   {!mine && (first ? <Avatar userId={m.userId} name={u?.name ?? '?'} size={28} src={u?.avatarUrl} /> : <span aria-hidden="true" className="size-7 flex-none" />)}
-                  {organizer && !readOnly && onDelete && m.id
+                  {(organizer || mine) && !readOnly && onDelete && m.id
                     ? <button type="button" aria-label={`Mensaje de ${mine ? 'ti' : u?.name ?? 'alguien'}: ${m.text}. Toca para ver opciones`} aria-expanded={selected} onClick={() => setPicked(selected ? null : key)} className={bubble}>{body}</button>
                     : <div className={bubble}>{body}</div>}
                 </div>

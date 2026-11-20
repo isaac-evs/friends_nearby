@@ -6,7 +6,7 @@ import { UpcomingBanner } from '@/features/plans/UpcomingBanner'
 import { useIsDesktop } from './hooks'
 import { cn } from '@/lib/cn'
 
-const TAB_ROUTES = ['/', '/mapa', '/publicar', '/amigos', '/perfil']
+const TAB_ROUTES = ['/', '/mapa', '/publicar', '/publicar/evento', '/amigos', '/perfil']
 
 /** Guard: sin sesión → /entrar. */
 export function RequireAuth() {

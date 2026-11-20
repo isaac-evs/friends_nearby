@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   BookOpen, Coffee, Dices, Dumbbell, Activity, Music, Palette, Plus, Sofa, Utensils, Moon, Volleyball,
+  Star, Heart, Camera, Gamepad2, Bike, Mountain, Pizza, Mic, Tent, Film, PawPrint, Sparkles,
 } from 'lucide-react'
 import type { EventType, PlanCategory } from '@/api/schemas'
 
@@ -37,3 +38,40 @@ export const EVENT_TYPES: Record<EventType, CatDef & { group: EventGroup }> = {
 
 export type EventGroup = 'Deporte' | 'Social' | 'Comida' | 'Aprender'
 export const EVENT_GROUPS: EventGroup[] = ['Deporte', 'Social', 'Comida', 'Aprender']
+
+/** Íconos que se pueden elegir para un evento de tipo "Otro" (solo para ese evento). La clave viaja al servidor. */
+export const CUSTOM_EVENT_ICONS = {
+  star: { label: 'Estrella', icon: ic(Star) },
+  heart: { label: 'Corazón', icon: ic(Heart) },
+  camera: { label: 'Cámara', icon: ic(Camera) },
+  gamepad: { label: 'Videojuegos', icon: ic(Gamepad2) },
+  bike: { label: 'Bici', icon: ic(Bike) },
+  mountain: { label: 'Montaña', icon: ic(Mountain) },
+  coffee: { label: 'Café', icon: ic(Coffee) },
+  pizza: { label: 'Pizza', icon: ic(Pizza) },
+  palette: { label: 'Arte', icon: ic(Palette) },
+  mic: { label: 'Micrófono', icon: ic(Mic) },
+  dumbbell: { label: 'Pesas', icon: ic(Dumbbell) },
+  tent: { label: 'Campamento', icon: ic(Tent) },
+  film: { label: 'Cine', icon: ic(Film) },
+  book: { label: 'Libro', icon: ic(BookOpen) },
+  paw: { label: 'Mascotas', icon: ic(PawPrint) },
+  sparkles: { label: 'Brillos', icon: ic(Sparkles) },
+} as const
+export type CustomEventIcon = keyof typeof CUSTOM_EVENT_ICONS
+
+/** Cómo se ve un evento: su tipo, con el ícono propio si es un "Otro" que eligió uno. */
+export const CUSTOM_EVENT_COLORS = {
+  cafe: { label: 'Durazno', tile: 'bg-cat-cafe' }, correr: { label: 'Coral', tile: 'bg-cat-correr' },
+  deporte: { label: 'Azul', tile: 'bg-cat-deporte' }, estudiar: { label: 'Lila', tile: 'bg-cat-estudiar' },
+  comer: { label: 'Amarillo', tile: 'bg-cat-comer' }, musica: { label: 'Menta', tile: 'bg-cat-musica' },
+  clase: { label: 'Rosa', tile: 'bg-cat-clase' }, otro: { label: 'Gris', tile: 'bg-cat-otro' },
+} as const satisfies Record<string, { label: string; tile: TileClass }>
+export type CustomEventColor = keyof typeof CUSTOM_EVENT_COLORS
+
+export function eventLook(e: { type: EventType; typeIcon?: string; typeColor?: string }) {
+  const t = EVENT_TYPES[e.type]
+  const custom = e.type === 'otro' && e.typeIcon ? CUSTOM_EVENT_ICONS[e.typeIcon as CustomEventIcon] : undefined
+  const color = e.type === 'otro' && e.typeColor ? CUSTOM_EVENT_COLORS[e.typeColor as CustomEventColor] : undefined
+  return { ...t, ...(custom && { icon: custom.icon }), ...(color && { tile: color.tile }) }
+}

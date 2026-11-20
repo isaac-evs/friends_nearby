@@ -92,7 +92,7 @@ export function OtherProfileScreen() {
           <LevelCard level={u.level} />
         </div>
 
-        <Notice tone="safety" icon="shield">Agregarse no comparte ubicaciones. Cada quien decide después si muestra su ubicación.</Notice>
+        <Notice tone="safety" icon="shield">Agregarse no comparte ubicaciones.</Notice>
       </div>
 
       <div className="sticky bottom-0 border-t border-line bg-surface px-[22px] pt-3.5 pb-[22px] lg:rounded-xl lg:border lg:px-6 lg:pt-4 lg:pb-4 lg:shadow-lg">

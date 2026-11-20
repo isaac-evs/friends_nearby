@@ -138,6 +138,9 @@ export const Event = z.object({
   id: z.string(),
   type: EventType,
   subtype: z.string(),
+  /** Solo en eventos "otro": ícono elegido para ese evento. */
+  typeIcon: z.string().optional(),
+  typeColor: z.string().optional(),
   title: z.string(),
   startsAt: z.string(),
   /** Hora de fin (no duración). Si es menor que el inicio, el evento termina al día siguiente. */
@@ -197,6 +200,8 @@ export const Attendance = z.object({
   eventId: z.string(),
   pace: z.string().optional(),
   joinedAt: z.string(),
+  /** ¿Ya hiciste check-in en el evento? */
+  arrived: z.boolean().optional(),
   /** `pending` cuando el evento pide aprobación del organizador. */
   status: z.enum(['going', 'pending']),
 })

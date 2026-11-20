@@ -12,6 +12,8 @@ export interface OpenMode { enabled: boolean; adult: boolean; bigEvents: boolean
 
 export interface EventDraft {
   type: EventType; title: string
+  /** Solo con tipo "otro": nombre e ícono propios, solo para este evento. */
+  customLabel?: string; customIcon?: string; customColor?: string
   /** Fecha (YYYY-MM-DD) y hora (HH:MM, 24 h) de inicio, elegidas por quien organiza. */
   date: string; time: string
   /** Hora de fin (HH:MM). Si es menor o igual que la de inicio, el evento termina al día siguiente. */
@@ -133,6 +135,7 @@ export interface Actions {
   eventMessage: (id: string, text: string) => Promise<boolean>
   deleteEventMessage: (id: string, messageId: string) => Promise<boolean>
   saveDraft: (draft: EventDraft | null) => Promise<boolean>
+  checkInEvent: (id: string, center: { lat: number; lng: number } | null, accuracy?: number) => Promise<string | null>
   joinEvent: (eventId: string, pace?: string) => Promise<boolean>
   leaveEvent: (eventId: string) => Promise<boolean>
   setPace: (eventId: string, pace: string) => Promise<boolean>
@@ -174,7 +177,7 @@ export interface Actions {
 }
 
 export function initialState(): AppState {
- return {session:null,location:{status:'unknown',center:{lat:0,lng:0}},openMode:{enabled:false,adult:false,bigEvents:true,smallPlans:false},xp:0,xpGoal:500,users:{},friendships:{},plans:[],pastPlans:[],canceledPlans:[],events:[],swipes:{},matches:[],radiusM:5000,visibilityRadiusM:3000,invites:[],exactShares:[],exactGrants:[],exactPending:[],exactRequests:[],exactLocations:{},history:[],attendances:[],xpEvents:[],friendDistances:[],record:[],blocks:[],reports:[],presence:[],badges:[],attendees:{},pendingAttendees:{},rankings:{global:[],amigos:[]},dayOffset:0,eventDraft:null}
+ return {session:null,location:{status:'unknown',center:{lat:0,lng:0}},openMode:{enabled:false,adult:false,bigEvents:true,smallPlans:false},xp:0,xpGoal:150,users:{},friendships:{},plans:[],pastPlans:[],canceledPlans:[],events:[],swipes:{},matches:[],radiusM:5000,visibilityRadiusM:3000,invites:[],exactShares:[],exactGrants:[],exactPending:[],exactRequests:[],exactLocations:{},history:[],attendances:[],xpEvents:[],friendDistances:[],record:[],blocks:[],reports:[],presence:[],badges:[],attendees:{},pendingAttendees:{},rankings:{global:[],amigos:[]},dayOffset:0,eventDraft:null}
 }
 interface Ctx { /** Última lectura real del GPS/red que ya usa la app (para el check-in). */lastPosition:()=>GeolocationPosition|null;state:AppState;actions:Actions;connected:boolean;loading:boolean;authError:string|null;clearAuthError:()=>void;locationIssue:{code:number}|null;retryLocation:()=>void }
 /** Causas reales de un fallo de ubicación (códigos de `GeolocationPositionError`). */
@@ -237,14 +240,14 @@ export function AppProvider({children,initial}:{children:ReactNode;initial?:AppS
    jalo:async id=>{const r=await run<string>({type:'jalo',id});return r.ok?id:null},
    setQuickMessage:(id,message)=>mutate({type:'quickMessage',id,message}),confirmMeet:id=>mutate({type:'confirmMeet',id}),
    publishPlan:async input=>{const r=await run<Plan>({type:'publishPlan',...input,photoKey:mediaKey(input.photoUrl)});return r.ok?r.result:null},
-   publishEvent:async d=>{const times=eventTimes(d.date,d.time,d.endTime);if(!times||!d.placeCenter){setError('Selecciona un horario y un lugar en el mapa.');return null};const r=await run<Event>({type:'publishEvent',eventType:d.type,title:d.title,...times,placeName:d.place,center:d.placeCenter,alias:d.alias,photoKey:mediaKey(d.photoUrl),capacity:d.capacity,requiresApproval:d.requiresApproval,verification:d.verification??'none',lateJoin:d.lateJoin,inviteIds:d.inviteIds,description:d.description??'',chatEnabled:!!d.chatEnabled});return r.ok?r.result:null},
+   publishEvent:async d=>{const times=eventTimes(d.date,d.time,d.endTime);if(!times||!d.placeCenter){setError('Selecciona un horario y un lugar en el mapa.');return null};const r=await run<Event>({type:'publishEvent',eventType:d.type,subtype:d.type==='otro'?d.customLabel??'':'',typeIcon:d.type==='otro'?d.customIcon??'':'',typeColor:d.type==='otro'?d.customColor??'':'',title:d.title,...times,placeName:d.place,center:d.placeCenter,alias:d.alias,photoKey:mediaKey(d.photoUrl),capacity:d.capacity,requiresApproval:d.requiresApproval,verification:d.verification??'none',lateJoin:d.lateJoin,inviteIds:d.inviteIds,description:d.description??'',chatEnabled:!!d.chatEnabled});return r.ok?r.result:null},
    updateEvent:async(id,i)=>{const times=eventTimes(i.date,i.time,i.endTime);if(!times){setError('Revisa la fecha y las horas.');return false};return mutate({type:'updateEvent',id,title:i.title,description:i.description,...times,capacity:i.capacity,lateJoin:i.lateJoin,requiresApproval:i.requiresApproval,placeName:i.placeName,center:i.center})},
    cancelEvent:id=>mutate({type:'cancelEvent',id}),postAnnouncement:(id,text)=>mutate({type:'postAnnouncement',id,message:text}),deleteAnnouncement:(id,a)=>mutate({type:'deleteAnnouncement',id,message:a}),setEventChat:(id,on)=>mutate({type:'setEventChat',id,accept:on}),eventMessage:(id,text)=>mutate({type:'eventMessage',id,message:text}),deleteEventMessage:(id,m)=>mutate({type:'deleteEventMessage',id,message:m}),
    invitePeople:async(id,inviteIds)=>{const r=await run<number>({type:'invitePeople',id,inviteIds});return r.ok?r.result:null},
    updatePlan:(id,startsAt,durationMin)=>mutate({type:'updatePlan',id,startsAt,durationMin}),removePlan:id=>mutate({type:'removePlan',id}),endPlan:id=>mutate({type:'endPlan',id}),
    setChatTheme:(id,theme)=>mutate({type:'setChatTheme',id,message:theme}),deleteChatMessage:(id,messageId)=>mutate({type:'deleteChatMessage',id,message:messageId}),
    checkIn:async(id,center,accuracy)=>{try{setError(null);const res=await api.action<{xp:number;punctuality:string}|null>({type:'checkIn',id,center,accuracy:accuracy??0});const at=new Date().toISOString();setState(s=>({...s,plans:s.plans.map(p=>p.id===id?{...p,roster:p.roster?.map(r=>r.userId==='me'?{...r,arrivedAt:r.arrivedAt??at}:r)}:p)}));void refresh().catch(failed);return res??{xp:0,punctuality:''}}catch(e){failed(e);return e instanceof Error?e.message:'No se pudo completar.'}},confirmArrival:(id,userId)=>mutate({type:'confirmArrival',id,userId}),planMessage:(id,message)=>mutate({type:'planMessage',id,message}),leavePlan:id=>mutate({type:'leavePlan',id}),
-   saveDraft:draft=>mutate({type:'saveDraft',draft}),joinEvent:(id,pace)=>mutate({type:'joinEvent',id,pace}),leaveEvent:id=>mutate({type:'leaveEvent',id}),setPace:(id,pace)=>mutate({type:'setPace',id,pace}),
+   saveDraft:draft=>mutate({type:'saveDraft',draft}),checkInEvent:async(id,center,accuracy)=>{const r=await run({type:'checkInEvent',id,center,accuracy:accuracy??0});return r.ok?null:r.reason},joinEvent:(id,pace)=>mutate({type:'joinEvent',id,pace}),leaveEvent:id=>mutate({type:'leaveEvent',id}),setPace:(id,pace)=>mutate({type:'setPace',id,pace}),
    approveAttendance:(id,userId,approve)=>mutate({type:approve?'approveAttendance':'rejectAttendance',id,userId}),
    setFriendStatus:friend,removeFriend:userId=>friend(userId,'none'),block:userId=>mutate({type:'block',userId}),report:(userId,reason)=>mutate({type:'report',userId,reason}),
    requestClose:userId=>mutate({type:'requestClose',userId}),cancelClose:userId=>mutate({type:'cancelClose',userId}),acceptClose:userId=>mutate({type:'acceptClose',userId}),declineClose:userId=>mutate({type:'declineClose',userId}),removeClose:userId=>mutate({type:'removeClose',userId}),

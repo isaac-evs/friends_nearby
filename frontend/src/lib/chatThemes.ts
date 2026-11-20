@@ -1,3 +1,4 @@
+import { TZ, startOfDay } from '@/lib/tz'
 /** Temas del chat de un plan: los elige quien organiza (mismo valor en `chatThemes` del backend). Solo tokens del design system. */
 export interface ChatTheme { key: string; label: string; mine: string; wall: string; swatch: string; name: string }
 export const CHAT_THEMES: ChatTheme[] = [
@@ -11,10 +12,9 @@ export const chatTheme = (key?: string): ChatTheme => CHAT_THEMES.find((t) => t.
 
 /** "Hoy", "Ayer" o "mié 19 nov" para separar días en el chat. */
 export function dayLabel(iso: string, now = Date.now()): string {
-  const d = new Date(iso); const n = new Date(now)
-  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const diff = Math.round((start(n) - start(d)) / 86_400_000)
+  const d = new Date(iso)
+  const diff = Math.round((startOfDay(now) - startOfDay(d.getTime())) / 86_400_000)
   if (diff === 0) return 'Hoy'
   if (diff === 1) return 'Ayer'
-  return d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('es-MX', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' })
 }

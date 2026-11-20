@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BellOff, CheckCheck, Settings2, Trash2 } from 'lucide-react'
 import { Avatar, Button, EmptyState, IconButton, ModalSheet, useToast } from '@/design'
 import { useActions, useApp } from '@/app/store'
+import { useIsDesktop } from '@/app/hooks'
 import { formatAgo, minutesLabel } from '@/lib/format'
 import { BUCKETS, bucketOf, namesLabel, needsAction, type NotificationGroup } from '@/lib/notifications'
 import { OpenModeSheet, useOpenModeReady } from '@/features/events/OpenModeSheet'
 import { useNotifications } from './useNotifications'
 
-const card = 'flex flex-col gap-2.5 rounded-lg border border-line bg-surface p-3'
+const card = 'flex flex-col gap-2.5 rounded-lg border border-line bg-surface p-3 lg:gap-3 lg:p-4 lg:transition-colors lg:hover:border-line-input'
+/** Botones de respuesta: en escritorio se alinean bajo el texto y no se estiran a todo el ancho. */
+const actions = 'grid grid-cols-2 gap-2 lg:ml-[52px] lg:max-w-[360px]'
 
 /** `/notificaciones`: todo lo que pasa a tu alrededor, agrupado Hoy · Esta semana · Antes. Lo que pide respuesta se responde aquí mismo. */
 export function NotificationsScreen() {
@@ -17,6 +20,7 @@ export function NotificationsScreen() {
   const toast = useToast()
   const nav = useNavigate()
   const n = useNotifications()
+  const desktop = useIsDesktop()
   const [why, setWhy] = useState<Record<string, string>>({})
   // Borrado suave: se oculta y se puede deshacer unos segundos.
   const [undo, setUndo] = useState<string[] | null>(null)
@@ -61,14 +65,14 @@ export function NotificationsScreen() {
       <div className="flex items-center gap-3">
         {g.userIds.length > 0 ? person : <span aria-hidden="true" className="size-10 shrink-0 rounded-full bg-surface-sunken" />}
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[15px] font-bold">{text}</span>
+          <span className="text-[15px] font-bold lg:text-base">{text}</span>
           {sub && <span className="text-caption text-muted">{sub}</span>}
         </div>
         {dot}
         {del}
       </div>
     )
-    const link = (to: string, label: string) => <Link to={to} className="inline-flex min-h-11 items-center self-start text-sm font-bold text-primary">{label}</Link>
+    const link = (to: string, label: string) => <Link to={to} className="inline-flex min-h-11 items-center self-start text-sm font-bold text-primary lg:ml-[52px]">{label}</Link>
     const planTo = g.planId ? `/plan/${g.planId}` : undefined
     const quoted = g.title ? `"${g.title}"` : ''
 
@@ -81,7 +85,7 @@ export function NotificationsScreen() {
             {head(`${name(who)} te invitó a ${kind}`, `${quoted} · ${formatAgo(g.at, now)}`)}
             {why[first.inviteId!] && <p role="alert" className="text-caption font-semibold text-danger">{why[first.inviteId!]}</p>}
             {open ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className={actions}>
                 <Button variant="secondary" aria-label={`Ahora no: invitación de ${name(who)}`} onClick={() => answer(first.inviteId!, false)}>Ahora no</Button>
                 <Button aria-label={`Aceptar la invitación de ${name(who)}`} onClick={() => answer(first.inviteId!, true)}>Aceptar</Button>
               </div>
@@ -93,7 +97,7 @@ export function NotificationsScreen() {
         return (
           <li key={g.key} className={card}>
             {head(name(who), 'quiere ser tu amigo')}
-            <div className="grid grid-cols-2 gap-2">
+            <div className={actions}>
               <Button variant="secondary" aria-label={`Rechazar la solicitud de ${name(who)}`} onClick={() => setFriendStatus(who, 'none')}>Rechazar</Button>
               <Button aria-label={`Aceptar la solicitud de ${name(who)}`} onClick={async () => { if (!await setFriendStatus(who, 'friends')) return; toast(`${name(who)} ya es tu amigo`) }}>Aceptar</Button>
             </div>
@@ -103,7 +107,7 @@ export function NotificationsScreen() {
         return (
           <li key={g.key} className={card}>
             {head(name(who), 'quiere ser tu amigo cercano · se verían la ubicación aproximada')}
-            <div className="grid grid-cols-2 gap-2">
+            <div className={actions}>
               <Button variant="secondary" aria-label={`Ahora no: ${name(who)} (amigo cercano)`} onClick={() => declineClose(who)}>Ahora no</Button>
               <Button aria-label={`Aceptar a ${name(who)} como amigo cercano`} onClick={async () => { if (!await acceptClose(who)) return; toast(`${name(who)} ya es amigo cercano`) }}>Aceptar</Button>
             </div>
@@ -113,7 +117,7 @@ export function NotificationsScreen() {
         return (
           <li key={g.key} className={card}>
             {head(`${name(who)} te pide tu ubicación exacta`, 'Tú decides si la compartes y por cuánto tiempo.')}
-            <div className="grid grid-cols-2 gap-2">
+            <div className={actions}>
               <Button variant="secondary" onClick={() => declineExactRequest(who)}>Ahora no</Button>
               <Button onClick={() => startExact(who, 60)}>Compartir por 1 h</Button>
             </div>
@@ -139,38 +143,50 @@ export function NotificationsScreen() {
     }
   }
 
+  const toolbar = (
+    <div className="flex flex-col gap-3">
+      <span className="text-meta text-muted lg:text-sm">{n.count > 0 ? `${n.count} esperan tu respuesta` : 'Nada espera tu respuesta'}</span>
+      <div className="flex gap-2 lg:flex-col">
+        <Button variant="secondary" className="h-11 rounded-md px-3 text-sm lg:w-full" onClick={n.markAllRead} disabled={!n.dot}><CheckCheck aria-hidden="true" size={16} className="mr-1.5" />Marcar leído</Button>
+        <Button variant="secondary" className="h-11 rounded-md px-3 text-sm lg:w-full" onClick={() => setConfirmAll(true)} disabled={deletable.length === 0}><Trash2 aria-hidden="true" size={16} className="mr-1.5" />Eliminar todas</Button>
+      </div>
+    </div>
+  )
+
   return (
-    <div className="flex flex-col gap-4 px-[22px] pt-8 pb-[104px] lg:max-w-[640px] lg:p-0">
-      <header className="flex items-center gap-3">
-        <IconButton label="Volver" onClick={() => nav(-1)}><ArrowLeft aria-hidden="true" size={20} strokeWidth={2.4} /></IconButton>
-        <h1 className="flex-1 text-h1 font-extrabold">Notificaciones</h1>
-        <Link to="/notificaciones/preferencias" aria-label="Preferencias de notificaciones" className="flex size-11 items-center justify-center rounded-full"><Settings2 aria-hidden="true" size={20} /></Link>
+    <div className="flex flex-col gap-4 px-[22px] pt-8 pb-[104px] lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-x-10 lg:gap-y-6 lg:p-0">
+      <header className="flex items-center gap-3 lg:col-span-2">
+        <IconButton label="Volver" onClick={() => nav(-1)} className="lg:hidden"><ArrowLeft aria-hidden="true" size={20} strokeWidth={2.4} /></IconButton>
+        <h1 className="flex-1 text-h1 font-extrabold lg:text-[32px]">Notificaciones</h1>
+        <Link to="/notificaciones/preferencias" aria-label="Preferencias de notificaciones" className="flex size-11 items-center justify-center rounded-full lg:border lg:border-line lg:bg-surface"><Settings2 aria-hidden="true" size={20} /></Link>
       </header>
 
       {undo && (
-        <div role="status" className="alert-motion flex items-center gap-3 rounded-xl bg-ink py-1 pr-1 pl-4 text-sm font-bold text-white shadow-md">
+        <div role="status" className="alert-motion flex items-center gap-3 rounded-xl bg-ink py-1 pr-1 pl-4 text-sm font-bold text-white shadow-md lg:col-span-2">
           <span className="flex-1">Notificación eliminada</span>
           <button type="button" onClick={() => { n.restore(undo); setUndo(null) }} className="min-h-11 rounded-full px-4 text-sm font-extrabold text-accent">Deshacer</button>
         </div>
       )}
 
       {n.groups.length === 0 ? (
-        <EmptyState icon={<BellOff aria-hidden="true" size={30} />} title="Todo al día" text="Aquí te llegan invitaciones, solicitudes y lo que pasa en tus planes." />
+        <div className="lg:col-span-2"><EmptyState icon={<BellOff aria-hidden="true" size={30} />} title="Todo al día" text="Aquí te llegan invitaciones, solicitudes y lo que pasa en tus planes." /></div>
       ) : (
         <>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-meta text-muted">{n.count > 0 ? `${n.count} esperan tu respuesta` : 'Nada espera tu respuesta'}</span>
-            <div className="flex gap-2">
-              <Button variant="secondary" className="h-11 rounded-md px-3 text-sm" onClick={n.markAllRead} disabled={!n.dot}><CheckCheck aria-hidden="true" size={16} className="mr-1.5" />Marcar leído</Button>
-              <Button variant="secondary" className="h-11 rounded-md px-3 text-sm" onClick={() => setConfirmAll(true)} disabled={deletable.length === 0}><Trash2 aria-hidden="true" size={16} className="mr-1.5" />Eliminar todas</Button>
-            </div>
+          <div className="flex flex-col gap-4 lg:col-start-1 lg:gap-6">
+            {!desktop && toolbar}
+            {byBucket.map(({ bucket, rows }) => (
+              <section key={bucket} aria-labelledby={`nb-${bucket}`} className="flex flex-col gap-2 lg:gap-3">
+                <h2 id={`nb-${bucket}`} className="text-meta font-bold lg:text-caption lg:tracking-[0.6px] lg:text-muted lg:uppercase">{bucket}</h2>
+                <ul className="flex flex-col gap-2 lg:gap-3">{rows.map(render)}</ul>
+              </section>
+            ))}
           </div>
-          {byBucket.map(({ bucket, rows }) => (
-            <section key={bucket} aria-labelledby={`nb-${bucket}`} className="flex flex-col gap-2">
-              <h2 id={`nb-${bucket}`} className="text-meta font-bold">{bucket}</h2>
-              <ul className="flex flex-col gap-2">{rows.map(render)}</ul>
-            </section>
-          ))}
+          {desktop && (
+            <aside aria-label="Resumen" className="sticky top-8 col-start-2 flex flex-col gap-4 rounded-lg border border-line bg-surface p-4">
+              <span className="flex items-baseline gap-2"><span className="text-[40px] leading-none font-extrabold text-ink">{n.count}</span><span className="text-sm font-bold text-muted">{n.count === 1 ? 'pendiente' : 'pendientes'}</span></span>
+              {toolbar}
+            </aside>
+          )}
         </>
       )}
 

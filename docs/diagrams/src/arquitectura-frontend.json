@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Arquitectura del frontend", "output": "arquitectura-frontend.html", "quality_profile": "showcase", "locale": "es" },
+  "components": [
+    { "id": "shell", "type": "frontend", "label": "Rutas y shell", "sublabel": "app/ · App, AppShell", "pos": [40, 150], "size": [150, 64], "tag": "móvil y escritorio" },
+    { "id": "features", "type": "frontend", "label": "Pantallas", "sublabel": "features/ · 16 áreas", "pos": [40, 300], "size": [150, 64] },
+    { "id": "design", "type": "frontend", "label": "Componentes", "sublabel": "design/ · Tailwind v4", "pos": [40, 450], "size": [150, 64] },
+    { "id": "tokens", "type": "database", "label": "Tokens de diseño", "sublabel": "tokens.json → theme.css", "pos": [40, 590], "size": [150, 64] },
+    { "id": "store", "type": "backend", "label": "Estado y acciones", "sublabel": "app/store.tsx", "pos": [290, 300], "size": [150, 64], "tag": "un solo estado" },
+    { "id": "lib", "type": "backend", "label": "Reglas puras", "sublabel": "lib/ · con pruebas", "pos": [290, 450], "size": [150, 64], "tag": "tz, XP, planes" },
+    { "id": "client", "type": "cloud", "label": "Cliente de API", "sublabel": "api/client.ts + Zod", "pos": [540, 300], "size": [150, 64], "tag": "única capa de red" },
+    { "id": "ws", "type": "cloud", "label": "Ubicación en vivo", "sublabel": "WebSocket", "pos": [540, 150], "size": [150, 64] },
+    { "id": "api", "type": "external", "label": "Backend Go", "sublabel": "REST + WebSocket", "pos": [790, 300], "size": [140, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "frontend/src", "wraps": ["shell", "features", "design", "tokens", "store", "lib", "client", "ws"] }
+  ],
+  "connections": [
+    { "id": "shell-features", "from": "shell", "to": "features", "label": "rutas" },
+    { "id": "features-store", "from": "features", "to": "store", "label": "useApp, useActions", "variant": "emphasis" },
+    { "id": "features-design", "from": "features", "to": "design", "label": "usa" },
+    { "id": "design-tokens", "from": "design", "to": "tokens", "label": "colores y tamaños" },
+    { "id": "store-lib", "from": "store", "to": "lib", "label": "calcula" },
+    { "id": "store-client", "from": "store", "to": "client", "label": "acciones", "variant": "emphasis" },
+    { "id": "store-ws", "from": "store", "to": "ws", "label": "ubicación", "variant": "dashed", "fromSide": "top", "toSide": "left" },
+    { "id": "client-api", "from": "client", "to": "api", "label": "REST", "variant": "emphasis" },
+    { "id": "ws-api", "from": "ws", "to": "api", "label": "WSS", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Flujo de datos", "items": ["Las pantallas leen y escriben solo por el store", "El store habla con el servidor solo por api/client.ts"] },
+    { "dot": "emerald", "title": "Reglas sin red", "items": ["lib/ concentra lo que se puede probar sin servidor", "Hora de México, XP, estado de un plan, distancias"] }
+  ]
+}

@@ -1,6 +1,6 @@
 import type { Event, Plan, User } from '@/api/schemas'
 import type { CardProps } from '@/design'
-import { EVENT_TYPES, PLAN_CATEGORIES } from '@/lib/category'
+import { eventLook, PLAN_CATEGORIES } from '@/lib/category'
 import { dayNumber, eventWhen, formatApproxDistance, monthShortUpper, timeLabel } from '@/lib/format'
 import { planEnd, planPhase, startLabel } from '@/lib/planTime'
 import { eventDistanceM, planDistanceM } from '@/lib/reach'
@@ -24,7 +24,7 @@ export function planToCard(plan: Plan, author: User, from: LatLng, now = Date.no
 }
 
 export function eventToCard(ev: Event, from: LatLng): CardProps {
-  const t = EVENT_TYPES[ev.type]
+  const t = eventLook(ev)
   return {
     variant: 'event',
     tileClass: t.tile,

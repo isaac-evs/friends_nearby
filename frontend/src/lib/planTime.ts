@@ -2,6 +2,8 @@
  * Tiempo de un plan o evento: hora de inicio + duración (planes) u hora de fin (eventos). Fases:
  *   upcoming (aún no empieza) · live (en curso: todavía te puedes unir) · ended (ya terminó).
  */
+import { TZ, dateKey, parseWall, startOfDay } from '@/lib/tz'
+
 const MIN = 60_000
 
 export type PlanPhase = 'upcoming' | 'live' | 'ended'
@@ -25,8 +27,8 @@ export const minutesUntilStart = (p: Timed, now = Date.now()) => Math.ceil((plan
 export const minutesUntilEnd = (p: Timed, now = Date.now()) => Math.max(0, Math.ceil((planEnd(p) - now) / MIN))
 
 const clock = (t: number) =>
-  new Date(t).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?\s?m\.?/i, (_, x: string) => ` ${x.toLowerCase()}m`)
-const dayStart = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime() }
+  new Date(t).toLocaleTimeString('es-MX', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?\s?m\.?/i, (_, x: string) => ` ${x.toLowerCase()}m`)
+const dayStart = (t: number) => startOfDay(t)
 
 /** "Hoy 7:00 pm", "Mañana 9:00 am" o "sáb 7:00 am". */
 export function startLabel(startsAt: string, now = Date.now()): string {
@@ -34,7 +36,7 @@ export function startLabel(startsAt: string, now = Date.now()): string {
   const days = Math.round((dayStart(t) - dayStart(now)) / 86_400_000)
   if (days === 0) return `Hoy ${clock(t)}`
   if (days === 1) return `Mañana ${clock(t)}`
-  const wd = new Date(t).toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '')
+  const wd = new Date(t).toLocaleDateString('es-MX', { timeZone: TZ, weekday: 'short' }).replace('.', '')
   return `${wd} ${clock(t)}`
 }
 
@@ -69,9 +71,8 @@ export function timeTodayIso(hhmm: string, now = Date.now()): string | null {
   const h = Number(m[1])
   const mi = Number(m[2])
   if (h > 23 || mi > 59) return null
-  const d = new Date(now)
-  d.setHours(h, mi, 0, 0)
-  return d.getTime() >= now - MIN ? d.toISOString() : null
+  const t = parseWall(dateKey(now), `${h}:${String(mi).padStart(2, '0')}`)
+  return t !== null && t >= now - MIN ? new Date(t).toISOString() : null
 }
 
 /**
@@ -79,18 +80,13 @@ export function timeTodayIso(hhmm: string, now = Date.now()): string | null {
  * o mover un plan.
  */
 export function dayTimeIso(date: string, hhmm: string, now = Date.now()): string | null {
-  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm)
-  if (!d || !m || Number(m[1]) > 23 || Number(m[2]) > 59) return null
-  const t = new Date(Number(d[1]), Number(d[2]) - 1, Number(d[3]), Number(m[1]), Number(m[2]), 0, 0)
-  if (Number.isNaN(t.getTime()) || t.getMonth() !== Number(d[2]) - 1) return null
-  return t.getTime() >= now - MIN ? t.toISOString() : null
+  const t = parseWall(date, hhmm)
+  return t !== null && t >= now - MIN ? new Date(t).toISOString() : null
 }
 
 /** Fecha local YYYY-MM-DD de hoy + `n` días. */
 export function dayStr(n: number, now = Date.now()): string {
-  const d = new Date(now); d.setDate(d.getDate() + n)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return dateKey(startOfDay(now, n))
 }
 
 /**
@@ -108,16 +104,11 @@ export function verifyWindow(p: Timed, now = Date.now()): 'early' | 'open' | 'cl
  * inicio, el evento termina al día siguiente. `null` si algo no es válido.
  */
 export function eventTimes(date: string, startHHMM: string, endHHMM: string): { startsAt: string; endsAt: string } | null {
-  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
-  const a = /^(\d{1,2}):(\d{2})$/.exec(startHHMM)
-  const b = /^(\d{1,2}):(\d{2})$/.exec(endHHMM)
-  if (!d || !a || !b) return null
-  const [y, mo, da] = [Number(d[1]), Number(d[2]) - 1, Number(d[3])]
-  const start = new Date(y, mo, da, Number(a[1]), Number(a[2]), 0, 0)
-  const end = new Date(y, mo, da, Number(b[1]), Number(b[2]), 0, 0)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null
-  if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1)
-  return { startsAt: start.toISOString(), endsAt: end.toISOString() }
+  const start = parseWall(date, startHHMM)
+  let end = parseWall(date, endHHMM)
+  if (start === null || end === null) return null
+  if (end <= start) end = startOfDay(end, 1) + (end - startOfDay(end)) // termina al día siguiente
+  return { startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString() }
 }
 
 /** "4:30 pm" de un instante ISO. */

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -336,6 +337,22 @@ func (t *socialTx) joinPlan(p *personal, plan *socialPlan, invited bool) (string
 }
 
 // joinEvent: todos los eventos piden el modo abierto (adulto), también si te invitaron; el cliente te lleva a activarlo primero.
+// rewardOrganizer: XP para quien organiza cuando alguien se une o llega a su evento (una vez por persona y motivo).
+func (t *socialTx) rewardOrganizer(caller *personal, ev *socialEvent, uid string, amount int, reason, kind string) error {
+	if uid == ev.Owner {
+		return nil
+	}
+	if ev.Owner == t.r.userID { // la persona que actúa es quien organiza: su documento se guarda al final
+		reward(caller, amount, reason, kind+":"+ev.ID+":"+uid)
+		return nil
+	}
+	owner, e := t.person(ev.Owner)
+	if e != nil {
+		return e
+	}
+	reward(&owner, amount, reason, kind+":"+ev.ID+":"+uid)
+	return t.putPerson(ev.Owner, owner)
+}
 func (t *socialTx) joinEvent(p *personal, ev *socialEvent) error {
 	id := t.r.userID
 	if ev.Canceled {
@@ -380,6 +397,9 @@ func (t *socialTx) joinEvent(p *personal, ev *socialEvent) error {
 	if status == "going" && !m.Rewarded {
 		reward(p, 40, "Asistencia aceptada", "attend:"+ev.ID)
 		m.Rewarded = true
+		if e := t.rewardOrganizer(p, ev, id, joinOrganizerXP, "Alguien se unió a tu evento", "joined"); e != nil {
+			return e
+		}
 		historyOnce(p, historyItem{ID: "event:" + ev.ID, Kind: "evento", Title: ev.Title, Category: ev.Type, Place: ev.Place, At: ev.Ends, Attendees: []string{ev.Owner, id}})
 	}
 	ev.Members[id] = m
@@ -718,7 +738,26 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		if e := t.checkSchedule(id, in.Starts, in.Ends, ""); e != nil {
 			return nil, e
 		}
-		ev := socialEvent{ID: uuid.NewString(), Owner: id, Type: in.EventType, Title: strings.TrimSpace(in.Title), Starts: in.Starts, Ends: in.Ends, Place: in.PlaceName, Center: *in.Center, Capacity: in.Capacity, Going: 1, Alias: strings.TrimSpace(in.Alias), Approval: in.Approval, Verify: eventVerify(in.Verify), Description: cleanText(in.Description, maxDescription), ChatEnabled: in.ChatEnabled != nil && *in.ChatEnabled, Late: in.Late, PhotoKey: in.PhotoKey, Friends: []string{}, XP: 40, Organizer: map[string]any{"name": "", "verified": false, "eventsCount": p.Events + 1}, Members: map[string]member{id: {Status: "going", Joined: nowISO()}}}
+		// "Otro" puede llevar nombre e ícono propios, solo para este evento (no se guardan como tipo).
+		subtype, typeIcon, typeColor := "", "", ""
+		if in.EventType == "otro" {
+			subtype = strings.TrimSpace(strings.Map(func(r rune) rune {
+				if unicode.IsControl(r) {
+					return -1
+				}
+				return r
+			}, in.Subtype))
+			if utf8.RuneCountInString(subtype) > maxSubtypeRunes {
+				subtype = string([]rune(subtype)[:maxSubtypeRunes])
+			}
+			if validChoice(in.TypeIcon, eventIcons) {
+				typeIcon = in.TypeIcon
+			}
+			if validChoice(in.TypeColor, eventColors) {
+				typeColor = in.TypeColor
+			}
+		}
+		ev := socialEvent{ID: uuid.NewString(), Owner: id, Type: in.EventType, Subtype: subtype, TypeIcon: typeIcon, TypeColor: typeColor, Title: strings.TrimSpace(in.Title), Starts: in.Starts, Ends: in.Ends, Place: in.PlaceName, Center: *in.Center, Capacity: in.Capacity, Going: 1, Alias: strings.TrimSpace(in.Alias), Approval: in.Approval, Verify: eventVerify(in.Verify), Description: cleanText(in.Description, maxDescription), ChatEnabled: in.ChatEnabled != nil && *in.ChatEnabled, Late: in.Late, PhotoKey: in.PhotoKey, Friends: []string{}, XP: 40, Organizer: map[string]any{"name": "", "verified": false, "eventsCount": p.Events + 1}, Members: map[string]member{id: {Status: "going", Joined: nowISO()}}}
 		p.Events++
 		p.Draft = nil
 		p.Commitments["event:"+ev.ID] = true
@@ -739,7 +778,7 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			return nil, invalid("Evento no encontrado.")
 		}
 		owner := ev.Owner == id
-		if in.Type != "eventMessage" && !owner {
+		if in.Type != "eventMessage" && in.Type != "deleteEventMessage" && !owner {
 			return nil, denied()
 		}
 		switch in.Type {
@@ -785,6 +824,8 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			for _, m := range ev.Timeline {
 				if m.ID != in.Message {
 					kept = append(kept, m)
+				} else if !owner && m.User != id {
+					return nil, denied()
 				}
 			}
 			ev.Timeline = kept
@@ -811,6 +852,48 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			}
 		}
 		return nil, t.save(eventsPK, ev.ID, ev)
+	case "checkInEvent":
+		var ev socialEvent
+		if e := t.load(eventsPK, in.ID, &ev); e != nil {
+			return nil, e
+		}
+		m := ev.Members[id]
+		if ev.ID == "" || ev.Canceled || m.Status != "going" || ev.Owner == id {
+			return nil, invalid("Evento no disponible.")
+		}
+		if !active(ev.Ends) {
+			return nil, invalid("El evento ya terminó.")
+		}
+		if instant(ev.Starts).Add(-checkInLeadMin * time.Minute).After(time.Now()) {
+			return nil, invalid("Se abre 10 minutos antes del evento.")
+		}
+		here := in.Center
+		if here == nil {
+			last, e := t.h.App.Loc.GetManyLast(t.r.ctx, []string{id})
+			if e != nil {
+				return nil, e
+			}
+			if l, ok := last[id]; ok && time.Since(time.UnixMilli(l.TS)) < 5*time.Minute {
+				here = &point{l.Lat, l.Lng}
+			}
+		}
+		if here == nil || !validPoint(*here) {
+			return nil, invalid("No pudimos ubicarte. Revisa el permiso de ubicación.")
+		}
+		if away := dist(*here, ev.Center); away > checkInMeters {
+			return nil, invalid(fmt.Sprintf("Aún no estás en el lugar (estás a unos %d m). Acércate un poco más.", (away+25)/50*50))
+		}
+		if m.Verified == "" {
+			m.Verified = nowISO()
+			ev.Members[id] = m
+			if e := t.rewardOrganizer(p, &ev, id, arriveOrganizerXP, "Alguien llegó a tu evento", "arrived"); e != nil {
+				return nil, e
+			}
+			addRecord(p, "ok")
+			p.Hangouts++
+			return nil, t.save(eventsPK, ev.ID, ev)
+		}
+		return nil, nil
 	case "joinEvent", "leaveEvent", "setPace", "approveAttendance", "rejectAttendance":
 		var ev socialEvent
 		if e := t.load(eventsPK, in.ID, &ev); e != nil {
@@ -887,6 +970,9 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			if !m.Rewarded {
 				reward(&q, 40, "Asistencia aceptada", "attend:"+ev.ID)
 				m.Rewarded = true
+				if e = t.rewardOrganizer(p, &ev, uid, joinOrganizerXP, "Alguien se unió a tu evento", "joined"); e != nil {
+					return nil, e
+				}
 				historyOnce(&q, historyItem{ID: "event:" + ev.ID, Kind: "evento", Title: ev.Title, Category: ev.Type, Place: ev.Place, At: ev.Ends, Attendees: []string{ev.Owner, uid}})
 			}
 			if e = t.putPerson(uid, q); e != nil {
@@ -1050,7 +1136,7 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		if !active(plan.Expires) {
 			return nil, invalid("El plan ya terminó.")
 		}
-		if (in.Type == "setChatTheme" || in.Type == "deleteChatMessage") && plan.Author != id {
+		if in.Type == "setChatTheme" && plan.Author != id {
 			return nil, denied()
 		}
 		if in.Type != "planMessage" && in.Type != "setChatTheme" && in.Type != "deleteChatMessage" && instant(plan.Starts).Add(-checkInLeadMin*time.Minute).After(time.Now()) {
@@ -1125,10 +1211,13 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 			}
 			plan.ChatTheme = in.Message
 		case "deleteChatMessage":
+			// Quien organiza borra cualquier mensaje; cada quien, los suyos.
 			kept := plan.Timeline[:0:0]
 			for _, m := range plan.Timeline {
 				if m.ID != in.Message {
 					kept = append(kept, m)
+				} else if plan.Author != id && m.User != id {
+					return nil, denied()
 				}
 			}
 			plan.Timeline = kept
@@ -1166,7 +1255,9 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 				continue
 			}
 			mem := plan.Members[id]
-			if !plan.Canceled && mem.Status == "going" && mem.Verified == "" && !mem.Settled && !joinedInProgress(plan, mem) {
+			// Si quien organiza no marcó nada pero alguien más sí llegó, el plan se hizo: no se le penaliza.
+			hostCovered := plan.Author == id && othersArrived(plan, id)
+			if !plan.Canceled && mem.Status == "going" && mem.Verified == "" && !mem.Settled && !joinedInProgress(plan, mem) && !hostCovered {
 				penalize(p, noShowPenalty, "No llegaste a un plan", "noshow:"+plan.ID, true)
 				mem.Settled = true
 				plan.Members[id] = mem
@@ -1200,6 +1291,14 @@ func (h *Handler) applySocial(t *socialTx, p *personal, in socialAction) (any, e
 		return nil, invalid("Acción no válida.")
 	}
 	return nil, nil
+}
+func othersArrived(plan socialPlan, except string) bool {
+	for uid, m := range plan.Members {
+		if uid != except && m.Status == "going" && m.Verified != "" {
+			return true
+		}
+	}
+	return false
 }
 func containsInt(list []int, value int) bool {
 	for _, n := range list {

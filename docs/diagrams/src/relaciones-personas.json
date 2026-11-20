@@ -1,0 +1,29 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": { "title": "Relaciones entre personas", "output": "relaciones-personas.html", "quality_profile": "showcase", "locale": "es" },
+  "mainPath": ["desconocido", "solicitud", "amigo", "cercano"],
+  "states": [
+    { "id": "desconocido", "type": "start", "label": "Desconocido", "sublabel": "no ve nada tuyo", "tag": "por defecto", "step": "01" },
+    { "id": "solicitud", "type": "waiting", "label": "Solicitud", "sublabel": "pendiente", "tag": "por usuario", "step": "02" },
+    { "id": "amigo", "type": "active", "label": "Amigo", "sublabel": "ve a cuántos metros andas", "tag": "100 m", "step": "03" },
+    { "id": "cercano", "type": "success", "label": "Amigo cercano", "sublabel": "te ve en el mapa", "tag": "aproximada", "step": "04" },
+    { "id": "pidecerca", "type": "waiting", "label": "Pide ser cercano", "sublabel": "de dos vías", "tag": "pendiente" },
+    { "id": "bloqueado", "type": "failure", "label": "Bloqueado", "sublabel": "sin contacto", "tag": "terminal" }
+  ],
+  "transitions": [
+    { "id": "desconocido-solicitud", "from": "desconocido", "to": "solicitud", "label": "envías solicitud" },
+    { "id": "solicitud-amigo", "from": "solicitud", "to": "amigo", "label": "aceptan" },
+    { "id": "amigo-cercano", "from": "amigo", "to": "cercano", "label": "aceptan los dos", "variant": "emphasis" },
+    { "id": "amigo-pide", "from": "amigo", "to": "pidecerca", "label": "pides cercano" },
+    { "id": "pide-cercano", "from": "pidecerca", "to": "cercano", "label": "acepta" },
+    { "id": "cercano-amigo", "from": "cercano", "to": "amigo", "label": "quitar cercano", "variant": "dashed" },
+    { "id": "amigo-desconocido", "from": "amigo", "to": "desconocido", "label": "eliminar", "variant": "dashed" },
+    { "id": "amigo-bloqueado", "from": "amigo", "to": "bloqueado", "label": "bloquear", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Amigo", "items": ["Ve tus planes", "Solo ve a cuántos metros andas, nunca en el mapa"] },
+    { "dot": "emerald", "title": "Amigo cercano", "items": ["Los dos aceptan", "Te ve aproximada en el mapa, dentro de tu radio", "Puedes darle tu ubicación exacta por un rato"] },
+    { "dot": "rose", "title": "Bloquear", "items": ["Rompe cualquier relación", "También se puede reportar a la persona"] }
+  ]
+}

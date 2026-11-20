@@ -88,7 +88,7 @@ export function AuthScreen() {
 
       {sent ? (
         <Notice tone="safety" icon="shield" role="status">
-          Si ese correo tiene cuenta, te mandamos un link para recuperarla. Revisa tu bandeja (y spam).
+          Si ese correo tiene cuenta, te mandamos un link. Revisa tu bandeja y spam.
         </Notice>
       ) : (
         <form noValidate onSubmit={submit} onAnimationEnd={() => setShaking(false)} className={cn('flex flex-col gap-3', shaking && 'shake-motion')}>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { EyeOff, MapPin, Eye } from 'lucide-react'
+import { Clock, MapPin, Eye } from 'lucide-react'
 import { Button, Notice } from '@/design'
 import { useActions } from '@/app/store'
 import { roundToCell, type LatLng } from '@/lib/geo'
@@ -45,7 +45,7 @@ export function PermissionScreen() {
           </p>
         </div>
         {phase === 'denied' && (
-          <Notice tone="warning" icon="lock" role="alert">No pudimos acceder a tu ubicación (permiso denegado o no disponible). No pasa nada.</Notice>
+          <Notice tone="warning" icon="lock" role="alert">No pudimos acceder a tu ubicación. No pasa nada.</Notice>
         )}
         </div>
         <div className="flex flex-1 flex-col gap-6 lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-8 lg:shadow-card">
@@ -84,7 +84,7 @@ export function PermissionScreen() {
       <ul className="flex flex-col gap-3.5">
         <Point tile="bg-cat-estudiar" icon={<Eye aria-hidden="true" size={20} />}>En el mapa solo se ve tu <strong className="text-ink">ubicación aproximada</strong>, y solo a tus amigos cercanos.</Point>
         <Point tile="bg-cat-comer" icon={<MapPin aria-hidden="true" size={20} />}>Tu punto exacto solo lo ve quien tú elijas, <strong className="text-ink">por el tiempo que elijas</strong>.</Point>
-        <Point tile="bg-cat-musica" icon={<EyeOff aria-hidden="true" size={20} />}><strong className="text-ink">Modo fantasma</strong>: desapareces de todo en un toque.</Point>
+        <Point tile="bg-cat-musica" icon={<Clock aria-hidden="true" size={20} />}><strong className="text-ink">Sin pausa</strong>: si te desconectas, tus amigos ven tu última ubicación con “hace cuánto”.</Point>
       </ul>
 
       <div className="mt-auto flex flex-col gap-2.5">
